@@ -122,11 +122,14 @@ export class HybridExtractor {
     const rules = parseMessage(message, now);
     const base: ExtractionResult = {
       ...rules,
-      items: rules.items.map((item) => ({
-        ...item,
-        confidence: null,
-        needs_confirmation: true,
-      })),
+      items:
+        mode === 'llm'
+          ? []
+          : rules.items.map((item) => ({
+              ...item,
+              confidence: null,
+              needs_confirmation: true,
+            })),
       path: 'rules',
       attempts: 0,
       usage: { ...ZERO },

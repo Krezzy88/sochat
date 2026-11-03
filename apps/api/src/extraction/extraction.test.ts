@@ -371,3 +371,16 @@ it('uses the operational clock for quotas, independently of evaluation/message d
   ).toContain('llm_cap_reached');
   expect(provider.calls).toBe(1);
 });
+
+it('does not borrow rule predictions when a forced LLM-only provider declines', async () => {
+  const { service } = setup([
+    {
+      items: [],
+      needs_clarification: true,
+      clarification_question: 'Bao nhiêu đồng?',
+    },
+  ]);
+  const result = await service.parseHybrid('phở 50k', NOW, 'u', 'llm');
+  expect(result.items).toEqual([]);
+  expect(result.needs_clarification).toBe(true);
+});
