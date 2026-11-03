@@ -84,15 +84,23 @@ identity; no cache expiry policy is implemented yet. Contributions reference
 boundary. Repositories additionally check category ownership and category type.
 This does not introduce custom-category UI or endpoints.
 
-## ADR-006: Defer monthly rollup
+## ADR-006: Retain covering index; do not add monthly rollup
 
-Date: 2026-11-03. Status: deferred pending owner measurements.
+Date: 2026-11-03. Status: accepted for Phase 2 after owner-run measurements.
 
-Use the covering index only. No 003 migration or rollup exists. Owner-run benchmark
-results and EXPLAIN plans are pending; no kit numbers are claimed for this machine.
-PostgreSQL 16 remains the charter baseline. PostgreSQL 18 local development is
-possible, but compatibility with 18 has NOT VERIFIED status until tested, and a
-baseline upgrade requires an explicit charter decision.
+On the owner's one-million-row synthetic PostgreSQL 18.6 workload (11 runs per
+query/scenario), covering index p50 was 0.013 ms for month, 0.012 ms for daily and
+0.092 ms for year; year p95 was 0.139 ms. All three retained covering plans used
+Index Only Scan with zero heap fetches. See EVIDENCE.md and the retained benchmark
+JSON for all samples and EXPLAIN ANALYZE BUFFERS plans.
+
+Keep migration 002 only. These measured costs do not currently justify a second
+aggregate representation and its write/reconciliation complexity. Rollup itself
+was not benchmarked, so no relative rollup speedup or lack of benefit is claimed.
+Revisit only for a measured production bottleneck or the owner's explicit request.
+The workload is warm-cache and selective (one of 1,000 synthetic users); these
+figures are database execution timings, not end-to-end API latency guarantees.
+PostgreSQL 18 supersedes the original baseline per ADR-010.
 
 ## ADR-010: Owner-approved PostgreSQL 18 baseline
 

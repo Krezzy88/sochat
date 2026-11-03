@@ -36,8 +36,9 @@ For a quick owner smoke check use ROWS=10000 RUNS=3; those results cannot stand 
 for the required million-row benchmark. Review reports for synthetic data only and
 share the benchmark JSON to record actual measurements in EVIDENCE.md.
 
-No benchmark has been run by the agent. Its implementation remains NOT VERIFIED
-until the owner executes it. Preserve previous results before rerunning.
+The owner-run million-row benchmark was inspected and accepted on 2026-11-03;
+see EVIDENCE.md and results/benchmark.json for samples, plans and limitations.
+No benchmark was run by the agent. Preserve previous results before rerunning.
 
 ## Installed local PostgreSQL 18
 
@@ -53,4 +54,4 @@ DATABASE_URL to a PostgreSQL connection URL for role sochat_dev and database
 sochat_dev on localhost:5432, percent-encoding special characters in the password.
 Do not send that URL in chat or commit it. Then run `npm run db:migrate`.
 Local sochat_dev connectivity and migrations were verified on PostgreSQL 18.6 on
-2026-11-03; see the latest EVIDENCE entry. Owner benchmark evidence remains pending.
+2026-11-03; see the latest EVIDENCE entry. Owner benchmark evidence is recorded in EVIDENCE.md.

@@ -96,5 +96,4 @@ MIT is a suggestion, not an approved license.
 ## Database
 
 See [database setup and owner benchmark](db/README.md). Run `npm run test:integration`
-with Docker running for the PostgreSQL 18 integration suite. Benchmark acceptance
-remains pending the owner's measurements.
+with Docker running for the PostgreSQL 18 integration suite. The owner-run million-row benchmark and its limitations are recorded in EVIDENCE.md.

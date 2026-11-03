@@ -519,3 +519,1340 @@ no held-out evaluation or Gemini call occurred.
 
 Post-migration verification: `npm run db:migrate` exited 0 on the existing local
 schema (checksum/idempotency check); `git check-ignore .env` returned `.env`.
+
+## 2026-11-03 — Owner benchmark accepted; Phase 2 gate ready
+
+Owner reported completing the benchmark. The agent inspected the resulting JSON
+and matching log without rerunning the benchmark. This entry supersedes the earlier
+pending benchmark status and, together with the preceding local-setup audit,
+completes Phase 2's implementation acceptance requirements. Await owner go for Phase 3.
+
+Owner command previously supplied:
+
+```sh
+ROWS=1000000 RUNS=11 ./db/bench.sh > /tmp/sochat-benchmark.log 2>&1
+```
+
+Retained artifact: [benchmark.json](../db/results/benchmark.json). The JSON and
+/tmp/sochat-benchmark.log are byte-identical. SHA-256:
+`81fdf8b2216ab6882731b170fff63393dbf904b8d8fcf293b10cfc5ccc1d3ade`.
+
+Generated at 2026-11-03T02:14:25.512Z (09:14:25, 3 November 2026 in Vietnam).
+Requested/seeded workload: 1,000,000 transactions, 1,000 synthetic users, seed
+20261103, 11 measured runs for each of nine query/scenario combinations, one warm-up
+excluded per combination. The script completed its generate_series insertion;
+actual row count is not separately recorded in this report and the disposable
+container has already been removed. No independent post-run count is claimed.
+
+Database version reported by the run:
+
+```text
+PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+```
+
+Host audit: Apple M2, Darwin arm64, macOS 27.0.1. Current Docker allocation observed
+at audit: 8 CPUs, 8,319,770,624 bytes RAM; Docker Engine 29.9.2. Commands:
+`uname -sm`, `sw_vers -productVersion`, `sysctl -n machdep.cpu.brand_string`,
+`docker info --format '{{json .MemTotal}} {{json .NCPU}} {{json .ServerVersion}}'`.
+These resource settings were observed after the run, not embedded in its metadata.
+
+Source checkout at audit: `c1bf776230367500b53519030acf17101062d502` (implementation
+c7c421b). git diff confirmed benchmark script, seed and migration files unchanged.
+The report does not embed a source commit or source hash; this association is
+reconstructed from the checkout and cannot independently prove the exact code
+used by the earlier process.
+
+### Validation and measured results
+
+Python validation checked exactly nine unique scenario/query combinations, all 99
+samples finite and nonnegative, 11 per combination, and recomputed every median
+and nearest-rank p95 from raw samples. Every check passed. With only 11 samples,
+nearest-rank p95 is the maximum observed sample; tails remain weakly estimated.
+
+| Scenario | Query | p50 ms | p95 ms | Scan in retained plan           |
+| -------- | ----- | ------ | ------ | ------------------------------- |
+| baseline | month | 20.954 | 22.738 | Seq Scan (parallel)             |
+| baseline | daily | 22.761 | 24.036 | Seq Scan (parallel)             |
+| baseline | year  | 23.291 | 24.717 | Seq Scan (parallel)             |
+| btree    | month | 0.026  | 0.034  | Bitmap Heap / Index Scan        |
+| btree    | daily | 0.023  | 0.031  | Bitmap Heap / Index Scan        |
+| btree    | year  | 0.161  | 0.185  | Bitmap Heap / Index Scan        |
+| covering | month | 0.013  | 0.025  | Index Only Scan; heap fetches 0 |
+| covering | daily | 0.012  | 0.021  | Index Only Scan; heap fetches 0 |
+| covering | year  | 0.092  | 0.139  | Index Only Scan; heap fetches 0 |
+
+Month/daily filter October 2026 expenses; year groups both income and expense over 2026. All target synthetic user 500, which owns about 1,000 of the million rows.
+The retained month/daily index plans read 25 candidate entries, retain 23 expenses;
+the year plan reads 271 candidate entries. Thus these are selective per-user reports,
+not whole-population aggregation timings. Times are PostgreSQL EXPLAIN execution
+milliseconds, excluding client/network, connection setup, authentication and API
+serialization. The workload is synthetic, sequential and warmed; retained plans
+show shared-buffer hits with zero reads. No concurrent-write, cold-cache or remote
+hosting performance claim follows from this experiment.
+
+ADR-006 now retains the covering index and defers rollup. No rollup migration or
+benchmark was added, and no unmeasured rollup comparison is claimed.
+
+### Retained EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
+
+Each block below is the final measured plan for that query/scenario. Its execution
+time may differ from the median because it is the last run, not the median run.
+Complete timing samples are retained in the linked JSON artifact.
+
+<details>
+<summary>baseline / month</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Aggregate",
+    "Strategy": "Sorted",
+    "Partial Mode": "Simple",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 21679.55,
+    "Total Cost": 21682.84,
+    "Plan Rows": 11,
+    "Plan Width": 40,
+    "Actual Startup Time": 18.929,
+    "Actual Total Time": 20.807,
+    "Actual Rows": 8,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Group Key": ["category_id"],
+    "Shared Hit Blocks": 12422,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Gather Merge",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 21679.55,
+        "Total Cost": 21682.58,
+        "Plan Rows": 26,
+        "Plan Width": 16,
+        "Actual Startup Time": 18.923,
+        "Actual Total Time": 20.799,
+        "Actual Rows": 23,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Workers Planned": 2,
+        "Workers Launched": 2,
+        "Shared Hit Blocks": 12422,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 20679.52,
+            "Total Cost": 20679.55,
+            "Plan Rows": 11,
+            "Plan Width": 16,
+            "Actual Startup Time": 12.346,
+            "Actual Total Time": 12.347,
+            "Actual Rows": 7.67,
+            "Actual Loops": 3,
+            "Disabled": false,
+            "Sort Key": ["category_id"],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 25,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 12422,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Workers": [
+              {
+                "Worker Number": 0,
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory"
+              },
+              {
+                "Worker Number": 1,
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory"
+              }
+            ],
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": true,
+                "Async Capable": false,
+                "Relation Name": "transactions",
+                "Alias": "transactions",
+                "Startup Cost": 0,
+                "Total Cost": 20679.33,
+                "Plan Rows": 11,
+                "Plan Width": 16,
+                "Actual Startup Time": 1.342,
+                "Actual Total Time": 12.318,
+                "Actual Rows": 7.67,
+                "Actual Loops": 3,
+                "Disabled": false,
+                "Filter": "((occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date) AND (user_id = '500'::bigint) AND (type = 'expense'::txn_type))",
+                "Rows Removed by Filter": 333326,
+                "Shared Hit Blocks": 12346,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Workers": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.065,
+  "Triggers": [],
+  "Execution Time": 20.821
+}
+```
+
+</details>
+
+<details>
+<summary>baseline / daily</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Aggregate",
+    "Strategy": "Sorted",
+    "Partial Mode": "Simple",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 21679.55,
+    "Total Cost": 21683.03,
+    "Plan Rows": 26,
+    "Plan Width": 36,
+    "Actual Startup Time": 19.67,
+    "Actual Total Time": 21.769,
+    "Actual Rows": 16,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Group Key": ["occurred_on"],
+    "Shared Hit Blocks": 12422,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Gather Merge",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 21679.55,
+        "Total Cost": 21682.58,
+        "Plan Rows": 26,
+        "Plan Width": 12,
+        "Actual Startup Time": 19.66,
+        "Actual Total Time": 21.752,
+        "Actual Rows": 23,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Workers Planned": 2,
+        "Workers Launched": 2,
+        "Shared Hit Blocks": 12422,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 20679.52,
+            "Total Cost": 20679.55,
+            "Plan Rows": 11,
+            "Plan Width": 12,
+            "Actual Startup Time": 12.869,
+            "Actual Total Time": 12.87,
+            "Actual Rows": 7.67,
+            "Actual Loops": 3,
+            "Disabled": false,
+            "Sort Key": ["occurred_on"],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 25,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 12422,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Workers": [
+              {
+                "Worker Number": 0,
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory"
+              },
+              {
+                "Worker Number": 1,
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory"
+              }
+            ],
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": true,
+                "Async Capable": false,
+                "Relation Name": "transactions",
+                "Alias": "transactions",
+                "Startup Cost": 0,
+                "Total Cost": 20679.33,
+                "Plan Rows": 11,
+                "Plan Width": 12,
+                "Actual Startup Time": 2.628,
+                "Actual Total Time": 12.841,
+                "Actual Rows": 7.67,
+                "Actual Loops": 3,
+                "Disabled": false,
+                "Filter": "((occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date) AND (user_id = '500'::bigint) AND (type = 'expense'::txn_type))",
+                "Rows Removed by Filter": 333326,
+                "Shared Hit Blocks": 12346,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Workers": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.046,
+  "Triggers": [],
+  "Execution Time": 21.784
+}
+```
+
+</details>
+
+<details>
+<summary>baseline / year</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Aggregate",
+    "Strategy": "Sorted",
+    "Partial Mode": "Simple",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 20642.48,
+    "Total Cost": 20683.31,
+    "Plan Rows": 272,
+    "Plan Width": 44,
+    "Actual Startup Time": 21.107,
+    "Actual Total Time": 23.014,
+    "Actual Rows": 19,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Group Key": [
+      "(date_trunc('month'::text, (occurred_on)::timestamp with time zone))",
+      "type"
+    ],
+    "Shared Hit Blocks": 12438,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Gather Merge",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 20642.48,
+        "Total Cost": 20676.37,
+        "Plan Rows": 291,
+        "Plan Width": 20,
+        "Actual Startup Time": 21.084,
+        "Actual Total Time": 22.991,
+        "Actual Rows": 271,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Workers Planned": 2,
+        "Workers Launched": 2,
+        "Shared Hit Blocks": 12438,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 19642.46,
+            "Total Cost": 19642.76,
+            "Plan Rows": 121,
+            "Plan Width": 20,
+            "Actual Startup Time": 14.414,
+            "Actual Total Time": 14.418,
+            "Actual Rows": 90.33,
+            "Actual Loops": 3,
+            "Disabled": false,
+            "Sort Key": [
+              "(date_trunc('month'::text, (occurred_on)::timestamp with time zone))",
+              "type"
+            ],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 30,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 12438,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Workers": [
+              {
+                "Worker Number": 0,
+                "Sort Method": "quicksort",
+                "Sort Space Used": 27,
+                "Sort Space Type": "Memory"
+              },
+              {
+                "Worker Number": 1,
+                "Sort Method": "quicksort",
+                "Sort Space Used": 27,
+                "Sort Space Type": "Memory"
+              }
+            ],
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": true,
+                "Async Capable": false,
+                "Relation Name": "transactions",
+                "Alias": "transactions",
+                "Startup Cost": 0,
+                "Total Cost": 19638.27,
+                "Plan Rows": 121,
+                "Plan Width": 20,
+                "Actual Startup Time": 0.207,
+                "Actual Total Time": 14.37,
+                "Actual Rows": 90.33,
+                "Actual Loops": 3,
+                "Disabled": false,
+                "Filter": "((occurred_on >= '2026-01-01'::date) AND (occurred_on < '2027-01-01'::date) AND (user_id = '500'::bigint))",
+                "Rows Removed by Filter": 333243,
+                "Shared Hit Blocks": 12346,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Workers": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.055,
+  "Triggers": [],
+  "Execution Time": 23.029
+}
+```
+
+</details>
+
+<details>
+<summary>btree / month</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Aggregate",
+    "Strategy": "Sorted",
+    "Partial Mode": "Simple",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 117.77,
+    "Total Cost": 118.1,
+    "Plan Rows": 11,
+    "Plan Width": 40,
+    "Actual Startup Time": 0.014,
+    "Actual Total Time": 0.017,
+    "Actual Rows": 8,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Group Key": ["category_id"],
+    "Shared Hit Blocks": 28,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Sort",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 117.77,
+        "Total Cost": 117.83,
+        "Plan Rows": 26,
+        "Plan Width": 16,
+        "Actual Startup Time": 0.014,
+        "Actual Total Time": 0.014,
+        "Actual Rows": 23,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Sort Key": ["category_id"],
+        "Sort Method": "quicksort",
+        "Sort Space Used": 25,
+        "Sort Space Type": "Memory",
+        "Shared Hit Blocks": 28,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Bitmap Heap Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Relation Name": "transactions",
+            "Alias": "transactions",
+            "Startup Cost": 4.79,
+            "Total Cost": 117.16,
+            "Plan Rows": 26,
+            "Plan Width": 16,
+            "Actual Startup Time": 0.004,
+            "Actual Total Time": 0.011,
+            "Actual Rows": 23,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Recheck Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date))",
+            "Rows Removed by Index Recheck": 0,
+            "Filter": "(type = 'expense'::txn_type)",
+            "Rows Removed by Filter": 2,
+            "Exact Heap Blocks": 25,
+            "Lossy Heap Blocks": 0,
+            "Shared Hit Blocks": 28,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Bitmap Index Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Index Name": "bench_btree",
+                "Startup Cost": 0,
+                "Total Cost": 4.79,
+                "Plan Rows": 29,
+                "Plan Width": 0,
+                "Actual Startup Time": 0.002,
+                "Actual Total Time": 0.002,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Index Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date))",
+                "Index Searches": 1,
+                "Shared Hit Blocks": 3,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.016,
+  "Triggers": [],
+  "Execution Time": 0.021
+}
+```
+
+</details>
+
+<details>
+<summary>btree / daily</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Aggregate",
+    "Strategy": "Sorted",
+    "Partial Mode": "Simple",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 117.77,
+    "Total Cost": 118.29,
+    "Plan Rows": 26,
+    "Plan Width": 36,
+    "Actual Startup Time": 0.02,
+    "Actual Total Time": 0.025,
+    "Actual Rows": 16,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Group Key": ["occurred_on"],
+    "Shared Hit Blocks": 28,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Sort",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 117.77,
+        "Total Cost": 117.83,
+        "Plan Rows": 26,
+        "Plan Width": 12,
+        "Actual Startup Time": 0.019,
+        "Actual Total Time": 0.02,
+        "Actual Rows": 23,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Sort Key": ["occurred_on"],
+        "Sort Method": "quicksort",
+        "Sort Space Used": 25,
+        "Sort Space Type": "Memory",
+        "Shared Hit Blocks": 28,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Bitmap Heap Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Relation Name": "transactions",
+            "Alias": "transactions",
+            "Startup Cost": 4.79,
+            "Total Cost": 117.16,
+            "Plan Rows": 26,
+            "Plan Width": 12,
+            "Actual Startup Time": 0.007,
+            "Actual Total Time": 0.016,
+            "Actual Rows": 23,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Recheck Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date))",
+            "Rows Removed by Index Recheck": 0,
+            "Filter": "(type = 'expense'::txn_type)",
+            "Rows Removed by Filter": 2,
+            "Exact Heap Blocks": 25,
+            "Lossy Heap Blocks": 0,
+            "Shared Hit Blocks": 28,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Bitmap Index Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Index Name": "bench_btree",
+                "Startup Cost": 0,
+                "Total Cost": 4.79,
+                "Plan Rows": 29,
+                "Plan Width": 0,
+                "Actual Startup Time": 0.003,
+                "Actual Total Time": 0.003,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Index Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date))",
+                "Index Searches": 1,
+                "Shared Hit Blocks": 3,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.025,
+  "Triggers": [],
+  "Execution Time": 0.031
+}
+```
+
+</details>
+
+<details>
+<summary>btree / year</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Sort",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 1045.82,
+    "Total Cost": 1046.49,
+    "Plan Rows": 270,
+    "Plan Width": 44,
+    "Actual Startup Time": 0.143,
+    "Actual Total Time": 0.144,
+    "Actual Rows": 19,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Sort Key": [
+      "(date_trunc('month'::text, (occurred_on)::timestamp with time zone))",
+      "type"
+    ],
+    "Sort Method": "quicksort",
+    "Sort Space Used": 25,
+    "Sort Space Type": "Memory",
+    "Shared Hit Blocks": 275,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Aggregate",
+        "Strategy": "Hashed",
+        "Partial Mode": "Simple",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 1030.19,
+        "Total Cost": 1034.92,
+        "Plan Rows": 270,
+        "Plan Width": 44,
+        "Actual Startup Time": 0.138,
+        "Actual Total Time": 0.141,
+        "Actual Rows": 19,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Group Key": [
+          "date_trunc('month'::text, (occurred_on)::timestamp with time zone)",
+          "type"
+        ],
+        "Planned Partitions": 0,
+        "HashAgg Batches": 1,
+        "Peak Memory Usage": 48,
+        "Disk Usage": 0,
+        "Shared Hit Blocks": 275,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Bitmap Heap Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Relation Name": "transactions",
+            "Alias": "transactions",
+            "Startup Cost": 8.11,
+            "Total Cost": 1028.02,
+            "Plan Rows": 289,
+            "Plan Width": 20,
+            "Actual Startup Time": 0.023,
+            "Actual Total Time": 0.114,
+            "Actual Rows": 271,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Recheck Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-01-01'::date) AND (occurred_on < '2027-01-01'::date))",
+            "Rows Removed by Index Recheck": 0,
+            "Exact Heap Blocks": 271,
+            "Lossy Heap Blocks": 0,
+            "Shared Hit Blocks": 275,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Bitmap Index Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Index Name": "bench_btree",
+                "Startup Cost": 0,
+                "Total Cost": 8.04,
+                "Plan Rows": 289,
+                "Plan Width": 0,
+                "Actual Startup Time": 0.011,
+                "Actual Total Time": 0.011,
+                "Actual Rows": 271,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Index Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-01-01'::date) AND (occurred_on < '2027-01-01'::date))",
+                "Index Searches": 1,
+                "Shared Hit Blocks": 4,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.017,
+  "Triggers": [],
+  "Execution Time": 0.149
+}
+```
+
+</details>
+
+<details>
+<summary>covering / month</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Aggregate",
+    "Strategy": "Hashed",
+    "Partial Mode": "Simple",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 5.28,
+    "Total Cost": 5.42,
+    "Plan Rows": 11,
+    "Plan Width": 40,
+    "Actual Startup Time": 0.011,
+    "Actual Total Time": 0.012,
+    "Actual Rows": 8,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Group Key": ["category_id"],
+    "Planned Partitions": 0,
+    "HashAgg Batches": 1,
+    "Peak Memory Usage": 32,
+    "Disk Usage": 0,
+    "Shared Hit Blocks": 4,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Index Only Scan",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Scan Direction": "Forward",
+        "Index Name": "transactions_user_date_cover_idx",
+        "Relation Name": "transactions",
+        "Alias": "transactions",
+        "Startup Cost": 0.42,
+        "Total Cost": 5.15,
+        "Plan Rows": 27,
+        "Plan Width": 16,
+        "Actual Startup Time": 0.004,
+        "Actual Total Time": 0.006,
+        "Actual Rows": 23,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Index Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date))",
+        "Rows Removed by Index Recheck": 0,
+        "Filter": "(type = 'expense'::txn_type)",
+        "Rows Removed by Filter": 2,
+        "Heap Fetches": 0,
+        "Index Searches": 1,
+        "Shared Hit Blocks": 4,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.031,
+  "Triggers": [],
+  "Execution Time": 0.02
+}
+```
+
+</details>
+
+<details>
+<summary>covering / daily</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Aggregate",
+    "Strategy": "Sorted",
+    "Partial Mode": "Simple",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 0.42,
+    "Total Cost": 5.62,
+    "Plan Rows": 27,
+    "Plan Width": 36,
+    "Actual Startup Time": 0.008,
+    "Actual Total Time": 0.013,
+    "Actual Rows": 16,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Group Key": ["occurred_on"],
+    "Shared Hit Blocks": 4,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Index Only Scan",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Scan Direction": "Backward",
+        "Index Name": "transactions_user_date_cover_idx",
+        "Relation Name": "transactions",
+        "Alias": "transactions",
+        "Startup Cost": 0.42,
+        "Total Cost": 5.15,
+        "Plan Rows": 27,
+        "Plan Width": 12,
+        "Actual Startup Time": 0.006,
+        "Actual Total Time": 0.008,
+        "Actual Rows": 23,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Index Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-10-01'::date) AND (occurred_on < '2026-11-01'::date))",
+        "Rows Removed by Index Recheck": 0,
+        "Filter": "(type = 'expense'::txn_type)",
+        "Rows Removed by Filter": 2,
+        "Heap Fetches": 0,
+        "Index Searches": 1,
+        "Shared Hit Blocks": 4,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.035,
+  "Triggers": [],
+  "Execution Time": 0.021
+}
+```
+
+</details>
+
+<details>
+<summary>covering / year</summary>
+
+```json
+{
+  "Plan": {
+    "Node Type": "Sort",
+    "Parallel Aware": false,
+    "Async Capable": false,
+    "Startup Cost": 34.5,
+    "Total Cost": 35.19,
+    "Plan Rows": 273,
+    "Plan Width": 44,
+    "Actual Startup Time": 0.083,
+    "Actual Total Time": 0.084,
+    "Actual Rows": 19,
+    "Actual Loops": 1,
+    "Disabled": false,
+    "Sort Key": [
+      "(date_trunc('month'::text, (occurred_on)::timestamp with time zone))",
+      "type"
+    ],
+    "Sort Method": "quicksort",
+    "Sort Space Used": 25,
+    "Sort Space Type": "Memory",
+    "Shared Hit Blocks": 5,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0,
+    "Plans": [
+      {
+        "Node Type": "Aggregate",
+        "Strategy": "Hashed",
+        "Partial Mode": "Simple",
+        "Parent Relationship": "Outer",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 18.68,
+        "Total Cost": 23.46,
+        "Plan Rows": 273,
+        "Plan Width": 44,
+        "Actual Startup Time": 0.077,
+        "Actual Total Time": 0.08,
+        "Actual Rows": 19,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Group Key": [
+          "date_trunc('month'::text, (occurred_on)::timestamp with time zone)",
+          "type"
+        ],
+        "Planned Partitions": 0,
+        "HashAgg Batches": 1,
+        "Peak Memory Usage": 48,
+        "Disk Usage": 0,
+        "Shared Hit Blocks": 5,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Index Only Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Scan Direction": "Forward",
+            "Index Name": "transactions_user_date_cover_idx",
+            "Relation Name": "transactions",
+            "Alias": "transactions",
+            "Startup Cost": 0.42,
+            "Total Cost": 16.48,
+            "Plan Rows": 293,
+            "Plan Width": 20,
+            "Actual Startup Time": 0.008,
+            "Actual Total Time": 0.048,
+            "Actual Rows": 271,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Index Cond": "((user_id = '500'::bigint) AND (occurred_on >= '2026-01-01'::date) AND (occurred_on < '2027-01-01'::date))",
+            "Rows Removed by Index Recheck": 0,
+            "Heap Fetches": 0,
+            "Index Searches": 1,
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          }
+        ]
+      }
+    ]
+  },
+  "Planning": {
+    "Shared Hit Blocks": 0,
+    "Shared Read Blocks": 0,
+    "Shared Dirtied Blocks": 0,
+    "Shared Written Blocks": 0,
+    "Local Hit Blocks": 0,
+    "Local Read Blocks": 0,
+    "Local Dirtied Blocks": 0,
+    "Local Written Blocks": 0,
+    "Temp Read Blocks": 0,
+    "Temp Written Blocks": 0
+  },
+  "Planning Time": 0.03,
+  "Triggers": [],
+  "Execution Time": 0.093
+}
+```
+
+</details>
+
+### Phase 2 completion and remaining verification limits
+
+- Local PostgreSQL 18.6 connectivity and migration application: verified in prior audit.
+- Empty-database migrations, SQL constraints, isolation, deletion and correct fixture
+  report sums: 13 PostgreSQL 18 integration tests passed in prior audit.
+- Lint/typecheck and 154 existing unit tests passed in prior audit. No source code
+  changed in this documentation-only acceptance update, so those tests were not rerun.
+- Reverted zero-amount constraint mutation: failure demonstrated and restoration
+  verified by integration suite; coverage recorded above.
+- Owner million-row benchmark, raw samples and all nine plans: inspected and accepted
+  with the explicit provenance/workload caveats above. Rollup decision recorded.
+- Remote GitHub CI/PR and clean-clone installation remain NOT VERIFIED; no hosted
+  pass claim is made. No held-out evaluation or Gemini call occurred.
+
+Phase 2 gate is ready for owner review. Do not implement Phase 3 until the next go.
