@@ -2514,3 +2514,57 @@ Safari/Firefox, real devices, assistive technology, full security/privacy harden
 public deployment remain unverified. Owner has approved screenshots and branch publication;
 no additional API key or benchmark is required. Phase 6 remains behind its explicit
 go gate. No Phase 6 implementation or deployment was performed.
+
+## 2026-11-03 — Phase 6 security/privacy local verification
+
+Owner requested go phase 6. Implementation e9cd08d91edf892b45b3d2db486b09af90f455a7,
+branch feat/phase-6. Darwin arm64, Node 22.23.4/npm 10.9.4, disposable PostgreSQL
+18.6. Added explicit operational-log field selection and runtime-extra-field
+regression; security/threat/privacy documents and Settings retention explanation;
+Dependabot npm/actions monitoring and CI audit/ bounded tracked-file secret check.
+Existing Helmet, strict CORS, Secure production cookie/HTTPS, CSRF and session
+rotation/revocation remain covered by PostgreSQL HTTP tests. Dynamic deletion
+assertions enumerate all public user_id columns, including all device sessions.
+RLS remains deferred as an owner-decided stretch, not silently enabled.
+
+Commands: npm run lint, npm run typecheck, npm run web:build, npm test all exited 0.
+Unit result: 8 files, 202 passed. npm run test:integration: 3 files, 50 passed.
+node scripts/check-secrets.mjs passed after staging/committing the new files;
+this checks limited patterns and environment-file names, not every possible secret.
+
+npm audit --json (network-enabled): 21 moderate entries, development tooling chains
+including ESLint/minimatch, Testcontainers/archiver and Lighthouse/Sentry. Registry
+fix suggestions include incompatible major downgrades; no force fix or claim of
+zero development vulnerabilities. npm audit --omit=dev --json exited 0 and reported
+0 total vulnerabilities. No dependency versions were changed. CI rejects high or
+critical advisories; moderate entries remain explicitly tracked for upstream fixes.
+
+Mutation: temporarily serialized the whole runtime event instead of its selected
+fields in log.ts. npm test -- apps/api/src/extraction/log.test.ts failed (1 test),
+with extra message/email/password/API-key/user fields present. Restored source in
+finally; full 202-test suite passed. Existing provider-error log-redaction test
+also passes. Operational logs contain no raw HTTP/provider/SQL objects.
+
+npm run e2e built successfully but refused to start because localhost:5173 was
+already occupied. Existing user server was not stopped or reused. The default-port attempt is not a passing browser result. No real
+Gemini call, held-out evaluation or local user-data modification was performed.
+No Phase 6 remote push/PR/hosted CI is claimed. Later deployment must verify TLS/
+proxy topology, infrastructure access logs and backup/provider retention; database
+cascade does not establish physical erasure from external copies. Stop at Phase 6 gate.
+
+### Alternate-port browser verification
+
+To avoid disturbing the occupied user server, cloned e9cd08d without hardlinks into
+/private/tmp/sochat-phase6-e9cd08d and symlinked existing installed node_modules.
+This is not a fresh npm ci claim. Only test origin/preview/API port references in
+that temporary checkout were changed from 5173/3000 to 5273/3100; no application
+logic was altered. npm run e2e exited 0: **14 passed**, 28.0 seconds, desktop/mobile
+Chromium, disposable PostgreSQL 18/FakeProvider. It cleaned up its own servers.
+Original checkout ports/configuration were left unchanged. Temporary screenshots
+were not copied over the owner's approved Phase 5 README images.
+
+npm run test:coverage also exited 0: 202 passed; configured unit-scope line coverage
+79.83% (471/590), statements 79.19%, branches 78.50%, functions 77.08%. Scope is
+runtime guard/parser/extraction/eval, not HTTP/React or combined application coverage.
+Browser ranges in the alternate-port run were 304750/665050 (45.82%), including
+bundled dependencies, not TypeScript lines. No coverage threshold added in Phase 6.

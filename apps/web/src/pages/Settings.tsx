@@ -115,6 +115,14 @@ export default function Settings({
             Bạn kiểm tra và xác nhận trước khi ghi sổ. Không có phân tích hành
             vi, trình theo dõi hoặc liên kết ngân hàng.
           </p>
+          <p>
+            Dữ liệu đã xác nhận được giữ đến khi bạn sửa, xóa hoặc xóa tài
+            khoản. Cache phân tích có thời hạn 24 giờ và được dọn khi sử dụng;
+            bản nháp chỉ ở bộ nhớ trình duyệt. Xóa tài khoản thu hồi mọi phiên
+            và xóa dữ liệu gắn với tài khoản trong cơ sở dữ liệu. Việc này không
+            bảo đảm xóa dữ liệu đã gửi tại nhà cung cấp Gemini hoặc bản sao lưu
+            bên ngoài.
+          </p>
         </section>
         <section className="panel settings-card danger-zone">
           <h2>Xóa tài khoản</h2>
