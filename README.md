@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 1 parser and rules evaluation**. There is no running API, database or web application yet.
+Status: **Phase 2 database and repositories**. Database migrations and repositories are available; there is no HTTP API or web application yet.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP will support authentication, chat extraction with editable confirmation,
@@ -37,7 +37,7 @@ npm run format
 cp .env.example .env
 ```
 
-The current phase does not load `.env`, require Docker, connect to PostgreSQL or call Gemini.
+Parser/evaluation commands do not load `.env` or call Gemini. Database migrations load `.env`; integration tests require Docker and use isolated PostgreSQL 18.
 Never commit API keys or real personal/financial data. Tests and CI will use a
 deterministic fake extraction provider when the LLM phase is implemented.
 
@@ -92,3 +92,9 @@ tested. [Architecture decisions](docs/DECISIONS.md) record the initial choices;
 
 License: **not selected**. `UNLICENSED` reserves rights until the owner decides;
 MIT is a suggestion, not an approved license.
+
+## Database
+
+See [database setup and owner benchmark](db/README.md). Run `npm run test:integration`
+with Docker running for the PostgreSQL 18 integration suite. Benchmark acceptance
+remains pending the owner's measurements.

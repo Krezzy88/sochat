@@ -60,3 +60,45 @@ SQL aggregation and covering indexes can be benchmarked directly with `EXPLAIN
 evidence or explicit request. The kit's benchmark results do not justify adding it.
 Transport serialization and JavaScript integer handling must be explicit when the
 database and API are implemented. No ORM, rollup or database container is added in Phase 0.
+
+## ADR-008: Forward-only transactional SQL migrations
+
+Date: 2026-11-03. Status: implemented for Phase 2.
+
+Use a small pg runner: one transaction with an advisory transaction lock, sorted
+SQL files and SHA-256 checksums in schema_migrations. Reject missing, changed and
+out-of-order applied migrations. A failure rolls back the entire pending batch.
+DDL file contents are trusted source; runtime values always use query parameters.
+No rollback migrations are supplied. Run with a database administrator connection;
+future application credentials should not have DDL privileges.
+
+## ADR-009: User-owned extraction cache and contribution integrity
+
+Date: 2026-11-03. Status: implemented for Phase 2.
+
+Partition cache keys by user and cascade cache deletion from users. Cache responses
+can contain notes, so a globally shared response cache cannot meet account-deletion
+requirements. Phase 3 must include local date, model and prompt version in cache
+identity; no cache expiry policy is implemented yet. Contributions reference
+(goal_id,user_id) together to prohibit cross-owner contributions at the database
+boundary. Repositories additionally check category ownership and category type.
+This does not introduce custom-category UI or endpoints.
+
+## ADR-006: Defer monthly rollup
+
+Date: 2026-11-03. Status: deferred pending owner measurements.
+
+Use the covering index only. No 003 migration or rollup exists. Owner-run benchmark
+results and EXPLAIN plans are pending; no kit numbers are claimed for this machine.
+PostgreSQL 16 remains the charter baseline. PostgreSQL 18 local development is
+possible, but compatibility with 18 has NOT VERIFIED status until tested, and a
+baseline upgrade requires an explicit charter decision.
+
+## ADR-010: Owner-approved PostgreSQL 18 baseline
+
+Date: 2026-11-03. Owner explicitly requested the installed local PostgreSQL 18.
+Upgrade the charter and active instructions to 18. Develop against a dedicated
+local database, and retain disposable PostgreSQL 18 Testcontainers for integration
+tests and CI. This avoids mixing test fixtures with local data while keeping the
+same major version. Earlier PostgreSQL 16 test results remain historical evidence,
+not proof of 18 compatibility. No speedup is claimed without measurements.

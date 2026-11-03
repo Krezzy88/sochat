@@ -19,7 +19,7 @@ The point of the project is **verifiable engineering evidence**: measured extrac
 - **Audience:** Vietnamese university students. **Platform:** responsive web app with a public demo link (demo data only).
 - **MVP scope:** auth; chat → parse → confirm → save; transaction list (filter/edit/delete); month and year reports; monthly category budgets; simple savings goals ("quỹ mục tiêu"); CSV export; delete account.
 - **Out of scope for v1:** tax calculation/advice, markets/investing, bank or e-wallet integration, receipt OCR, multi-currency, shared wallets, native mobile app, push notifications, financial advice from AI.
-- **Stack:** Node.js 22 LTS + TypeScript (strict) + Express 5 + zod · PostgreSQL 16 (plain SQL migrations, `pg`) · React + Vite + TypeScript + Recharts · Vitest · Testcontainers · Playwright · Docker Compose · GitHub Actions.
+- **Stack:** Node.js 22 LTS + TypeScript (strict) + Express 5 + zod · PostgreSQL 18 (plain SQL migrations, `pg`) · React + Vite + TypeScript + Recharts · Vitest · Testcontainers · Playwright · Docker Compose · GitHub Actions.
 - **LLM:** Gemini API behind an `ExtractionProvider` interface; model id from env; a deterministic `FakeProvider` for tests/CI.
 - **Money:** integer VND (`bigint`), never floats. Dates are calendar dates in `Asia/Ho_Chi_Minh` (UTC+7, no DST); "now" is always injected.
 - **Categories (keys):** expense `an_uong, di_chuyen, nha_tro, hoc_tap, giai_tri, mua_sam, suc_khoe, hoa_don, khac` · income `tro_cap, luong, lam_them, thu_khac`.
@@ -71,7 +71,7 @@ Use `REFERENCE_SNIPPETS.md` as a **starting point, not truth**: port, compile, r
 
 ### Phase 2 — Database, integration tests, benchmark
 1. `db/migrations/001_schema.sql` and `002_reporting_indexes.sql` from the reference, with a tiny forward-only migration runner (or a vetted tool; record the choice in an ADR). Parameterised queries only. Repository layer per aggregate.
-2. Testcontainers integration tests against real PostgreSQL 16: CHECK constraints (amount > 0, ≤ 1e11; budget month must be the first day), unique category key per user, `ON DELETE CASCADE` from `users` removes every dependent row, report queries return correct sums on a hand-computed fixture, one user can never read another's rows through any repository function.
+2. Testcontainers integration tests against real PostgreSQL 18: CHECK constraints (amount > 0, ≤ 1e11; budget month must be the first day), unique category key per user, `ON DELETE CASCADE` from `users` removes every dependent row, report queries return correct sums on a hand-computed fixture, one user can never read another's rows through any repository function.
 3. `db/bench.sh` (reference) and a deterministic seed generator (fixed seed). The **owner** runs the benchmark on their machine; you record the table and the `EXPLAIN (ANALYZE, BUFFERS)` of each query in `docs/EVIDENCE.md`.
 4. **Monthly rollup is optional.** In the authoring sandbox, at 1M rows, a covering index already gave year-view p50 ≈ 0.25 ms against ≈ 0.11 ms for a rollup table, so the rollup may not be worth its write amplification and drift risk. Add `003_monthly_rollup.sql` **only** if the owner's own measurements show a meaningful gain at ≥ 1M rows or the owner explicitly wants it; if added, the reconciliation test (`reconcile.sql` returns zero rows after a random workload) is mandatory. Record the decision and numbers in an ADR.
 **Acceptance:** migrations apply to an empty DB; all integration tests green; benchmark evidence recorded; mutation check recorded. **Gate.**
