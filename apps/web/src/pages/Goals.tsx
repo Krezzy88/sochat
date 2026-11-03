@@ -1,3 +1,4 @@
+import { CalendarInput } from '../DateControls.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -184,7 +185,7 @@ export default function Goals() {
                       <MoneyInput label="Số tiền đóng góp (đ)" />
                       <label>
                         Ngày đóng góp
-                        <input
+                        <CalendarInput
                           name="contributed_on"
                           type="date"
                           defaultValue={today()}
@@ -233,7 +234,7 @@ export default function Goals() {
 
             <label>
               Ngày mục tiêu
-              <input
+              <CalendarInput
                 name="deadline"
                 type="date"
                 defaultValue={editing?.deadline ?? ''}

@@ -1,3 +1,4 @@
+import { CalendarInput } from '../DateControls.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import DraftRevision from './DraftRevision.tsx';
 import { QueryPanel } from './QueryPanel.tsx';
@@ -274,7 +275,7 @@ export function Chat({ categories }: { categories: Category[] }) {
                                 }
                               >
                                 Ngày giao dịch
-                                <input
+                                <CalendarInput
                                   type="date"
                                   required
                                   value={item.occurred_on}

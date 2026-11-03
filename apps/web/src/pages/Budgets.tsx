@@ -1,3 +1,4 @@
+import { YearSelect } from '../DateControls.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -14,7 +15,6 @@ import {
 export default function Budgets({ categories }: { categories: Category[] }) {
   const [month, setMonth] = useState(today().slice(0, 7));
   const [editing, setEditing] = useState<Budget | null>(null);
-  const [yearInput, setYearInput] = useState(month.slice(0, 4));
   const editor = useRef<HTMLElement>(null);
   const confirm = useFeedback().confirm;
   async function chooseMonth(next: string) {
@@ -27,13 +27,11 @@ export default function Budgets({ categories }: { categories: Category[] }) {
         accept: 'Đổi tháng',
       }))
     ) {
-      setYearInput(month.slice(0, 4));
       return;
     }
     setEditing(null);
     setError('');
     setMonth(next);
-    setYearInput(next.slice(0, 4));
   }
   async function remove(item: Budget) {
     const selectedMonth = month;
@@ -130,26 +128,13 @@ export default function Budgets({ categories }: { categories: Category[] }) {
           </label>
           <label>
             Năm ngân sách
-            <input
+            <YearSelect
               aria-label="Năm ngân sách"
-              type="number"
-              min="1"
-              max="9998"
-              value={yearInput}
+              value={month.slice(0, 4)}
               disabled={busy}
-              onChange={(e) => setYearInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur();
-              }}
-              onBlur={() => {
-                if (
-                  /^\d{4}$/.test(yearInput) &&
-                  Number(yearInput) > 0 &&
-                  Number(yearInput) < 9999
-                )
-                  void chooseMonth(yearInput + '-' + month.slice(5));
-                else setYearInput(month.slice(0, 4));
-              }}
+              onChange={(e) =>
+                void chooseMonth(e.target.value + '-' + month.slice(5))
+              }
             />
           </label>
         </div>

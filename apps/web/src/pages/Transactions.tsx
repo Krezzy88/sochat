@@ -1,3 +1,4 @@
+import { CalendarInput } from '../DateControls.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import SemanticSearch from './SemanticSearch.tsx';
 import { useEffect, useRef, useState } from 'react';
@@ -108,11 +109,11 @@ export default function Transactions({
       <form className="panel filters" onSubmit={apply}>
         <label>
           Từ ngày
-          <input name="from" type="date" />
+          <CalendarInput name="from" type="date" />
         </label>
         <label>
           Đến ngày
-          <input name="to" type="date" />
+          <CalendarInput name="to" type="date" />
         </label>
         <label>
           Loại
@@ -197,7 +198,7 @@ export default function Transactions({
 
                 <label>
                   Ngày giao dịch
-                  <input
+                  <CalendarInput
                     name="occurred_on"
                     type="date"
                     required

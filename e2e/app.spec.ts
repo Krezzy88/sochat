@@ -31,11 +31,17 @@ async function parse(page: Page, text = 'ăn phở 50k') {
   ).toBeVisible();
 }
 async function save(page: Page) {
+  const saved = page.waitForResponse(
+    (r) =>
+      r.url().endsWith('/api/transactions/batch') &&
+      r.request().method() === 'POST',
+  );
   await page
     .getByRole('button', { name: 'Xác nhận và lưu', exact: true })
     .click();
+  expect((await saved).status()).toBe(201);
   await expect(
-    page.getByRole('status').filter({ hasText: 'Đã lưu' }),
+    page.getByRole('status').filter({ hasText: /Đã lưu \d+ khoản/ }),
   ).toBeVisible();
 }
 async function go(page: Page, name: string) {
@@ -558,8 +564,9 @@ test('budget edit pre-fills limit; month/year selection and confirmed deletion a
       .getByLabel('Năm ngân sách', { exact: true })
       .inputValue();
   const nextYear = String(Number(originalYear) + 1);
-  await page.getByLabel('Năm ngân sách', { exact: true }).fill(nextYear);
-  await page.getByLabel('Năm ngân sách', { exact: true }).press('Enter');
+  await page
+    .getByLabel('Năm ngân sách', { exact: true })
+    .selectOption(nextYear);
   await expect(
     page.getByRole('heading', { name: 'Chưa đặt ngân sách tháng này' }),
   ).toBeVisible();
@@ -571,8 +578,9 @@ test('budget edit pre-fills limit; month/year selection and confirmed deletion a
   await expect(
     page.getByRole('button', { name: 'Sửa ngân sách Ăn uống', exact: true }),
   ).toBeVisible();
-  await page.getByLabel('Năm ngân sách', { exact: true }).fill(originalYear);
-  await page.getByLabel('Năm ngân sách', { exact: true }).press('Tab');
+  await page
+    .getByLabel('Năm ngân sách', { exact: true })
+    .selectOption(originalYear);
   await page
     .getByLabel('Tháng ngân sách', { exact: true })
     .selectOption(originalMonth);
@@ -605,4 +613,46 @@ test('budget edit pre-fills limit; month/year selection and confirmed deletion a
   expect(
     (await (await page.request.get('/api/transactions')).json()).items,
   ).toHaveLength(1);
+});
+
+test('month popup applies selected period, Escape cancels, and years are selectable', async ({
+  page,
+}) => {
+  await go(page, 'Tổng quan');
+  const control = page.getByLabel('Tháng báo cáo', { exact: true }),
+    previous = await control.inputValue();
+  await control.click();
+  const popup = page.getByRole('dialog', {
+    name: 'Chọn tháng báo cáo',
+    exact: true,
+  });
+  await expect(popup).toBeVisible();
+  await popup.getByLabel('Chọn tháng', { exact: true }).selectOption('12');
+  await page.keyboard.press('Escape');
+  await expect(popup).toHaveCount(0);
+  await expect(control).toHaveValue(previous);
+  await expect(control).toBeFocused();
+  await control.click();
+  await popup.getByLabel('Chọn tháng', { exact: true }).selectOption('12');
+  await popup.getByLabel('Chọn năm', { exact: true }).selectOption('2027');
+  const response = page.waitForResponse((r) =>
+    r.url().includes('/reports/month?month=2027-12'),
+  );
+  await popup.getByRole('button', { name: 'Áp dụng', exact: true }).click();
+  expect((await response).status()).toBe(200);
+  await expect(control).toHaveValue('12/2027');
+  await page.getByLabel('Kỳ báo cáo', { exact: true }).selectOption('year');
+  await page.getByLabel('Năm báo cáo', { exact: true }).selectOption('2027');
+  await expect(page.getByLabel('Năm báo cáo', { exact: true })).toHaveValue(
+    '2027',
+  );
+  await go(page, 'Giao dịch');
+  await expect(page.getByLabel('Từ ngày', { exact: true })).toHaveAttribute(
+    'type',
+    'date',
+  );
+  await expect(page.getByLabel('Đến ngày', { exact: true })).toHaveAttribute(
+    'type',
+    'date',
+  );
 });

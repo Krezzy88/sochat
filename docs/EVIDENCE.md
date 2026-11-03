@@ -3104,3 +3104,29 @@ selected-month deletion, another-month retention, transaction preservation and o
 owner isolation. The focused budget browser regression additionally checks canceled
 period changes retain unsaved limits and typed years apply via Enter. Docker demo
 rebuilt healthy with existing data preserved; no hosted CI/deployment claim.
+
+## 2026-11-03 — Popup-based date selection
+
+Owner approved the browser-native calendar shown in their screenshot. All existing
+day inputs (chat confirmation, transaction filters/editor, goal deadline/contribution)
+now use a shared CalendarInput that requests the native picker on click. Browsers
+without showPicker retain the native input's normal calendar/keyboard behavior;
+calendar visuals depend on OS/browser. Date values, required validation and payloads
+remain native ISO calendar dates.
+
+Monthly reports use a compact themed popup with month/year choices, explicit Apply
+and Cancel/Escape, and focus return. Year-only reports and budget years use dropdowns,
+so no year-format typing is necessary. Budget month selection and unsaved-edit
+confirmation are preserved. Year choices cover the current year +/-100 and include
+an existing selected year outside that window; backend date limits did not change.
+
+The first full run passed 25/26 browser checks; the failure exposed a test-helper
+race: text in a question result containing “đã lưu” was mistaken for save completion.
+The helper now waits for the actual batch POST response and a specific save toast.
+Final rerun results recorded below. No new Gemini calls or database migrations.
+
+Final date-selection verification: 26 desktop/mobile Chromium journeys passed;
+lint/typecheck/secret guard passed. The helper also tolerates the decorative toast
+checkmark while matching the specific save message. Docker demo is healthy with
+existing data preserved. Native OS calendar chrome was not separately automated
+on Safari/Firefox; browser-native appearance can differ.

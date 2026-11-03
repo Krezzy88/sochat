@@ -1,3 +1,4 @@
+import { MonthPicker, YearSelect } from '../DateControls.tsx';
 import { useState } from 'react';
 import {
   Bar,
@@ -18,7 +19,6 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [month, setMonth] = useState(today().slice(0, 7));
   const [year, setYear] = useState(today().slice(0, 4));
-  const [yearInput, setYearInput] = useState(year);
   const state = useLoad<MonthReport | YearReport>(
     () =>
       period === 'month'
@@ -84,35 +84,19 @@ export default function Dashboard() {
           {period === 'month' ? (
             <label>
               Tháng
-              <input
-                aria-label="Tháng báo cáo"
-                type="month"
-                required
+              <MonthPicker
+                label="Tháng báo cáo"
                 value={month}
-                onChange={(e) => {
-                  if (e.target.value) setMonth(e.target.value);
-                }}
+                onChange={setMonth}
               />
             </label>
           ) : (
             <label>
               Năm
-              <input
+              <YearSelect
                 aria-label="Năm báo cáo"
-                type="number"
-                min="1"
-                max="9998"
-                value={yearInput}
-                onChange={(e) => {
-                  setYearInput(e.target.value);
-                  if (
-                    /^\d{4}$/.test(e.target.value) &&
-                    Number(e.target.value) > 0 &&
-                    Number(e.target.value) < 9999
-                  )
-                    setYear(e.target.value);
-                }}
-                onBlur={() => setYearInput(year)}
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
               />
             </label>
           )}
