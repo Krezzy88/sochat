@@ -60,3 +60,53 @@ SQL aggregation and covering indexes can be benchmarked directly with `EXPLAIN
 evidence or explicit request. The kit's benchmark results do not justify adding it.
 Transport serialization and JavaScript integer handling must be explicit when the
 database and API are implemented. No ORM, rollup or database container is added in Phase 0.
+
+## ADR-008: Forward-only transactional SQL migrations
+
+Date: 2026-11-03. Status: implemented for Phase 2.
+
+Use a small pg runner: one transaction with an advisory transaction lock, sorted
+SQL files and SHA-256 checksums in schema_migrations. Reject missing, changed and
+out-of-order applied migrations. A failure rolls back the entire pending batch.
+DDL file contents are trusted source; runtime values always use query parameters.
+No rollback migrations are supplied. Run with a database administrator connection;
+future application credentials should not have DDL privileges.
+
+## ADR-009: User-owned extraction cache and contribution integrity
+
+Date: 2026-11-03. Status: implemented for Phase 2.
+
+Partition cache keys by user and cascade cache deletion from users. Cache responses
+can contain notes, so a globally shared response cache cannot meet account-deletion
+requirements. Phase 3 must include local date, model and prompt version in cache
+identity; no cache expiry policy is implemented yet. Contributions reference
+(goal_id,user_id) together to prohibit cross-owner contributions at the database
+boundary. Repositories additionally check category ownership and category type.
+This does not introduce custom-category UI or endpoints.
+
+## ADR-006: Retain covering index; do not add monthly rollup
+
+Date: 2026-11-03. Status: accepted for Phase 2 after owner-run measurements.
+
+On the owner's one-million-row synthetic PostgreSQL 18.6 workload (11 runs per
+query/scenario), covering index p50 was 0.013 ms for month, 0.012 ms for daily and
+0.092 ms for year; year p95 was 0.139 ms. All three retained covering plans used
+Index Only Scan with zero heap fetches. See EVIDENCE.md and the retained benchmark
+JSON for all samples and EXPLAIN ANALYZE BUFFERS plans.
+
+Keep migration 002 only. These measured costs do not currently justify a second
+aggregate representation and its write/reconciliation complexity. Rollup itself
+was not benchmarked, so no relative rollup speedup or lack of benefit is claimed.
+Revisit only for a measured production bottleneck or the owner's explicit request.
+The workload is warm-cache and selective (one of 1,000 synthetic users); these
+figures are database execution timings, not end-to-end API latency guarantees.
+PostgreSQL 18 supersedes the original baseline per ADR-010.
+
+## ADR-010: Owner-approved PostgreSQL 18 baseline
+
+Date: 2026-11-03. Owner explicitly requested the installed local PostgreSQL 18.
+Upgrade the charter and active instructions to 18. Develop against a dedicated
+local database, and retain disposable PostgreSQL 18 Testcontainers for integration
+tests and CI. This avoids mixing test fixtures with local data while keeping the
+same major version. Earlier PostgreSQL 16 test results remain historical evidence,
+not proof of 18 compatibility. No speedup is claimed without measurements.

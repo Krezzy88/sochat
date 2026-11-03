@@ -23,6 +23,8 @@
     "apps/**/*.tsx",
     "packages/**/*.ts",
     "eval/**/*.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "db/**/*.ts",
+    "vitest.integration.config.ts"
   ]
 }

@@ -43,7 +43,7 @@ Tính thuế hoặc tư vấn thuế · dữ liệu thị trường và đầu t
 | Hạng mục | Chọn | Ghi chú |
 |---|---|---|
 | Backend | Node.js 22 + TypeScript (strict) + Express 5 + zod | bạn đã quen Express |
-| Database | **PostgreSQL 16** | hỗ trợ báo cáo tốt; SQL thuần, `pg`, migration bằng file SQL |
+| Database | **PostgreSQL 18** | hỗ trợ báo cáo tốt; SQL thuần, `pg`, migration bằng file SQL |
 | Frontend | React + Vite + TypeScript, Recharts | responsive, giao diện tiếng Việt |
 | LLM | Gemini API qua giao diện `ExtractionProvider` | tên model đặt trong env, kiểm tra tài liệu hiện hành (model hay bị ngừng) |
 | Test | Vitest, Testcontainers (Postgres thật), Playwright (e2e) | CI không bao giờ gọi LLM thật |
@@ -100,7 +100,7 @@ Nếu bị trễ: cắt Phase 5 phần quỹ mục tiêu trước, không cắt 
 |---|---|---|
 | Bộ phân tích tham chiếu (`vn-parser.mjs`, Node 22) | 68 test pass; khớp 65/65 câu dev | Bộ 65 câu và bộ quy tắc do cùng một người viết, nên 100% là **không đại diện**. Dữ liệu thật sẽ thấp hơn |
 | Lỗ hổng đã biết của bộ phân tích | số quá lớn (`99999999999999999999k` → 1e23), dấu âm bị bỏ (`-50k` → 50000), `0k` ra số 0, `1.5.2tr` ra số lạ | agent phải sửa và có test (Phase 1) |
-| Schema Postgres 16 | áp dụng sạch | chưa chạy trên máy bạn |
+| Schema Postgres 18 | áp dụng sạch | chưa chạy trên máy bạn |
 | Trigger rollup tháng | sau 5.000 thao tác ngẫu nhiên (thêm/sửa/xóa/đổi người dùng), truy vấn đối soát trả 0 dòng | |
 | Bài đo 1 triệu dòng (sandbox) | quét toàn bảng 77–87 ms → btree 0,3–1,4 ms → covering index 0,1–0,25 ms; rollup năm 0,11 ms | **Số tuyệt đối phụ thuộc máy.** Ý nghĩa: ở quy mô này covering index đã đủ nhanh, rollup có thể không đáng độ phức tạp |
 | Schema zod cho kết quả LLM, guard số tiền | từ chối đúng các đầu vào xấu; guard chặn số ảo và injection mẫu | chưa kiểm tra ngày lịch hợp lệ (regex chỉ kiểm định dạng) |

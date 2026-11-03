@@ -7,3 +7,5 @@ docs/agent/
 # Generated reports preserve the evaluator's output.
 eval/results/
 eval/cases.jsonl
+
+db/results/
