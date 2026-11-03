@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 5 web application**. The React UI and HTTP API are implemented; security hardening and deployment remain later phases.
+Status: **Phase 6 security/privacy hardening (local)**. React UI and API are implemented; deployment remains a later phase.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP supports authentication, chat extraction with editable confirmation,
@@ -139,3 +139,12 @@ Lighthouse results and their limits are retained in docs/measurements and EVIDEN
 ![Chat confirmation workflow](docs/screenshots/chat-desktop-chromium.png)
 
 ![Monthly dashboard with exact table alternative](docs/screenshots/dashboard-desktop-chromium.png)
+
+## Security and privacy
+
+See [threat model](docs/THREAT_MODEL.md), [privacy/retention](docs/PRIVACY.md) and
+[security reporting](SECURITY.md). Phase 6 adds operational-log field selection,
+redaction regression, Dependabot, bounded tracked-file secret checks and CI audit.
+Production-only audit found zero advisories; development tooling still has moderate
+advisories. These dated results and limits are recorded in EVIDENCE.md, not a
+promise that future audits or public deployment are secure.

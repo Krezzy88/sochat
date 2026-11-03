@@ -18,7 +18,7 @@ zero retention. CI/tests use FakeProvider and never send messages to Gemini.
 
 Ledger/profile data persists until edited/deleted or account deletion. Idempotency
 records persist until account deletion to preserve retry semantics. Sessions expire
-after seven days; production pruning is enabled. Cache/counter expiration is lazy;
+after seven days; production pruning is enabled. Cache and rate-counter expiration is lazy; daily user usage remains until account deletion and global anonymous usage is retained.
 physical purge scheduling and backup retention require deployment configuration.
 There is no claim of immediate physical erasure from disks or external backups.
 Operational extraction logs contain only outcome, latency and token counts, never
