@@ -598,7 +598,10 @@ export async function createApp(options: ApiOptions) {
   route(
     'post',
     '/api/assistant/index',
-    { body: c.empty },
+    {
+      body: c.empty,
+      response: z.strictObject({ indexed: z.number().int().min(0).max(20) }),
+    },
     async ({ req, res, user }) => {
       if (options.extractor.providerName !== 'gemini')
         fail(503, 'Cần Gemini thật.');
@@ -609,7 +612,19 @@ export async function createApp(options: ApiOptions) {
   route(
     'post',
     '/api/assistant/search',
-    { body: z.strictObject({ query: z.string().trim().min(1).max(300) }) },
+    {
+      body: z.strictObject({ query: z.string().trim().min(1).max(300) }),
+      response: z.strictObject({
+        indexed: z.number().int().min(0).max(1000),
+        items: z
+          .array(
+            txSchema
+              .omit({ category: true })
+              .extend({ score: z.number().finite() }),
+          )
+          .max(5),
+      }),
+    },
     async ({ req, res, user, body }) => {
       if (options.extractor.providerName !== 'gemini')
         fail(503, 'Cần Gemini thật.');
