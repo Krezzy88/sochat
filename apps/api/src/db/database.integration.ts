@@ -45,7 +45,11 @@ describe('PostgreSQL 18 migrations and constraints', () => {
   it('rejects migration drift and rolls back a failed migration batch', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'sochat-migrations-'));
     try {
-      for (const name of ['001_schema.sql', '002_reporting_indexes.sql'])
+      for (const name of [
+        '001_schema.sql',
+        '002_reporting_indexes.sql',
+        '004_llm_limits.sql',
+      ])
         writeFileSync(
           join(directory, name),
           readFileSync(
@@ -53,7 +57,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
           ),
         );
       writeFileSync(
-        join(directory, '003_probe.sql'),
+        join(directory, '005_probe.sql'),
         'CREATE TABLE rollback_probe(id int); SELECT 1/0;',
       );
       await expect(
@@ -63,7 +67,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
         (await pool.query("SELECT to_regclass('rollback_probe') AS name"))
           .rows[0].name,
       ).toBeNull();
-      rmSync(join(directory, '003_probe.sql'));
+      rmSync(join(directory, '005_probe.sql'));
       writeFileSync(join(directory, '001_schema.sql'), '-- altered');
       await expect(
         migrate(pool, pathToFileURL(directory + '/')),
@@ -79,7 +83,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
     expect(
       (await pool.query('SELECT count(*) FROM schema_migrations')).rows[0]
         .count,
-    ).toBe('2');
+    ).toBe('3');
   });
   it.each([0n, -1n, 100_000_000_001n])(
     'rejects invalid money %s',

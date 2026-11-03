@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-11-03T03:05:43.047Z",
+  "kind": "offline-single-case-owner-cache-replay",
+  "case_id": "seed-064",
+  "source_commit": "3b2258a4e3bbcdb06321bd2b6f75d905f3646dd7",
+  "original_report": "hybrid-gemini-dev.json",
+  "original_source_commit": "45b6930006d23e6e32d6647687251ef8228d636f",
+  "model": "gemini-3.5-flash-lite",
+  "path": "cache",
+  "provider_calls": 0,
+  "cases": 1,
+  "exact_case": {
+    "correct": 1,
+    "total": 1,
+    "accuracy": 1
+  },
+  "fields": {
+    "amount_vnd": {
+      "correct": 1,
+      "total": 1,
+      "accuracy": 1
+    },
+    "category": {
+      "correct": 1,
+      "total": 1,
+      "accuracy": 1
+    },
+    "occurred_on": {
+      "correct": 1,
+      "total": 1,
+      "accuracy": 1
+    },
+    "type": {
+      "correct": 1,
+      "total": 1,
+      "accuracy": 1
+    }
+  },
+  "clarification": {
+    "true_positive": 1,
+    "false_positive": 0,
+    "false_negative": 0,
+    "true_negative": 0,
+    "precision": 1,
+    "recall": 1
+  },
+  "failures": [],
+  "caveat": "One cached case only; not a new live Gemini evaluation, not a 65/65 result, and no API latency or billing measurement."
+}

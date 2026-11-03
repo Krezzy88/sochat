@@ -13,6 +13,7 @@ export default defineConfig({
       provider: 'v8',
       include: [
         'scripts/check-runtime.mjs',
+        'apps/api/src/extraction/**/*.ts',
         'packages/parser/src/**/*.ts',
         'eval/**/*.ts',
       ],

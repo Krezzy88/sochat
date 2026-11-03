@@ -189,8 +189,6 @@ describe('evaluation CLI', () => {
 
   it.each([
     ['--split', 'train'],
-    ['--config', 'llm'],
-    ['--config', 'hybrid'],
     ['--config', 'unknown'],
     ['--unknown', 'yes'],
     ['--split'],

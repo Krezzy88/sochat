@@ -110,3 +110,25 @@ local database, and retain disposable PostgreSQL 18 Testcontainers for integrati
 tests and CI. This avoids mixing test fixtures with local data while keeping the
 same major version. Earlier PostgreSQL 16 test results remain historical evidence,
 not proof of 18 compatibility. No speedup is claimed without measurements.
+
+## ADR-011: Guarded extraction with persistent attempt budgets
+
+Date: 2026-11-03. Status: implemented for Phase 3, real-model evaluation owner-gated.
+
+Use native Gemini REST behind ExtractionProvider and a deterministic scripted
+FakeProvider. Model/key are env-only, with model metadata checked at explicit real
+startup. Strict zod schema, valid-calendar checks, source amount guard and human
+confirmation apply to every provider/cache proposal. Conservative rules ambiguity
+survives model confidence. No calculations, tools, other transactions or user account
+fields are sent to the model. See docs/EXTRACTION.md for the full boundary.
+
+Use a user-scoped, date/model/prompt-version cache and PostgreSQL-serialized quota
+reservations. Count each physical attempt, including retries, against user/global
+limits; use operational server day independently of parsing's injected time. Global
+counts contain no user references and survive account deletion, while all user-owned
+state cascades. Migration 004 follows 002 with 003 intentionally unused; any future
+rollup must use a later forward-only number. Do not edit applied migrations.
+
+Preserve the parser's existing behavior and the untouched synthetic seed labels.
+The 50 owner phrases and corrected slang glossary are not complete gold labels;
+do not invent labels, tune against held-out data or claim real-user accuracy.

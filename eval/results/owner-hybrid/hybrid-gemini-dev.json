@@ -1,0 +1,96 @@
+{
+  "generated_at": "2026-11-03T03:00:09.745Z",
+  "split": "dev",
+  "dataset_sha256": "525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839",
+  "source_commit": "45b6930006d23e6e32d6647687251ef8228d636f",
+  "working_tree_dirty": false,
+  "seed_set_caveat": "The 65 synthetic seed cases and reference rules share an author. FakeProvider always asks for clarification; fake accuracy/cost/latency is not Gemini performance. Unlabeled owner inbox is excluded.",
+  "cases": 65,
+  "exact_case": {
+    "correct": 64,
+    "total": 65,
+    "accuracy": 0.9846153846153847
+  },
+  "fields": {
+    "amount_vnd": {
+      "correct": 69,
+      "total": 70,
+      "accuracy": 0.9857142857142858
+    },
+    "category": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "occurred_on": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "type": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    }
+  },
+  "clarification": {
+    "true_positive": 5,
+    "false_positive": 0,
+    "false_negative": 0,
+    "true_negative": 60,
+    "precision": 1,
+    "recall": 1
+  },
+  "failures": [
+    {
+      "id": "seed-064",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": null,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": true
+      },
+      "actual": {
+        "items": [
+          {
+            "type": "expense",
+            "category": "mua_sam",
+            "amount_vnd": 150000,
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": true,
+        "reasons": [
+          "multiple_amounts"
+        ]
+      }
+    }
+  ],
+  "config": "hybrid",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash-lite",
+  "prompt_version": "extract-v1",
+  "operational": {
+    "messages": 65,
+    "provider_attempts": 5,
+    "usage": {
+      "input_tokens": 775,
+      "output_tokens": 246,
+      "total_tokens": 1021
+    },
+    "no_provider_attempt_share": 0.9230769230769231,
+    "rules_only_share": 0.9230769230769231,
+    "latency_ms": {
+      "p50": 0.037332999999989624,
+      "p95": 1121.9339580000005
+    },
+    "observed_token_estimate_usd_per_100_messages": null,
+    "attempts_with_unknown_usage": 0,
+    "pricing_caveat": "Owner-supplied USD/token rates; observed-token estimate only, not billing. Missing prices yield null. Failed HTTP calls can have unknown billable usage. Fake has no API cost."
+  }
+}

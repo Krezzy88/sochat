@@ -1856,3 +1856,341 @@ Complete timing samples are retained in the linked JSON artifact.
   pass claim is made. No held-out evaluation or Gemini call occurred.
 
 Phase 2 gate is ready for owner review. Do not implement Phase 3 until the next go.
+
+## 2026-11-03 — Owner phrasing intake
+
+Saved 50 distinct owner-supplied messages verbatim in
+[eval/inbox/owner-20261103.jsonl](../eval/inbox/owner-20261103.jsonl). Validated JSONL,
+unique IDs and dev-candidate status. These are unlabeled examples, not a verified
+real-user study. No expected labels or injected timestamps were invented.
+Slang values, abbreviations and clarification policy were sent to the owner for
+confirmation. No parser changes, tuning, evaluation or LLM call was performed.
+Original 65 seed cases retain SHA-256
+`525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839`.
+Held-out runs remain 0. Phase 3 is not started by this data-intake step.
+No tests were rerun for this data/documentation-only update.
+
+## 2026-11-03 — Owner glossary confirmation and requested web research
+
+Owner retained unitless-number clarification and confirmed five abbreviations.
+Recorded exact slang decisions, contextual research and source-quality limitations in
+[SLANG_RESEARCH.md](../eval/inbox/SLANG_RESEARCH.md). Opened both owner-supplied
+links and searched additional sources for cành, loét, xị and chục. The FPT article
+has an internally inconsistent xị example; it was not treated as gold data. Loét
+remains unresolved. No runtime code, seed labels, raw inbox messages or evaluation
+results changed. No tests/evaluation/LLM calls were run for this documentation-only
+update. Held-out runs remain 0. Case-level gold labels and injected time still need
+review before promotion to an executable owner-dev dataset.
+
+## 2026-11-03 — Owner correction: loét and xị
+
+Owner explicitly confirmed loét = 100,000 VND and corrected xị from the earlier
+10,000 to 100,000 VND. Updated the current glossary; the preceding research entry
+is historical and its unresolved-loét status is superseded for this owner's data.
+The web source was not newly verified as supporting loét; owner confirmation and
+source evidence remain distinct. Unitless amounts still require clarification.
+Raw inbox, runtime parser, seed labels and reports are unchanged. No tests, tuning,
+evaluation or LLM calls were run for this documentation-only correction.
+
+## 2026-11-03 — Phase 3 guarded extraction implementation
+
+Implementation commits: `1f815f86e57bc9037f26c0665240d4c6ef57fc69` and
+`43bb70573ef886f35d210c0aae043f9879694fda` (final evaluation-correctness fix),
+branch feat/phase-3. Reports/evidence are in a later documentation commit.
+Environment: same Darwin arm64/macOS 27.0.1 host, isolated Node 22.23.4/npm 10.9.4.
+No real Gemini request, including model preflight, was made by the agent.
+
+### Changes and source verification
+
+- ExtractionProvider, scripted FakeProvider, native-fetch GeminiProvider and factory.
+- Strict zod schema, real-calendar validation, source-amount guard and mandatory
+  confirmation. Model-authored notes/questions are not echoed raw.
+- Rules-first service with conservative ambiguity handling, timeout/retry budget,
+  safe metric logging and per-user/date/model/prompt-version cache.
+- PostgreSQL atomic per-user/global attempt budgets in migration 004. Every retry
+  counts; account deletion removes owned state without refunding global spend limits.
+- Forced llm mode, hybrid mode and rules evaluation with per-field/exact/clarification
+  metrics, measured local latency, attempts, tokens, rules-only share and optional
+  observed-token cost estimates. Real calls are explicitly owner-only and blocked in CI.
+- Parser rules, original seed labels and raw owner inbox remain unchanged.
+
+`npm view zod version engines --json --fetch-retries=0` returned 4.6.7; installed
+as an exact API runtime dependency and recorded in package-lock.json. Native REST
+avoids an additional SDK dependency. Official pages inspected before implementation:
+[models](https://ai.google.dev/gemini-api/docs/models),
+[model metadata endpoint](https://ai.google.dev/api/models),
+[GenerateContent REST fields](https://ai.google.dev/api/generate-content) and
+[gemini-3.5-flash-lite capabilities](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
+The model-specific page listed stable status and structured-output support. This
+is documentary verification, not verification against the owner's API key/account.
+The structured-output guide redirected to an inaccessible page; the accessible REST
+reference's responseMimeType/responseJsonSchema fields were used instead.
+
+### Clean-clone checks
+
+```sh
+git clone --no-hardlinks /Users/tranphantrungkien/project/sochat /private/tmp/sochat-phase3-final-43bb705
+cd /private/tmp/sochat-phase3-final-43bb705
+export PATH=/private/tmp/sochat-phase0-runtime/node_modules/node/bin:/private/tmp/sochat-phase0-runtime/node_modules/.bin:$PATH
+npm ci && npm run lint && npm run typecheck && npm test && npm run test:coverage && npm run test:integration
+```
+
+All commands exited 0. npm ci installed 329 packages/audited 333. It reported 18
+moderate vulnerability entries and a glob deprecation; no force fix was applied.
+
+```text
+All matched files use Prettier code style!
+tsc --noEmit: exit 0
+Unit: 7 files, 200 passed, 0 failed
+Integration: 2 files, 16 passed, 0 failed
+Statements 79.25% (508/641)
+Branches   78.79% (405/514)
+Functions  77.65% (73/94)
+Lines      79.89% (469/587)
+```
+
+Coverage is the unit-run V8 report, not a merged unit/integration report. Included:
+parser, extraction, evaluation and runtime guard. The database store is exercised
+by integration tests but has partial unit coverage; the provider evaluation CLI
+runs in child processes and reports 0% in parent coverage. These limitations are
+retained rather than excluded to inflate a percentage. No new coverage threshold
+is set; calibration remains Phase 7 work.
+
+Tests cover wrong/unknown fields, categories inconsistent with type, bad calendar
+dates, malformed/non-finite/negative/fractional/huge amounts, injection examples,
+prompt-exfiltration requests, guarded hallucinated amounts, rules ambiguity, fake
+failures, retry cap, ignored-cancellation timeout, cache corruption/user/date
+isolation, operational-clock separation, safe log keys and redaction, and mocked
+Gemini transport including model preflight, blocked/truncated output and sanitized
+HTTP errors. CLI process tests verify fake execution and Gemini rejection in CI.
+
+Real PostgreSQL 18 tests validate concurrent quota reservations from 20 connections
+(total 5 admitted, no user above 3), day boundaries, cache expiry/ownership and
+cascading cache/user-counter deletion with global count retained. Existing database
+constraints, migrations, reports and zero-residue tests also pass.
+
+### Failures found and mutation evidence
+
+The native CLI process tests initially failed because constructor parameter
+properties were not supported by Node strip-only execution. Replaced them with
+erasable explicit fields; enabled erasableSyntaxOnly in TypeScript to prevent
+recurrence. Both process tests subsequently passed.
+
+A final test-first evaluation review found that forced llm mode could inherit
+correct rule fields after a provider refusal. New test 'does not borrow rule
+predictions when a forced LLM-only provider declines' failed, then passed after
+separating the mode's fallback items. Hybrid mode still preserves partial rules
+when asking for clarification. The final clean-clone checks use this corrected code.
+
+Required mutation: temporarily disabled the source amount-presence check in
+guardAmounts, ran the hallucination test, and restored the file in finally:
+
+```sh
+npm test -- apps/api/src/extraction/extraction.test.ts -t 'flags a hallucinated amount'
+```
+
+```text
+FAIL flags a hallucinated amount and does not echo raw model notes
+AssertionError: expected [] to include 'llm_amount_not_in_message'
+Tests 1 failed | 44 skipped (45)
+MUTATION_EXIT_CODE: 1
+RESTORED: True
+```
+
+At that point the restored extraction suite passed 45 tests. The later model-only
+independence test brought it to 46; final overall unit count is 200. The real guard
+is committed, and 500,000 VND proposed for a 50k message remains flagged.
+
+### Local database migration
+
+`npm run db:migrate` exited 0 against the previously configured local sochat_dev
+database, applying 004 without editing 001/002. No credentials were printed.
+No real provider was initialized by migration. The optional 003 rollup was not added;
+future migrations must use higher numbers rather than filling an applied-order gap.
+
+### Rules and fake-only evaluation
+
+Commands run from the final clean clone, writing outside it to preserve clean git
+provenance, then copied unchanged into eval/results/phase3-fake:
+
+```sh
+npm run eval -- --config rules --split dev --out-dir /private/tmp/sochat-phase3-reports-43bb705
+npm run eval -- --config hybrid --provider fake --split dev --out-dir /private/tmp/sochat-phase3-reports-43bb705
+npm run eval -- --config llm --provider fake --split dev --out-dir /private/tmp/sochat-phase3-reports-43bb705
+```
+
+Rules/hybrid exited 0. Forced fake-llm exited 1 as expected for deliberately incorrect
+predictions; both JSON/Markdown failure reports were retained. Every report records
+source commit 43bb705..., working_tree_dirty=false and the unchanged seed dataset
+SHA-256 525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839.
+
+| Configuration                                                     | Exact cases | Attempts | Rules-only share | p50 ms   | p95 ms   | API cost per 100 |
+| ----------------------------------------------------------------- | ----------- | -------- | ---------------- | -------- | -------- | ---------------- |
+| [rules](../eval/results/phase3-fake/rules-dev.json)               | 65/65       | 0        | 92.31%           | 0.029916 | 0.199041 | $0 (no API call) |
+| [hybrid / fake](../eval/results/phase3-fake/hybrid-fake-dev.json) | 65/65       | 5        | 92.31%           | 0.031500 | 0.437375 | $0 (no API call) |
+| [llm / fake](../eval/results/phase3-fake/llm-fake-dev.json)       | 1/65        | 50       | 0.00%            | 0.055042 | 0.533459 | $0 (no API call) |
+
+Rules and hybrid-fake: all four fields 70/70; clarification TP=5, FP=0, FN=0,
+TN=60, precision/recall 100%. Fake llm: all four fields 0/70, TP=5, FP=60, FN=0,
+TN=0, precision 5/65 and recall 5/5. Its 50 scripted calls always asked for
+clarification; the remaining 15 cases hit the default per-user cap. Only the
+no-item clarification seed case matched exactly. This intentional dummy is not an
+LLM implementation's extraction-quality measurement, and cannot improve accuracy
+by copying correct rule fields. Logs capture no message text.
+
+**The 65 seeds and original rules share an author. These scores are not representative
+of real users. Fake costs/latencies/accuracy do not measure Gemini.** Latencies are
+single local passes over small synthetic cases, not remote/API/SLA benchmarks. Real
+model rates and billable failed-request usage are not known, so owner-run estimates
+may be null; no unverified real cost or latency is claimed.
+
+### NOT VERIFIED / owner gate
+
+- Real Gemini availability with the owner's key, actual structured-output acceptance,
+  real extraction accuracy, billable cost and network latency: NOT VERIFIED.
+- Remote GitHub CI and PR status: NOT VERIFIED. Local clean-clone checks pass; CI
+  is configured for rules and fake only and has runtime guards against real Gemini.
+- Fifty owner phrases remain unlabeled candidates. No new gold labels or confidence
+  claims were invented. No held-out evaluation was run; cumulative held-out runs: 0.
+- Cache expiry is lazy (24-hour eligibility), not a scheduled physical purge. API
+  database statement timeouts, broader retention hardening and UI confirmation
+  implementation remain later-phase work. Extraction itself saves no transaction.
+
+Owner tasks: set a currently available GEMINI_MODEL in ignored .env; keep the key
+local. A documented candidate is gemini-3.5-flash-lite, but startup checks actual
+account access and there is no automatic fallback to a different model. Optional
+current per-million-token pricing env fields enable estimates; blank means unknown.
+Then run the real **dev** evaluation explicitly:
+
+```sh
+npm run eval:llm -- --config hybrid --split dev --out-dir eval/results/owner-hybrid
+npm run eval:llm -- --config llm --split dev --out-dir eval/results/owner-llm
+```
+
+These requests consume daily caps and use a reserved synthetic evaluation account
+in the selected local database. Read docs/EXTRACTION.md before running. The default
+50-attempt user cap cannot cover all 65 forced-llm cases; choose a deliberate eval
+cap if a complete comparison is desired, retaining the global spending bound.
+Share resulting JSON reports (not credentials) for review. Continue independent
+labeling toward at least 200 examples with at least 50 held out before tuning.
+
+Phase 3 local implementation acceptance is met; stop at the owner real-evaluation
+gate. No Phase 4 implementation is authorized by this report.
+
+## 2026-11-03 — Owner real hybrid run and conflicting-amount correction
+
+Owner supplied a terminal log and the retained
+[real hybrid report](../eval/results/owner-hybrid/hybrid-gemini-dev.json), generated
+at 2026-11-03T03:00:09.745Z on source 45b6930, model gemini-3.5-flash-lite.
+The agent did not initiate or repeat the live evaluation. Its original JSON/Markdown
+are preserved unchanged, including their original generic fake-provider caveat;
+provider=gemini identifies this real run. Future report wording now distinguishes
+real and fake provider context.
+
+| Metric                        | Owner real run                       |
+| ----------------------------- | ------------------------------------ |
+| Exact cases                   | 64/65 (98.46%)                       |
+| Amount                        | 69/70 (98.57%)                       |
+| Category / date / type        | 70/70 each                           |
+| Clarification                 | TP 5, FP 0, FN 0, TN 60              |
+| Provider attempts             | 5                                    |
+| Input / output / total tokens | 775 / 246 / 1021                     |
+| Rules-only share              | 60/65 (92.31%)                       |
+| Pipeline p50 / p95            | 0.037333 ms / 1121.933958 ms         |
+| Observed-token cost estimate  | unknown (null; no prices configured) |
+
+These are synthetic dev seed results, not real-user accuracy. Pipeline percentiles
+mix 60 rules cases and 5 model cases; they are not provider-only p95 estimates.
+No billing amount is inferred from tokens or a presumed free tier.
+
+Only seed-064 differed: the model proposed 150,000 from a message containing both
+200k and 150k. The system still correctly requested clarification with multiple_amounts;
+no transaction was saved. The gold amount remained null and the gold label was not
+changed to improve a score. A new regression test failed with 'expected 150000 to
+be null', then the hybrid validator was changed to preserve the unresolved rules
+proposal whenever conflicting amounts are present. This applies to both fresh
+provider responses and cache hits; model-only evaluation remains independent of
+rule fallback predictions. Fix commit: 3b2258a4e3bbcdb06321bd2b6f75d905f3646dd7.
+
+`npm run lint && npm run typecheck && npm test` all exited 0 after the fix:
+7 unit files, **201 passed, 0 failed**. No database schema changed; integration tests
+were not repeated for this orchestration/report-wording correction. Previous
+16-test PostgreSQL result remains recorded above. Coverage was not remeasured.
+
+### Current local migration status
+
+The pasted earlier ENOTFOUND base failure referred to an earlier URL configuration.
+A credential-redacted check of the current env found localhost and sochat_dev;
+connection succeeded to PostgreSQL 18.6. All three migration names were present:
+001_schema.sql, 002_reporting_indexes.sql, 004_llm_limits.sql. `npm run db:migrate`
+then exited 0 again. No local URL edit was needed in this audit, no credentials
+were printed, and no unrelated data was modified.
+
+### Offline verification, not a new live score
+
+Attempted a read-only full replay of existing cached outputs with provider/network
+calls disabled. The cache contained four entries, so a complete replay was not
+possible; no full-dataset result was written or claimed. The cause of the missing
+raw response is not inferred from cache count alone.
+
+Then replayed **only seed-064** through the corrected HybridExtractor, using
+PgExtractionStore.get and callbacks that prohibit quota reservation, cache writes
+and provider calls. Result in
+[offline-replay-after-fix.json](../eval/results/owner-hybrid/offline-replay-after-fix.json):
+path=cache, amount=null, exact case=1/1, provider_calls=0. It records source 3b2258a
+and identifies itself as an offline single-case replay. It measures no new API
+latency or billing. Do not present it as a new 65/65 live Gemini run.
+
+Real hybrid connectivity/output is now owner-verified by the retained run; the
+post-fix full live hybrid score, model-only real evaluation, current token pricing
+and remote CI remain NOT VERIFIED. Held-out runs remain 0. Phase 4 is not started.
+A later owner rerun may reuse cache, so interpret attempts and latency accordingly;
+use a new output directory to preserve the original report.
+
+## 2026-11-03 — Owner post-fix hybrid evaluation accepted
+
+Owner ran the requested post-fix dev command:
+
+```sh
+npm run eval:llm -- --config hybrid --split dev --out-dir eval/results/owner-hybrid-after-fix
+```
+
+The agent inspected and retained the generated JSON/Markdown without initiating
+another Gemini request. Report generated at 2026-11-03T03:09:28.876Z, model
+gemini-3.5-flash-lite, source e56475315a8384440af548f6c4a41a968148e4ff,
+working_tree_dirty=false. Dataset SHA-256 matches the unchanged 65 dev seed cases.
+Artifact: [post-fix hybrid report](../eval/results/owner-hybrid-after-fix/hybrid-gemini-dev.json).
+Artifact SHA-256: a1d3a338659b5102a5de64328b5083dded6fa9d480ec101da73bf4120b69825d.
+
+Validation assertions passed: provider/config/split, exact cases, all four field
+counts, zero failures, dataset hash and observed attempt/token counts.
+
+| Metric                          | Post-fix owner run                             |
+| ------------------------------- | ---------------------------------------------- |
+| Exact cases                     | 65/65                                          |
+| Amount / category / date / type | 70/70 each                                     |
+| Clarification                   | TP=5, FP=0, FN=0, TN=60; precision/recall=100% |
+| Rules-only resolution share     | 60/65 (92.31%)                                 |
+| Provider attempts in this run   | 1                                              |
+| Input / output / total tokens   | 152 / 20 / 172                                 |
+| Pipeline p50 / p95              | 0.050375 ms / 3.813584 ms                      |
+| Cost estimate                   | null; current token prices not configured      |
+
+This is an actual owner-run post-fix end-to-end hybrid result, unlike the earlier
+single-case offline replay. It reuses the persistent cache and makes only one
+new provider attempt. The 3.81 ms p95 mixes rules/cache/model processing and is
+**not Gemini-only network latency**, nor evidence of a model speedup over the
+previous 1121.93 ms mixed p95. No provider-only percentile can be estimated from
+one new call. The original 64/65 report remains preserved alongside this one.
+
+The 65 seeds were authored with the reference rules, so 100% here is not a
+real-world accuracy claim. The 50 owner phrases remain unscored/unlabeled candidates;
+held-out runs remain 0. Model-only real evaluation, a cache-cold three-way comparison,
+real billed cost and hosted GitHub CI remain NOT VERIFIED. These limitations are
+retained rather than filled with estimates or invented results.
+
+Phase 3 local implementation and the owner post-fix hybrid check are accepted.
+This resolves the requested post-fix hybrid gate; it does not claim completion of
+all future dataset/cost experiments. No code changed in this evidence-only update,
+so tests were not repeated; latest unit suite is 201 passed and existing database
+suite is 16 passed. Phase 4 still requires the owner's explicit go.
