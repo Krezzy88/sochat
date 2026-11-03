@@ -1,6 +1,5 @@
 import { QueryAnswer } from './QueryPanel.tsx';
 import type { Answer } from './QueryPanel.tsx';
-import { Mascot } from '../Mascot.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, errorText, money, request } from '../api.ts';
@@ -352,68 +351,32 @@ export function Chat({ categories }: { categories: Category[] }) {
   ) : null;
   return (
     <>
-      <header className="page-header">
+      <header className="page-header chat-page-header">
         <div>
-          <span className="eyebrow">MỖI NGÀY MỘT CHÚT</span>
           <h1>Hôm nay bạn chi gì?</h1>
-          <p>Cứ kể tự nhiên. SổChat giúp bạn ghi lại.</p>
+          <p>Nhập một câu. Kiểm tra. Lưu xong.</p>
         </div>
         <span className="header-stamp">
           <Icon name="chat" size={30} />
         </span>
       </header>
-      <div className="engine-status" role="status">
-        <strong>
-          {engine.data?.provider === 'gemini'
-            ? '✦ Gemini thật đã bật'
-            : engine.loading
-              ? 'Đang kiểm tra bộ phân tích…'
-              : engine.error
-                ? 'Không kiểm tra được kết nối bộ phân tích'
-                : 'Bản kiểm thử · Không gọi Gemini'}
-        </strong>
-        <span>
-          Tự nhận diện câu rõ ràng → Gemini hỗ trợ khi cần → bạn xác nhận trước
-          khi lưu.
-        </span>
-      </div>
       <div className="chat-layout">
         <section className="chat-panel panel">
-          <div className="panel-heading">
-            <span className="round-icon">
-              <Icon name="spark" />
-            </span>
-            <div>
-              <h2>Nhắn một câu, vào sổ gọn gàng</h2>
-              <p>Bạn luôn kiểm tra trước khi lưu.</p>
-            </div>
-            <span className="live-label">Sổ đang mở</span>
-          </div>
           <div className="chat-body" ref={feed}>
-            <div className="assistant-note">
-              <span className="assistant-avatar">S</span>
-              <div>
-                <strong>Chào bạn, mình là SổChat.</strong>
-                <p>
-                  Bữa trưa, ly cà phê hay tiền gia đình gửi —
-                  <br className="desktop-only" /> ghi lại bằng một tin nhắn là
-                  được.
-                </p>
-              </div>
-            </div>
             {!turns.length && (
-              <div className="chat-prompt">
-                <Mascot />
-                <span className="prompt-illustration">
-                  <Icon name="list" size={42} />
-                  <span>✦</span>
-                </span>
-                <h3>Bắt đầu từ một khoản nhỏ</h3>
-                <p>
-                  Chẳng hạn: “ăn phở 50k, cà phê 25k”.
-                  <br />
-                  Số tiền chưa rõ? Mình sẽ hỏi lại bạn.
-                </p>
+              <div className="quick-start">
+                <strong>Ghi nhanh khoản đầu tiên</strong>
+                <p>Ví dụ: ăn phở 50k, cà phê 25k</p>
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={() => {
+                    setMessage('ăn phở 50k, cà phê 25k');
+                    document.getElementById('message')?.focus();
+                  }}
+                >
+                  Điền ví dụ
+                </button>
               </div>
             )}
             {success && (
@@ -450,32 +413,21 @@ export function Chat({ categories }: { categories: Category[] }) {
               <p>Bản nháp chưa lưu sẽ mất khi đổi trang hoặc tải lại.</p>
             )}
             <label htmlFor="message">Tin nhắn thu chi</label>
-            <label className="chat-intent">
-              Cách xử lý
-              <select
-                value={intent}
-                onChange={(e) => setIntent(e.target.value as typeof intent)}
-              >
-                <option value="auto">Tự nhận diện ghi chép / câu hỏi</option>
-                <option value="record">Ghi khoản thu chi</option>
-                <option value="query">Hỏi giao dịch đã lưu</option>
-                <option value="revise" disabled={!proposal}>
-                  Sửa bản nháp chưa lưu
-                </option>
-              </select>
-            </label>
             <textarea
               id="message"
               maxLength={500}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               required
-              placeholder="Ghi: ăn phở 50k · Hỏi: tháng này chi ăn uống bao nhiêu?"
+              placeholder="Ăn phở 50k, cà phê 25k…"
+              rows={2}
               disabled={busy || saving || locked}
             />
             <div className="composer-bottom">
               <span>
-                {Array.from(message).length}/500 · Không lưu khi chưa xác nhận
+                {message.length > 400
+                  ? `${Array.from(message).length}/500`
+                  : 'Bạn kiểm tra trước khi lưu'}
               </span>
               <button
                 className="primary"
@@ -485,56 +437,44 @@ export function Chat({ categories }: { categories: Category[] }) {
                 <Icon name="arrow" size={18} />
               </button>
             </div>
+            <details className="chat-options">
+              <summary>
+                {intent === 'auto'
+                  ? 'Tùy chọn & cách hoạt động'
+                  : 'Đang chọn cách xử lý thủ công'}
+              </summary>
+              <label className="chat-intent">
+                Cách xử lý
+                <select
+                  value={intent}
+                  onChange={(e) => setIntent(e.target.value as typeof intent)}
+                >
+                  <option value="auto">Tự nhận diện ghi chép / câu hỏi</option>
+                  <option value="record">Ghi khoản thu chi</option>
+                  <option value="query">Hỏi giao dịch đã lưu</option>
+                  <option value="revise" disabled={!proposal}>
+                    Sửa bản nháp chưa lưu
+                  </option>
+                </select>
+              </label>
+              <div className="engine-status" role="status">
+                <strong>
+                  {engine.data?.provider === 'gemini'
+                    ? '✦ Gemini thật đã bật'
+                    : engine.loading
+                      ? 'Đang kiểm tra bộ phân tích…'
+                      : engine.error
+                        ? 'Không kiểm tra được kết nối bộ phân tích'
+                        : 'Bản kiểm thử · Không gọi Gemini'}
+                </strong>
+                <span>
+                  Tự nhận diện câu rõ ràng → Gemini hỗ trợ khi cần → bạn xác
+                  nhận trước khi lưu.
+                </span>
+              </div>
+            </details>
           </form>
         </section>
-        <aside className="chat-aside">
-          <section className="tip-card">
-            <span className="eyebrow">NHỎ MÀ CÓ VÕ</span>
-            <h2>
-              Ghi sao cho
-              <br />
-              dễ hiểu?
-            </h2>
-            <div className="tip-row">
-              <span>01</span>
-              <div>
-                <strong>Có số, có đơn vị</strong>
-                <p>50k, 1tr2, 2 triệu rưỡi.</p>
-              </div>
-            </div>
-            <div className="tip-row">
-              <span>02</span>
-              <div>
-                <strong>Nhớ cả ngày tháng</strong>
-                <p>“Hôm qua”, “sáng nay” đều được.</p>
-              </div>
-            </div>
-            <div className="tip-row">
-              <span>03</span>
-              <div>
-                <strong>Nhiều khoản? Cứ kể.</strong>
-                <p>Ngăn bằng dấu phẩy hoặc “và”.</p>
-              </div>
-            </div>
-          </section>
-          <section className="example-card">
-            <Icon name="chat" />
-            <h3>Chưa biết viết gì?</h3>
-            <button
-              disabled={locked || busy}
-              onClick={() => setMessage('Trưa nay ăn phở 50k, cà phê 25k')}
-            >
-              “Trưa nay ăn phở 50k,
-              <br />
-              cà phê 25k” <span>↗</span>
-            </button>
-            <p>Chạm để điền thử. Bạn vẫn tự xác nhận.</p>
-          </section>
-          <p className="aside-foot">
-            <Icon name="check" size={16} />
-            Bạn quyết định khoản nào được lưu.
-          </p>
-        </aside>
       </div>
     </>
   );

@@ -40,6 +40,7 @@ test('real Gemini, grouped money, accessible auth and responsive playful UI', as
     .getByRole('button', { name: 'Tạo tài khoản', exact: true })
     .click();
   try {
+    await page.getByText('Tùy chọn & cách hoạt động', { exact: true }).click();
     await expect(
       page.getByText('✦ Gemini thật đã bật', { exact: true }),
     ).toBeVisible();

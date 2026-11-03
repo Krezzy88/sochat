@@ -2990,3 +2990,20 @@ are local only: no new public push, merge, deployment, paid infrastructure, user
 study or held-out run. See measurements/ai-expansion-verification.json for the
 machine-readable check summary. Phase 8 still needs its owner deployment decision,
 real student sessions and the separately authorized final held-out evaluation.
+
+## 2026-11-03 — Daily-entry UI simplification
+
+Removed repeated chat greetings, large illustration, duplicate panel heading and
+hidden sidebar markup. Kept a short example and one composer. Provider diagnostics
+and manual intent selection now live in a collapsed disclosure; semantic search is
+collapsed above the transaction list. No calculation, parser, persistence or consent
+policy changed. Mobile composer uses a 16px input font and compact spacing. Added
+browser checks for first-screen input/Send visibility and disclosure behavior;
+final results are recorded below. This is a concrete usability iteration, not a
+claim of user-validated optimal UX. No additional live Gemini calls were made.
+
+Final checks: lint/typecheck passed; 20 desktop/mobile browser journeys passed,
+including input/Send in the initial viewport and collapsed advanced controls.
+Docker demo rebuilt healthy at localhost:8080 with preserved data. Earlier
+Lighthouse scores were not remeasured for this layout iteration. New chat images
+are review candidates under screenshots/ux/streamlined-*.

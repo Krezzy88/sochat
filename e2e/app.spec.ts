@@ -416,3 +416,23 @@ test('client transcript retains draft across question and revision (mocked trans
   expect(rows).toHaveLength(1);
   expect(rows[0].amount_vnd).toBe('70000');
 });
+
+test('daily entry is visible immediately and advanced tools stay collapsed', async ({
+  page,
+}) => {
+  await expect(page.getByLabel('Tin nhắn thu chi')).toBeInViewport();
+  await expect(
+    page.getByRole('button', { name: 'Gửi', exact: true }),
+  ).toBeInViewport();
+  await expect(page.getByLabel('Cách xử lý')).not.toBeVisible();
+  await page.getByText('Tùy chọn & cách hoạt động', { exact: true }).click();
+  await expect(page.getByLabel('Cách xử lý')).toBeVisible();
+  await go(page, 'Giao dịch');
+  await expect(
+    page.getByLabel('Tìm theo ý nghĩa', { exact: true }),
+  ).not.toBeVisible();
+  await page.getByText('Tìm nâng cao theo ý nghĩa', { exact: true }).click();
+  await expect(
+    page.getByLabel('Tìm theo ý nghĩa', { exact: true }),
+  ).toBeVisible();
+});

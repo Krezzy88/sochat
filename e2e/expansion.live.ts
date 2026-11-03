@@ -93,6 +93,7 @@ test('one chat supports expense, question, draft edit; consented search and revo
       .getByRole('navigation')
       .getByRole('link', { name: 'Giao dịch', exact: true })
       .click();
+    await page.getByText('Tìm nâng cao theo ý nghĩa', { exact: true }).click();
     const indexing = page.waitForResponse((r) =>
       r.url().includes('/api/assistant/index'),
     );

@@ -32,7 +32,8 @@ export default function SemanticSearch() {
     }
   }
   return (
-    <section className="panel">
+    <details className="panel semantic-options">
+      <summary>Tìm nâng cao theo ý nghĩa</summary>
       <h2>Tìm giao dịch theo ý nghĩa</h2>
       <p>
         Tùy chọn, cần bật quyền trong Cài đặt. Chỉ những ghi chú bạn chủ động
@@ -81,6 +82,6 @@ export default function SemanticSearch() {
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }
