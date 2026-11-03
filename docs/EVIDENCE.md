@@ -2492,13 +2492,25 @@ Screenshot inspection and Playwright supply the visual/browser evidence above.
 Workflow now installs pinned Playwright Chromium and runs the same production-build
 journeys after unit/integration/rules/fake checks. GitHub read-only inspection found
 Phase 4 PR #5 merged and confirmed origin/main's files equal the local Phase 4 base.
-Hosted Phase 5 CI is still **NOT VERIFIED**: automatic approval review rejected
-`git push -u origin feat/phase-5`, stating that publishing source to the public
-repository requires explicit user authorization. No push, PR or merge occurred;
-no alternative write path was attempted. Local verification and commits are complete.
-Await authorization to push this branch to Krezzy88/sochat and create its draft PR.
+An initial `git push -u origin feat/phase-5` was rejected by automatic approval
+review because publishing source to the public repository needed explicit user
+authorization. No alternative write path was attempted. The owner then explicitly
+replied **"Cho phép push và tạo draft PR"**; the same push succeeded and
+[draft PR #6](https://github.com/Krezzy88/sochat/pull/6) was created against main.
+No merge was performed.
+
+Hosted verification is now **VERIFIED** for commit
+`02a64262b4005d3270e7083d076bc8f4116c0cd1` (implementation d06e7ce plus local
+evidence). [CI run 41592021904](https://github.com/Krezzy88/sochat/actions/runs/41592021904)
+completed with conclusion **success**. Fetched job steps and decoded logs for job
+125770686289: Ubuntu 24.04.5, lint/types/OpenAPI drift passed, 201 unit tests,
+50 PostgreSQL/HTTP tests, rules/fake eval, Chromium installation and **14 e2e tests
+passed** (34.7 s). CI browser execution ranges were 304197/664677 (45.77%); they
+are not TypeScript line coverage. No real Gemini or held-out command is in this job.
+This subsequent evidence-only update is separately committed; the linked run proves
+the referenced source, not an unobserved later SHA. PR remains draft for owner review.
 
 Safari/Firefox, real devices, assistive technology, full security/privacy hardening,
-public deployment and hosted CI remain unverified. Owner has approved screenshots;
+public deployment remain unverified. Owner has approved screenshots and branch publication;
 no additional API key or benchmark is required. Phase 6 remains behind its explicit
 go gate. No Phase 6 implementation or deployment was performed.

@@ -114,7 +114,9 @@ with Docker running for the PostgreSQL 18 integration suite. The owner-run milli
 
 Gemini/FakeProvider adapters and rules-first orchestration are implemented; real
 Gemini evaluation remains owner-run. See [extraction setup and safety contract](docs/EXTRACTION.md).
-CI runs only rules and fake evaluation, plus isolated Chromium end-to-end tests. No hosted CI result is claimed without a verified run.
+CI runs only rules and fake evaluation, plus isolated Chromium end-to-end tests.
+Phase 5 [hosted verification passed](https://github.com/Krezzy88/sochat/actions/runs/41592021904)
+for source 02a6426; see EVIDENCE for scope and limitations.
 
 ## Web UI
 

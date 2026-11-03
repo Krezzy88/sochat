@@ -100,4 +100,5 @@ idempotency/cache/usage/rate state. OpenAPI is generated and validated in tests.
 
 No email verification/reset-password, OCR, bank linking, shared wallets, investment
 or tax functionality is implemented. Security/privacy hardening remain later phases; Phase 5 now provides the React UI and Chromium e2e. Deployment and full security review are
-later work; deployment proxy/HTTPS and hosted CI are not claimed verified locally.
+later work. Deployment proxy/HTTPS remains unverified; Phase 5 hosted CI results
+are recorded in EVIDENCE.md.
