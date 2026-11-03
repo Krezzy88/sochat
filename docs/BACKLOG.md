@@ -18,9 +18,12 @@
   stemming from minimatch advisory GHSA-g3hv-75wg-m249; no high/critical findings.
   Revisit upstream fixes during security hardening. Do not apply the suggested
   incompatible downgrade/force fix blindly. See `EVIDENCE.md`.
+  Phase 4 clean `npm ci` now reports 18 moderate entries after adding the HTTP and
+  OpenAPI toolchain. Review the current advisory tree in Phase 6; the historical
+  11-entry result is not the current dependency count.
 - Phase 2/3 cache ownership/date identity is resolved by ADR-009/011. Cache expiration
   is lazy; review physical purge scheduling and usage-counter retention in Phase 6.
-  Configure API pool statement/query timeouts during Phase 4.
+  API pool statement/query timeouts were configured in Phase 4.
 - Phase 4: CSV is the charter's required export; JSON export and custom-category
   management mentioned in references are not automatic additions to the MVP.
 - Phase 5: savings goals remain in the MVP. The charter's optional schedule-cut
