@@ -1,3 +1,4 @@
+import { writeOperationalLog } from './log.ts';
 import type pg from 'pg';
 import process from 'node:process';
 import { HybridExtractor } from './hybrid.ts';
@@ -36,7 +37,7 @@ export async function createExtractor(
     },
     {
       log: (event) => {
-        process.stdout.write(JSON.stringify(event) + '\n');
+        writeOperationalLog(event);
       },
     },
   );
