@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-11-03T01:45:14.197Z",
+  "config": "rules",
+  "split": "dev",
+  "dataset_sha256": "525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839",
+  "source_commit": "0624c7ece2861a269ac33601e50cbc405e8307e6",
+  "working_tree_dirty": false,
+  "seed_set_caveat": "The 65 supplied synthetic dev seed cases were written by the developer who wrote the reference rules. Their score is not representative of real users. Additional owner-labeled data must be assessed separately.",
+  "cases": 65,
+  "exact_case": {
+    "correct": 65,
+    "total": 65,
+    "accuracy": 1
+  },
+  "fields": {
+    "amount_vnd": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "category": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "occurred_on": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "type": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    }
+  },
+  "clarification": {
+    "true_positive": 5,
+    "false_positive": 0,
+    "false_negative": 0,
+    "true_negative": 60,
+    "precision": 1,
+    "recall": 1
+  },
+  "failures": []
+}
