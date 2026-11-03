@@ -132,3 +132,43 @@ rollup must use a later forward-only number. Do not edit applied migrations.
 Preserve the parser's existing behavior and the untouched synthetic seed labels.
 The 50 owner phrases and corrected slang glossary are not complete gold labels;
 do not invent labels, tune against held-out data or claim real-user accuracy.
+
+## ADR-012: Cookie sessions, synchronizer CSRF and API confirmations
+
+Date: 2026-11-03. Status: implemented for Phase 4.
+
+Use maintained express-session with connect-pg-simple and an explicitly migrated
+sessions table. Cookies carry an opaque signed SID, httpOnly, SameSite=Lax and
+Secure in production. Regenerate SID and CSRF after register/login; destroy SID on
+logout. A generated user_id column references users so deleting an account removes
+all sessions, including sessions on other devices. Authentication rechecks user
+existence on every private request. Passwords use the maintained argon2 package,
+explicit argon2id with library defaults; no password or session data is logged.
+
+GET /api/auth/csrf initializes an anonymous session and synchronizer token. Every
+state-changing endpoint, including login/register, requires that token in the
+X-CSRF-Token header and its associated cookie. Validate token format and compare
+with timingSafeEqual. Auth responses return the new token. Exact APP_ORIGIN checks
+and credentialed CORS supplement CSRF; non-browser clients still need the token.
+Production requires HTTPS; trust proxy defaults to 0 and is configured explicitly
+for a trusted reverse proxy topology. Deployment must not blindly trust client
+forwarded headers. No tokens are stored in localStorage.
+
+Login limits use HMAC(IP + normalized email), plus an IP aggregate; parse limits
+are per authenticated user. PostgreSQL atomic UPSERT counters work across API
+workers. Keys contain no plaintext identity; known user counters cascade on delete.
+Expired counters are lazily removed. This is MVP throttling, not an upstream DDoS
+protection service.
+
+Confirmation is POST /api/transactions/batch with a UUID idempotency_key in the
+body. Revalidate every field and category ownership/type. One transaction reserves
+the per-user key, inserts all items and stores the response. Concurrent retries
+serialize on the unique key; mismatched payload returns 409 and failures roll back
+both key and items. Parsing never writes ledger transactions. Cache/quota writes
+from Phase 3 remain separate from ledger persistence. No raw source text is retained
+by the confirmation API. Idempotency state cascades on account deletion.
+
+OpenAPI 3.1 derives inputs/outputs from the same zod schemas registered with the
+routes. Validate the generated artifact and its equality to the live contract.
+The OpenAPI validator requires Node 22.19+, so the minimum declared Node 22 minor
+and runtime guard are raised accordingly; the pinned Node remains 22.23.4.

@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 3 guarded extraction**. Database migrations and repositories are available; there is no HTTP API or web application yet.
+Status: **Phase 4 HTTP API**. The API is implemented; the React web application is still pending Phase 5.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP will support authentication, chat extraction with editable confirmation,
@@ -25,7 +25,7 @@ npm test
 ```
 
 Other version managers can read `.node-version`. `.npmrc` rejects incompatible
-engines; the install hook also checks Node 22.13+ within major 22. No system Node
+engines; the install hook also checks Node 22.19+ within major 22. No system Node
 installation is changed by this repository.
 
 Optional commands:
@@ -38,8 +38,8 @@ cp .env.example .env
 ```
 
 Parser/evaluation commands do not load `.env` or call Gemini. Database migrations load `.env`; integration tests require Docker and use isolated PostgreSQL 18.
-Never commit API keys or real personal/financial data. Tests and CI will use a
-deterministic fake extraction provider when the LLM phase is implemented.
+Never commit API keys or real personal/financial data. Tests and CI use a
+deterministic fake extraction provider.
 
 ## Workspace
 
@@ -51,10 +51,22 @@ deterministic fake extraction provider when the LLM phase is implemented.
 | `scripts`         | Toolchain validation                            | 0                    |
 | `docs/agent`      | Unmodified owner-supplied project documents     | Reference            |
 
-The API and web entry points remain empty until their phase is authorized.
+The API starts from apps/api/src/server.ts; the web entry point remains a placeholder until Phase 5.
 Root lint and typecheck commands cover all three workspaces. Root Vitest discovers
 tests under `scripts`, `packages`, `eval` and `apps`. Coverage measures the runtime
-guard, parser and evaluation harness; there is no API or web coverage yet.
+guard, parser and evaluation harness. Integration coverage separately measures
+database and HTTP code; web coverage remains pending Phase 5.
+
+See [API setup and client flow](docs/API.md). With the local PostgreSQL 18 database
+and ignored `.env` configured:
+
+```sh
+npm run db:migrate
+LLM_PROVIDER=fake npm run api:start
+```
+
+The API listens at `http://127.0.0.1:3000`; `/healthz` and `/openapi.json` are public.
+The generated [OpenAPI contract](apps/api/openapi.json) documents the endpoints.
 
 ## Parser and evaluation
 
@@ -102,4 +114,4 @@ with Docker running for the PostgreSQL 18 integration suite. The owner-run milli
 
 Gemini/FakeProvider adapters and rules-first orchestration are implemented; real
 Gemini evaluation remains owner-run. See [extraction setup and safety contract](docs/EXTRACTION.md).
-CI runs only rules and fake evaluation. No HTTP API or web UI is implemented yet.
+CI runs only rules and fake evaluation. HTTP routes are implemented; the web UI is pending Phase 5.

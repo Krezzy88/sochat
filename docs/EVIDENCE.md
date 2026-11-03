@@ -2194,3 +2194,143 @@ This resolves the requested post-fix hybrid gate; it does not claim completion o
 all future dataset/cost experiments. No code changed in this evidence-only update,
 so tests were not repeated; latest unit suite is 201 passed and existing database
 suite is 16 passed. Phase 4 still requires the owner's explicit go.
+
+## 2026-11-03 — Phase 4 authenticated HTTP API
+
+Owner explicitly requested "go phase 4". Source commit:
+`76cbd46106623868f1954f0d15212d03a76b025d` on `feat/phase-4`.
+Environment: Darwin arm64, Node 22.23.4, npm 10.9.4. Disposable integration
+databases use `postgres:18.6-bookworm`; development uses local PostgreSQL 18.
+No agent-run Gemini request or held-out run occurred.
+
+### Implementation
+
+Added Express 5 routes, strict zod input/output contracts, problem+json, cursor
+pagination and generated OpenAPI 3.1. Endpoint groups cover authentication, parse
+proposals, idempotent confirmation, transactions, reports, budgets, goals and
+contributions, CSV export and account deletion. See [API setup/contract](API.md)
+and ADR-012 in [DECISIONS](DECISIONS.md). No React UI or out-of-scope feature added.
+
+Registry/package documentation was checked before installing express 5.3.0,
+argon2 0.45.2, express-session 1.19.0, connect-pg-simple 10.0.0, helmet 8.3.0,
+supertest 7.3.1 and @apidevtools/swagger-parser 13.1.0. The maintained argon2
+package is explicitly configured for argon2id. The OpenAPI validator requires
+Node >=22.19; engines/runtime checks now require 22.19+ within major 22, while
+the pin remains 22.23.4. The lockfile records exact dependency versions.
+
+Migration 005 adds PostgreSQL sessions, per-user idempotency records and atomic
+rate counters. A generated session user_id cascades on account deletion, including
+other devices' sessions. Login rotates SID/CSRF; logout destroys the session.
+Cookies are httpOnly/SameSite=Lax and Secure in production. Strict origin, CSRF
+and explicit proxy trust are tested. Integer money arithmetic stays in bigint/SQL;
+saved amounts/totals serialize as decimal strings.
+
+### Clean-checkout verification
+
+Cloned committed source without hardlinks, with no .env copied, then ran:
+
+```sh
+git clone --no-hardlinks /Users/tranphantrungkien/project/sochat /private/tmp/sochat-phase4-76cbd46
+cd /private/tmp/sochat-phase4-76cbd46
+# PATH selected isolated Node 22.23.4/npm 10.9.4; system installs unchanged.
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run api:openapi
+git diff --exit-code -- apps/api/openapi.json
+npm run test:integration -- --coverage
+```
+
+All commands exited 0. npm ci installed 451 packages, audited 455 and reported
+**18 moderate vulnerabilities**. No forced downgrade/fix was applied; advisory
+review remains Phase 6 work. This is not a clean dependency-audit claim.
+
+| Check                          | Observed result                                           |
+| ------------------------------ | --------------------------------------------------------- |
+| ESLint / Prettier / TypeScript | passed                                                    |
+| Unit suite                     | 7 files, 201 passed, 0 failed                             |
+| PostgreSQL + HTTP integration  | 3 files, 50 passed, 0 failed                              |
+| HTTP subset                    | 34 cases, including parameterized validation/isolation    |
+| OpenAPI generation             | native Node execution passed, artifact unchanged          |
+| OpenAPI validation             | SwaggerParser accepted 3.1; artifact equals live contract |
+| Integration line coverage      | 91.82% (393/428)                                          |
+| Integration statement coverage | 91.06% (418/459)                                          |
+| Integration branch coverage    | 81.96% (250/305)                                          |
+| Integration function coverage  | 96.24% (128/133)                                          |
+
+Coverage includes apps/api/src/db and apps/api/src/http, excludes integration test
+files, and is separate from unit coverage. It excludes server.ts/openapi.ts entry
+points, extraction and future web code; it is not whole-application coverage.
+HTTP-group line coverage is 92.66%; repository.ts line coverage is 100%, which is
+not proof that every possible behavior is tested. No threshold was added.
+
+HTTP tests use real argon2id/PostgreSQL sessions and cover SID/CSRF rotation,
+logout/revocation, every private route without auth, CSRF on writes, Secure/HTTPS,
+origin handling, tampered cookies, login/parse throttles and default forwarded-IP
+resistance. They cover malformed IDs/JSON, unknown fields, calendar/money validation,
+body size/content type, concurrent idempotent retries, payload conflict, whole-batch
+rollback, cursor ordering/filter/edit/delete, exact report sums, 80/100% budget
+boundaries, integer ceiling/expired goals, CSV protection and a 601-row export
+crossing its 500-row chunk boundary.
+
+Table-driven isolation covers every ID-taking transaction/goal/contribution route:
+B receives 404 and A's data remains intact. Collection/profile/category, report,
+budget and CSV assertions prevent A's values reaching B. Dynamic deletion checks
+every public table with user_id for zero residual rows, including sessions,
+idempotency/cache/quota/rate state. Both A sessions are revoked; B remains logged
+in. Global aggregate LLM usage has no user reference, as designed in Phase 3.
+
+An initial regression exposed malformed IDs throwing during BigInt conversion
+(500). The guarded conversion now returns 400 and that HTTP test is retained.
+CI now regenerates OpenAPI and rejects artifact drift before integration tests.
+Hosted GitHub execution is **NOT VERIFIED** in this phase.
+
+### Mutation check, reverted
+
+Temporarily changed production transaction deletion from owner+id filtering to
+id-only filtering (retaining SQL parameter shape), then ran:
+
+```sh
+npm run test:integration -- -t 'returns 404 for B attempting delete /api/transactions'
+```
+
+Observed: **1 failed, 46 skipped**, with
+`expected 404 "Not Found", got 204 "No Content"`. This proves the test detects the
+deliberately introduced cross-user deletion defect. Restored production code and
+the complete 47-case suite passed. Added three more HTTP tests afterward; the final
+clean-checkout 50-case suite above passed. An earlier attempt hit a test syntax
+error and was not counted as mutation evidence.
+
+### Native local PostgreSQL smoke
+
+`npm run db:migrate` applied 005 successfully to configured local PostgreSQL 18.
+Replaced the ignored local SESSION_SECRET placeholder with a cryptographically
+random value and restricted .env permissions to 0600; no secret was printed or
+committed, and other credentials were preserved. Started the actual Node server:
+`LLM_PROVIDER=fake NODE_ENV=development npm run api:start`. Native fetch kept
+cookies/CSRF/password only in memory and used a temporary synthetic account:
+
+| Action                           | HTTP status                    |
+| -------------------------------- | ------------------------------ |
+| health / OpenAPI / CSRF          | 200 / 200 / 200                |
+| register                         | 201                            |
+| parse proposal                   | 200                            |
+| confirm / same-key retry         | 201 / 201, same transaction id |
+| month report                     | 200, expense_vnd="50000"       |
+| create goal / CSV export         | 201 / 200                      |
+| delete account / revoked session | 204 / 401                      |
+
+Deleted the smoke account through the API; other local users/data were preserved.
+Verified the temporary API command/PID and stopped it with SIGTERM. Testcontainers
+use separate databases. Smoke preceded the last three HTTP tests and generic
+pool/listen-error handling addition; final source passed clean-checkout verification.
+
+### Gate and remaining limits
+
+Phase 4 local acceptance is complete. UI/browser e2e, deployment proxy/HTTPS,
+hosted CI, full security hardening and fresh real Gemini performance/cost remain
+**NOT VERIFIED** here. Prior owner-run Gemini evidence is unchanged; held-out runs
+remain **0**. No deployment, remote push/PR or Phase 5 implementation was performed.
+Owner can inspect docs/API.md/OpenAPI or start fake mode; no new secret/benchmark
+is required for this gate. Await explicit "go phase 5".
