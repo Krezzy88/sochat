@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+package-lock.json
+# Keep owner-provided reference documents byte-for-byte intact.
+docs/agent/
