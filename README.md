@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 6 security/privacy hardening (local)**. React UI and API are implemented; deployment remains a later phase.
+Status: **Phase 7 containers and verification**. The local MVP is implemented; public demo deployment and real-user validation remain owner-gated Phase 8.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP supports authentication, chat extraction with editable confirmation,
@@ -148,3 +148,84 @@ redaction regression, Dependabot, bounded tracked-file secret checks and CI audi
 Production-only audit found zero advisories; development tooling still has moderate
 advisories. These dated results and limits are recorded in EVIDENCE.md, not a
 promise that future audits or public deployment are secure.
+
+## Container demo
+
+```sh
+docker compose --env-file /dev/null up --build --wait
+# Open http://localhost:8080; synthetic data only.
+docker compose --env-file /dev/null down
+```
+
+This uses an isolated PostgreSQL 18 volume and FakeProvider, with non-root API/web
+images. Only the web port binds to loopback. It does not use the owner's native
+database or .env. This HTTP configuration has known demo-only credentials and must
+not be published as a production deployment. See [runbook](docs/RUNBOOK.md) for
+ports, cleanup, coverage gates, CI, migration and production boundaries.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser[React web client] --> Web[Static web server and fixed API proxy]
+  Web --> API[Express API: sessions, CSRF, validation]
+  API --> DB[(PostgreSQL 18: ledger and reports)]
+  API --> Rules[Pure Vietnamese parser]
+  API --> Adapter[Guarded extraction adapter]
+  Adapter --> Gemini[Gemini extraction only]
+```
+
+```mermaid
+flowchart LR
+  Message[One message] --> Rules[Rules first]
+  Rules -->|clear| Proposal[Editable proposal]
+  Rules -->|unclear| LLM[Cache or bounded provider fallback]
+  LLM --> Guards[Schema, calendar and source-number guard]
+  Guards --> Proposal
+  Proposal --> Confirm[User resolves ambiguity and confirms]
+  Confirm --> Save[Validated idempotent SQL transaction]
+  Save --> Reports[Code and SQL reports]
+```
+
+## Measured results and limits
+
+These are retained measurements from [EVIDENCE](docs/EVIDENCE.md), not new Phase 7
+benchmarks or representative real-user accuracy:
+
+| Evaluation                                           | Exact cases | Amount/category/date/type | Clarification           |
+| ---------------------------------------------------- | ----------- | ------------------------- | ----------------------- |
+| Owner post-fix Gemini hybrid, 65 synthetic dev seeds | 65/65       | 70/70 each                | TP=5, FP=0, FN=0, TN=60 |
+
+The seed author also wrote the reference rules. This owner run reused persistent
+cache and made only one new provider attempt (152 input/20 output tokens). Its
+mixed pipeline p50/p95 was 0.050375/3.813584 ms, not Gemini network latency. Cost
+remains unknown without configured prices. Held-out runs remain 0; the owner's 50
+phrases remain unlabeled and unscored. No real-world accuracy is claimed.
+
+Owner-run PostgreSQL 18.6 benchmark: 1,000,000 synthetic rows, 1,000 users, 11 warm
+measured runs per query/scenario. Target user has about 1,000 rows. Timings below
+are database execution p50, not HTTP response times:
+
+| Query             | Baseline ms | Btree ms | Covering ms | Covering p95 ms |
+| ----------------- | ----------- | -------- | ----------- | --------------- |
+| Month by category | 20.954      | 0.026    | 0.013       | 0.025           |
+| Daily trend       | 22.761      | 0.023    | 0.012       | 0.021           |
+| Year groups       | 23.291      | 0.161    | 0.092       | 0.139           |
+
+Covering plans used Index Only Scan with zero heap fetches. With 11 samples, p95
+is the maximum observed sample; tail estimates are weak. No rollup was implemented
+or measured. Full plans, samples and environment are retained in EVIDENCE.
+
+## Next steps and known limits
+
+Choose the demo host, establish TLS/proxy/backups/log retention, supply real secrets
+and use synthetic demo data before publication. Owner chooses the license and final
+name, gathers/labels at least 200 examples including 50 held out, runs held-out only
+when explicitly requested, tests with five students and supplies actual findings.
+No deployment, user interview or held-out result is invented.
+
+Remaining technical work includes development dependency advisories, startup layout
+shift, real-device/Safari/Firefox/screen-reader verification and measured production
+load. Confirmation retry intent is memory-only; inspect Transactions after leaving
+an uncertain save. Future OCR, bank parsing, shared goals, native apps, reminders,
+English UI and tax tools are backlog ideas, not shipped features.

@@ -28,6 +28,8 @@
     "db/**/*.ts",
     "vitest.integration.config.ts",
     "e2e/**/*.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "docker/**/*.ts",
+    "playwright.compose.config.ts"
   ]
 }

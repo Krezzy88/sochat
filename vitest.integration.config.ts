@@ -3,6 +3,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: 'v8',
+      thresholds: { lines: 88, statements: 88, branches: 78, functions: 93 },
       include: ['apps/api/src/db/**/*.ts', 'apps/api/src/http/**/*.ts'],
       exclude: ['**/*.integration.ts'],
       reporter: ['text', 'json-summary'],

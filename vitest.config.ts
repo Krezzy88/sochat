@@ -19,7 +19,8 @@ export default defineConfig({
       ],
       exclude: ['**/*.test.ts'],
       reporter: ['text', 'json-summary'],
-      // Phase 7 will calibrate thresholds from measured application coverage.
+      thresholds: { lines: 76, statements: 76, branches: 75, functions: 74 },
+      // floor(Phase 6 measured unit coverage) - 3; see docs/RUNBOOK.md.
     },
   },
 });
