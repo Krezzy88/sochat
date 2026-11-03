@@ -1,0 +1,15 @@
+{
+  "kind": "Synthetic authorized real Gemini query smoke",
+  "generated_at": "2026-11-03T09:08:12.915Z",
+  "answer": {
+    "needs_clarification": false,
+    "question": "Tổng hợp từ giao dịch đã lưu của bạn.",
+    "month": "2026-11",
+    "category": "an_uong",
+    "income_vnd": "0",
+    "expense_vnd": "50000",
+    "evidence_url": "/api/transactions?from=2026-11-01&to=2026-11-30&category=an_uong"
+  },
+  "ledger_unchanged": true,
+  "evidence_excludes_other_category": true
+}

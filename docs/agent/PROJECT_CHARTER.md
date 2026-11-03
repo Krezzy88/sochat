@@ -115,3 +115,11 @@ Owner explicitly authorizes the agent to run real Gemini API tests locally using
 synthetic data and existing local credentials. CI remains isolated/deterministic;
 no key is published, no real-call score is inferred from fake results. Deployment
 is still separately gated. No financial advice/calculations delegated to the LLM.
+
+## 14. Owner-approved AI expansion — 2026-11-03
+
+Implement docs/AI_EXPANSION.md incrementally. Owner grants operational access and
+real local model testing; ask before high-risk disclosure, bulk mutation or public
+deployment. Read-only question interpretation extends extraction to typed query
+filters, while all SQL/calculation/authorization remain server-owned. Additional
+stages are explicitly planned and must not be represented as already implemented.

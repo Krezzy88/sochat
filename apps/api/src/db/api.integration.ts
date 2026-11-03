@@ -7,7 +7,15 @@ import pg from 'pg';
 import request from 'supertest';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { randomUUID } from 'node:crypto';
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
+import {
+  beforeAll,
+  afterAll,
+  beforeEach,
+  describe,
+  it,
+  expect,
+  vi,
+} from 'vitest';
 import { createApp } from '../http/app.ts';
 import { HybridExtractor } from '../extraction/hybrid.ts';
 import { FakeProvider } from '../extraction/provider.ts';
@@ -623,4 +631,98 @@ it('streams all owned export rows across the 500-row page boundary', async () =>
   const exported = await call(a, 'get', '/api/me/export').expect(200);
   expect(exported.text).toContain('synthetic-export-601');
   expect(exported.text.split('\r\n').filter(Boolean)).toHaveLength(602);
+});
+
+it('never invokes the live assistant in a fake app and rejects supplied account identity', async () => {
+  await call(a, 'post', '/api/assistant/query', {
+    message: 'Tháng này ăn uống bao nhiêu?',
+    user_id: b.id,
+  }).expect(400);
+  await call(a, 'post', '/api/assistant/query', {
+    message: 'Tháng này ăn uống bao nhiêu?',
+  }).expect(503);
+  expect((await call(a, 'get', '/api/transactions')).body.items).toHaveLength(
+    0,
+  );
+});
+
+it('executes only typed read filters, isolates users, and never sends ledger rows to Gemini', async () => {
+  const original = runtime;
+  const replies: unknown[] = [
+    { month: '2026-11', category: 'an_uong', needs_clarification: false },
+    { month: '2026-11', category: 'an_uong', needs_clarification: false },
+    { month: '2026-11', category: null, needs_clarification: true },
+    { month: '2026-99', category: null, needs_clarification: false },
+  ];
+  const bodies: string[] = [];
+  const transport = vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async (_url, options) => {
+      bodies.push(String(options?.body));
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            { content: { parts: [{ text: JSON.stringify(replies.shift()) }] } },
+          ],
+        }),
+      );
+    });
+  vi.stubEnv('LLM_PROVIDER', 'gemini');
+  vi.stubEnv('GEMINI_MODEL', 'gemini-synthetic');
+  vi.stubEnv('GEMINI_API_KEY', 'synthetic-not-real');
+  vi.stubEnv('CI', '');
+  try {
+    runtime = await createApp({
+      pool,
+      origin,
+      sessionSecret: 'synthetic-query-test-'.repeat(3),
+      now,
+      extractor: {
+        providerName: 'gemini',
+        parseHybrid: async () => {
+          throw new Error('Not used');
+        },
+      },
+    });
+    const first = await actor(),
+      second = await actor();
+    await save(first, [{ ...transaction, note: 'private-fixture-first' }]);
+    await save(second, [
+      { ...transaction, amount_vnd: '900000', note: 'private-fixture-second' },
+    ]);
+    const one = await call(first, 'post', '/api/assistant/query', {
+      message: 'Tháng 11 ăn uống bao nhiêu?',
+    }).expect(200);
+    expect(one.body.expense_vnd).toBe('50000');
+    const two = await call(second, 'post', '/api/assistant/query', {
+      message: 'Tháng 11 ăn uống bao nhiêu?',
+    }).expect(200);
+    expect(two.body.expense_vnd).toBe('900000');
+    expect(
+      (
+        await call(first, 'post', '/api/assistant/query', {
+          message: 'So sánh nhiều tháng',
+        }).expect(200)
+      ).body.needs_clarification,
+    ).toBe(true);
+    await call(first, 'post', '/api/assistant/query', {
+      message: 'Tháng này',
+    }).expect(503);
+    vi.stubEnv('CI', 'true');
+    await call(first, 'post', '/api/assistant/query', {
+      message: 'Tháng này',
+    }).expect(503);
+    expect(bodies).toHaveLength(4);
+    expect(bodies.join('')).not.toMatch(
+      /private-fixture|@example\.test|password_hash|SELECT/,
+    );
+    expect(
+      (await call(first, 'get', '/api/transactions')).body.items,
+    ).toHaveLength(1);
+  } finally {
+    if (runtime !== original) await runtime.close();
+    runtime = original;
+    transport.mockRestore();
+    vi.unstubAllEnvs();
+  }
 });

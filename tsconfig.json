@@ -32,6 +32,7 @@
     "docker/**/*.ts",
     "playwright.compose.config.ts",
     "playwright.live.config.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "playwright.query.config.ts"
   ]
 }

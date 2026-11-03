@@ -247,3 +247,12 @@ shift, real-device/Safari/Firefox/screen-reader verification and measured produc
 load. Confirmation retry intent is memory-only; inspect Transactions after leaving
 an uncertain save. Future OCR, bank parsing, shared goals, native apps, reminders,
 English UI and tax tools are backlog ideas, not shipped features.
+
+## AI expansion, first read-only slice
+
+[Approved staged scope](docs/AI_EXPANSION.md). Chat now includes **Hỏi cuốn sổ**:
+ask monthly totals in Vietnamese, inspect the interpreted month/category and open
+matching transactions as evidence. Gemini receives only the question/current date;
+fixed owner-scoped SQL calculates totals. There is no model-authored SQL, ledger
+history transfer, automatic write or financial advice. This slice supports one
+month and optional category; later conversation/voice/search stages remain planned.

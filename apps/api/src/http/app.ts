@@ -1,3 +1,4 @@
+import { interpretQuestion } from './assistant.ts';
 import express from 'express';
 import type { Request, Response } from 'express';
 import session from 'express-session';
@@ -473,6 +474,76 @@ export async function createApp(options: ApiOptions) {
     '/api/chat/status',
     { response: z.strictObject({ provider: z.enum(['gemini', 'fake']) }) },
     () => ({ provider: options.extractor.providerName ?? 'fake' }),
+  );
+  route(
+    'post',
+    '/api/assistant/query',
+    {
+      body: c.message,
+      response: z.strictObject({
+        needs_clarification: z.boolean(),
+        question: z.string(),
+        month: c.month.nullable(),
+        category: z.string().nullable(),
+        income_vnd: strMoney,
+        expense_vnd: strMoney,
+        evidence_url: z.string().nullable(),
+      }),
+    },
+    async ({ req, res, user, body }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Hỏi cuốn sổ cần cấu hình Gemini thật.');
+      await rate(req, res, 'assistant', user, user, 5);
+      const intent = await interpretQuestion(
+        body.message,
+        now(),
+        user,
+        options.pool,
+      );
+      if (intent.needs_clarification)
+        return {
+          needs_clarification: true,
+          question:
+            'Bạn hỏi tổng thu/chi của một tháng và tối đa một danh mục nhé.',
+          month: null,
+          category: null,
+          income_vnd: '0',
+          expense_vnd: '0',
+          evidence_url: null,
+        };
+      const report = await repo.month(
+        user,
+        intent.month + '-01',
+        c.nextMonth(intent.month),
+      );
+      const groups = report.by_category.filter(
+        (row) => !intent.category || row.category === intent.category,
+      );
+      return {
+        needs_clarification: false,
+        question: 'Tổng hợp từ giao dịch đã lưu của bạn.',
+        month: intent.month,
+        category: intent.category,
+        income_vnd: groups
+          .filter((r) => r.type === 'income')
+          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
+          .toString(),
+        expense_vnd: groups
+          .filter((r) => r.type === 'expense')
+          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
+          .toString(),
+        evidence_url:
+          '/api/transactions?from=' +
+          intent.month +
+          '-01&to=' +
+          new Date(
+            Date.parse(c.nextMonth(intent.month) + 'T00:00:00Z') - 86400000,
+          )
+            .toISOString()
+            .slice(0, 10) +
+          (intent.category ? '&category=' + intent.category : ''),
+      };
+    },
   );
   const proposal = z.strictObject({
     provider: z.enum(['gemini', 'fake']),

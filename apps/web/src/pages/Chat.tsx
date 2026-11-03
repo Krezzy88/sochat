@@ -1,3 +1,4 @@
+import { QueryPanel } from './QueryPanel.tsx';
 import { Mascot } from '../Mascot.tsx';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -100,6 +101,14 @@ export function Chat({ categories }: { categories: Category[] }) {
         <div>
           <span className="eyebrow">MỖI NGÀY MỘT CHÚT</span>
           <h1>Hôm nay bạn chi gì?</h1>
+          <button
+            className="text-button"
+            onClick={() =>
+              document.getElementById('ask-ledger')?.scrollIntoView()
+            }
+          >
+            Hỏi về giao dịch đã lưu ↓
+          </button>
           <p>Cứ kể tự nhiên. SổChat giúp bạn ghi lại.</p>
         </div>
         <span className="header-stamp">
@@ -405,6 +414,7 @@ export function Chat({ categories }: { categories: Category[] }) {
           </p>
         </aside>
       </div>
+      <QueryPanel categories={categories} />
     </>
   );
 }
