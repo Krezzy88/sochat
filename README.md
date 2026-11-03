@@ -163,6 +163,10 @@ database or .env. This HTTP configuration has known demo-only credentials and mu
 not be published as a production deployment. See [runbook](docs/RUNBOOK.md) for
 ports, cleanup, coverage gates, CI, migration and production boundaries.
 
+Phase 7 [hosted CI passed](https://github.com/Krezzy88/sochat/actions/runs/41596322856)
+for source 9c0b8c1, including Trivy, artifact upload and both browser modes.
+See EVIDENCE for exact counts, scopes and retained limitations.
+
 ## Architecture
 
 ```mermaid

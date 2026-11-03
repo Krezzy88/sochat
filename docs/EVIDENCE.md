@@ -2685,3 +2685,30 @@ At this local evidence commit, hosted Phase 7 CI/publication is NOT VERIFIED yet
 that acceptance condition requires pushing the reviewable feature branch and
 observing the run. Phase 8 remains owner-gated: no host, demo link, user-test quotes,
 held-out score or production backup/TLS guarantee was invented.
+
+### Hosted Phase 7 verification accepted
+
+Owner explicitly approved pushing feat/phase-7 and creating its draft PR. Push
+succeeded and [draft PR #12](https://github.com/Krezzy88/sochat/pull/12) was created
+against main; no merge or deployment. The earlier local-only CI limitation above
+is resolved for source 9c0b8c117c12b530fe6cdd41a46a8d7d59a736aa.
+
+[CI run 41596322856](https://github.com/Krezzy88/sochat/actions/runs/41596322856)
+completed with conclusion success. Both jobs succeeded: Checks, coverage, browser
+and Compose (job 125784414829), and Trivy filesystem scan (125784415162). Fetched
+job logs confirm 202 unit, 50 integration, 14 native Chromium journeys (34.5 s),
+Compose healthchecks/smoke and 7 container Chromium journeys (14.0 s). Unit and
+integration line coverage remained 79.83% and 91.82%; all calibrated gates passed.
+Audit, bounded secret check, lint/types, OpenAPI drift and rules/fake evaluations
+passed. Compose cleanup succeeded. No real Gemini or held-out command ran.
+
+Verified artifact verification-reports, ID 13212880459, 7608 bytes, digest
+sha256:8002f7357addeaf148a8244f66f2c1fc43a543ec46e5345ff7d1fa373b6972f4,
+not expired when inspected; retention expires 2026-11-17. Workflow uploads evaluation
+reports, coverage and test-results under its declared paths. No authenticated
+Lighthouse report, .env or real credential was part of the configured artifact.
+
+This subsequent documentation-only commit records the referenced source's actual
+run; it does not retroactively attribute that run to an unobserved future SHA.
+Phase 7 implementation/local container and hosted CI acceptance are complete for
+that source. PR remains draft, main unchanged, and Phase 8 awaits explicit owner go.
