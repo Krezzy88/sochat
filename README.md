@@ -2,10 +2,10 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 4 HTTP API**. The API is implemented; the React web application is still pending Phase 5.
+Status: **Phase 5 web application**. The React UI and HTTP API are implemented; security hardening and deployment remain later phases.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
-The MVP will support authentication, chat extraction with editable confirmation,
+The MVP supports authentication, chat extraction with editable confirmation,
 transaction management, month/year reports, monthly category budgets, simple savings
 goals, CSV export and account deletion. OCR, bank linking, investment/tax features,
 multi-currency and AI financial advice are outside the MVP.
@@ -51,11 +51,11 @@ deterministic fake extraction provider.
 | `scripts`         | Toolchain validation                            | 0                    |
 | `docs/agent`      | Unmodified owner-supplied project documents     | Reference            |
 
-The API starts from apps/api/src/server.ts; the web entry point remains a placeholder until Phase 5.
+The API starts from apps/api/src/server.ts; React starts from apps/web/src/main.tsx.
 Root lint and typecheck commands cover all three workspaces. Root Vitest discovers
 tests under `scripts`, `packages`, `eval` and `apps`. Coverage measures the runtime
 guard, parser and evaluation harness. Integration coverage separately measures
-database and HTTP code; web coverage remains pending Phase 5.
+database and HTTP code. Browser JS execution-range coverage is recorded separately; it is not TypeScript line coverage.
 
 See [API setup and client flow](docs/API.md). With the local PostgreSQL 18 database
 and ignored `.env` configured:
@@ -114,4 +114,26 @@ with Docker running for the PostgreSQL 18 integration suite. The owner-run milli
 
 Gemini/FakeProvider adapters and rules-first orchestration are implemented; real
 Gemini evaluation remains owner-run. See [extraction setup and safety contract](docs/EXTRACTION.md).
-CI runs only rules and fake evaluation. HTTP routes are implemented; the web UI is pending Phase 5.
+CI runs only rules and fake evaluation, plus isolated Chromium end-to-end tests. No hosted CI result is claimed without a verified run.
+
+## Web UI
+
+See [web setup and testing](docs/WEB.md). Start the API in one terminal, then:
+
+```sh
+npm run web:dev
+# Open http://localhost:5173; register with synthetic data only.
+```
+
+The UI includes Chat confirmation cards, filtered transactions, month/year reports,
+budgets, savings goals and Settings with CSV export/account deletion. Mobile layout
+uses bottom navigation; charts have expanded HTML table alternatives. Built assets
+are generated with `npm run web:build`.
+
+Browser smoke: `npx playwright install chromium && npm run e2e` (requires Docker;
+isolated PostgreSQL 18/FakeProvider, no local .env). Screenshots from synthetic browser tests were approved by the owner on 2026-11-03. Local measured
+Lighthouse results and their limits are retained in docs/measurements and EVIDENCE.
+
+![Chat confirmation workflow](docs/screenshots/chat-desktop-chromium.png)
+
+![Monthly dashboard with exact table alternative](docs/screenshots/dashboard-desktop-chromium.png)
