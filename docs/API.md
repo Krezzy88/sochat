@@ -1,6 +1,6 @@
 # Phase 4 API
 
-Responsive web UI implementation remains Phase 5. This phase provides HTTP endpoints,
+The Phase 5 React UI now consumes this API; see WEB.md. Phase 4 provides HTTP endpoints,
 OpenAPI, authentication and persisted application logic. No new Gemini evaluation is
 required to run the API in fake mode.
 
@@ -10,7 +10,7 @@ Use the pinned Node 22.23.4 and npm 10.9.4 (`nvm install && nvm use`). Node 22 b
 22.19 is now rejected because the OpenAPI validator requires 22.19+. PostgreSQL 18
 and the local DATABASE_URL are already configured. Keep .env ignored and never send
 credentials in chat. Set SESSION_SECRET to at least 32 random characters, not the
-example placeholder. APP_ORIGIN defaults to http://localhost:5173 (future Vite UI).
+example placeholder. APP_ORIGIN defaults to http://localhost:5173 (Vite UI).
 
 ```sh
 npm ci
@@ -99,5 +99,6 @@ account-deletion assertions cover every public table with user_id, including ses
 idempotency/cache/usage/rate state. OpenAPI is generated and validated in tests.
 
 No email verification/reset-password, OCR, bank linking, shared wallets, investment
-or tax functionality is implemented. Security/privacy hardening and full UI/e2e are
-later phases; deployment proxy/HTTPS and hosted CI are not claimed verified locally.
+or tax functionality is implemented. Security/privacy hardening remain later phases; Phase 5 now provides the React UI and Chromium e2e. Deployment and full security review are
+later work. Deployment proxy/HTTPS remains unverified; Phase 5 hosted CI results
+are recorded in EVIDENCE.md.

@@ -26,6 +26,8 @@
     "eval/**/*.ts",
     "vitest.config.ts",
     "db/**/*.ts",
-    "vitest.integration.config.ts"
+    "vitest.integration.config.ts",
+    "e2e/**/*.ts",
+    "playwright.config.ts"
   ]
 }

@@ -2334,3 +2334,183 @@ hosted CI, full security hardening and fresh real Gemini performance/cost remain
 remain **0**. No deployment, remote push/PR or Phase 5 implementation was performed.
 Owner can inspect docs/API.md/OpenAPI or start fake mode; no new secret/benchmark
 is required for this gate. Await explicit "go phase 5".
+
+## 2026-11-03 — Phase 5 React web application
+
+Owner explicitly requested "go phase 5". Implementation source:
+`d06e7ce56feee38d050bb431e07eacb578f295f3` on `feat/phase-5`, based on accepted
+Phase 4. Environment: Darwin arm64, isolated Node 22.23.4/npm 10.9.4, PostgreSQL
+18.6 Testcontainers. No local .env or owner's development data was copied into tests.
+
+### Delivered scope and dependency verification
+
+React/Vite Vietnamese pages: register/login, Chat with editable confirmations,
+transactions with filters/cursor/edit/delete, month/year reports, category budgets,
+savings goals with contributions/edit/delete, Settings with CSV/logout/account
+removal. Responsive sidebar/bottom navigation, synthetic-demo banner, labeled
+controls, keyboard skip/focus, loading/empty/error/retry states, chart line/marker
+and text distinctions with expanded table alternatives. No OCR, bank linking or
+other future features. Code/SQL perform calculations; Gemini remains extraction-only.
+No real Gemini call or held-out evaluation was initiated; held-out runs remain 0.
+
+Registry versions/engines/peers were checked before installing React/react-dom/
+react-is 19.3.1, Recharts 3.10.1, Vite 8.3.5, React type packages 19.3.0,
+Playwright 1.64.1 and Lighthouse 13.6.0. Installed Playwright's pinned Chromium
+156.0.8078.4 (revision 1248). Official references consulted: [Vite proxy](https://vite.dev/config/server-options),
+[Playwright web servers](https://playwright.dev/docs/test-webserver),
+[Recharts accessibility](https://github.com/recharts/recharts/wiki/Recharts-and-accessibility).
+No new runtime/framework major was selected without checking compatibility.
+
+See [WEB.md](WEB.md), ADR-013 and the page modules in apps/web/src/pages. Frontend
+requests use the existing cookie/CSRF API; no identity is taken from a client field
+and no credentials/messages/ledger are stored in localStorage. Native VND labels use
+bigint/Intl vi-VN. Chart coordinates are approximate thousands; exact money remains
+in HTML tables. Confirm snapshots items/key on first attempt and reuses them after
+uncertain network errors. Pending intent is memory-only, not durable across leaving
+Chat/reloading; inspect saved transactions before submitting a new intent afterward.
+
+### Clean-checkout commands and observed output
+
+```sh
+git clone --no-hardlinks /Users/tranphantrungkien/project/sochat /private/tmp/sochat-phase5-d06e7ce
+cd /private/tmp/sochat-phase5-d06e7ce
+# PATH selects isolated Node 22.23.4/npm 10.9.4.
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run api:openapi
+git diff --exit-code -- apps/api/openapi.json
+npm run test:integration
+npm run e2e
+```
+
+All commands exited 0. npm ci installed 600 packages, audited 604 and reported
+**21 moderate vulnerabilities**. No incompatible force/downgrade fix was applied;
+current advisory review remains Phase 6 work. This is not a clean audit claim.
+
+| Check                             | Actual result                     |
+| --------------------------------- | --------------------------------- |
+| ESLint / Prettier / TypeScript    | passed                            |
+| Unit suite                        | 7 files, 201 passed, 0 failed     |
+| PostgreSQL/HTTP regression        | 3 files, 50 passed, 0 failed      |
+| Native OpenAPI generation / drift | passed / unchanged                |
+| Production Vite build             | passed, 450 modules transformed   |
+| Browser journeys, clean clone     | 14 passed, 0 failed, 26.7 seconds |
+| Desktop Chromium                  | 7 passed                          |
+| Pixel 7 Chromium emulation        | 7 passed                          |
+
+The browser harness starts a disposable PostgreSQL 18 database and actual Express
+session/API plus production Vite preview. It explicitly constructs FakeProvider,
+uses a random test-only session secret, never loads .env and refuses reuse of local
+servers. Temporary audit/smoke accounts are synthetic and deleted. Servers and
+containers were stopped after verification; native PostgreSQL local data was not
+changed during this phase.
+
+Required full UI flow passed on both viewports: register → parse two items → assert
+zero saved rows before confirmation → edit amount → confirm → verify report → create
+quỹ/record contribution → download and inspect CSV → delete account → verify 401.
+Further journeys cover unitless amount staying blank/unsaved until corrected;
+response loss after the API committed then retry without duplication; transaction
+edit/delete and persisted 80% budget warning; reload/session, keyboard skip, logout
+and login; report error/retry and yearly exact table; 21-row cursor pagination,
+income filter, goal edit and confirmed deletion. The full flow asserts no browser
+pageerror and no body-width overflow at the tested viewports.
+
+An early 12-case run found initial programmatic focus skipped the first keyboard
+skip link. Corrected initial focus and prevented the skip link from changing the
+page route; the retained keyboard test passes on both viewports. A later new filter
+test initially timed out with an exact wrapped-label selector; using the select's
+accessible combobox role resolved it. The final 14-case clean run above passed.
+
+### Browser coverage, measured separately
+
+Playwright V8 execution ranges are merged across all journeys and compared with
+all built JavaScript chunks, including React/Recharts. This is UTF-16 character-range
+coverage, **not TypeScript line/branch coverage**, and excludes API/HTML/CSS. Library
+execution differs slightly between runs; no whole-app coverage claim or threshold.
+
+| Run                              | Covered / total UTF-16 units | Percent |
+| -------------------------------- | ---------------------------- | ------- |
+| Working checkout, 14 journeys    | 304192 / 664677              | 45.77%  |
+| Clean checkout, same 14 journeys | 304377 / 664677              | 45.79%  |
+
+Artifacts: [working measurement](measurements/web-coverage.json),
+[clean measurement](measurements/web-coverage-clean.json). Existing Phase 4 integration
+line coverage remains its historical measurement; it was not remeasured/merged here.
+
+### Mutation check, restored
+
+Temporarily changed `pending.current ??=` to `pending.current =` in Chat confirmation,
+so retry generates a new UUID rather than retaining its original idempotency key.
+Ran:
+
+```sh
+npm run e2e -- --project=desktop-chromium --grep 'retry after'
+```
+
+Observed **1 failed**: expected transaction array length 1, received 2. The test first
+allows the real API save to complete, then drops its response and clicks retry.
+Production source was restored in a finally block. Final 14-case working and clean
+runs passed, proving the regression test detects this real duplicate-save defect.
+
+### Lighthouse and screenshot evidence
+
+Built the production bundle, started `npm run e2e:serve`, then ran `npm run web:audit`.
+The audit creates an isolated synthetic account and two transactions, uses cookie
+headers only in memory, measures authenticated #chat/#dashboard and deletes its
+account. Full reports are not retained because they may contain Cookie headers;
+selected metrics only are written to [lighthouse.json](measurements/lighthouse.json).
+Lighthouse 13.6.0, HeadlessChrome 156.0.8078.4, mobile simulated throttling: 150ms RTT,
+1638.4 Kbps nominal throughput, 4x CPU slowdown. Each row is one local run.
+
+| Page      | Performance / 100 | Accessibility / 100 | LCP   | TBT   | CLS   |
+| --------- | ----------------- | ------------------- | ----- | ----- | ----- |
+| Chat      | 92                | 100                 | 1.6 s | 0 ms  | 0.179 |
+| Dashboard | 89                | 100                 | 1.9 s | 10 ms | 0.210 |
+
+The first measurements were Chat 92/95 and Dashboard 89/96. Lighthouse identified
+insufficient contrast in small muted/footer/table labels. Darkened those measured
+colors and repeated both runs; final scores above have no failed automated
+accessibility audits. [Before-contrast artifact](measurements/lighthouse-before-contrast.json)
+is retained. These are neither hosted performance measurements, percentiles,
+real-phone measurements nor a manual WCAG/screen-reader certification. Layout shift
+remains a measured follow-up; no high-performance promise is inferred.
+
+Captured and visually inspected actual synthetic Chat/Dashboard screenshots at
+1280px desktop and Pixel 7 emulation. Review caught an overly broad CSS selector
+showing focus outlines on every control; corrected to :is(...):focus-visible and
+recaptured. On 2026-11-03 the owner explicitly replied **"Duyệt ảnh hiện tại"** to
+approve README screenshots. Approved images are retained in docs/screenshots and
+embedded in README. No image generation or invented UI data screenshot was used.
+A temporary local preview returned 200 and was opened in the Codex browser panel;
+its open request was queued, which is not itself proof of rendered-browser QA.
+Screenshot inspection and Playwright supply the visual/browser evidence above.
+
+### CI/publication gate
+
+Workflow now installs pinned Playwright Chromium and runs the same production-build
+journeys after unit/integration/rules/fake checks. GitHub read-only inspection found
+Phase 4 PR #5 merged and confirmed origin/main's files equal the local Phase 4 base.
+An initial `git push -u origin feat/phase-5` was rejected by automatic approval
+review because publishing source to the public repository needed explicit user
+authorization. No alternative write path was attempted. The owner then explicitly
+replied **"Cho phép push và tạo draft PR"**; the same push succeeded and
+[draft PR #6](https://github.com/Krezzy88/sochat/pull/6) was created against main.
+No merge was performed.
+
+Hosted verification is now **VERIFIED** for commit
+`02a64262b4005d3270e7083d076bc8f4116c0cd1` (implementation d06e7ce plus local
+evidence). [CI run 41592021904](https://github.com/Krezzy88/sochat/actions/runs/41592021904)
+completed with conclusion **success**. Fetched job steps and decoded logs for job
+125770686289: Ubuntu 24.04.5, lint/types/OpenAPI drift passed, 201 unit tests,
+50 PostgreSQL/HTTP tests, rules/fake eval, Chromium installation and **14 e2e tests
+passed** (34.7 s). CI browser execution ranges were 304197/664677 (45.77%); they
+are not TypeScript line coverage. No real Gemini or held-out command is in this job.
+This subsequent evidence-only update is separately committed; the linked run proves
+the referenced source, not an unobserved later SHA. PR remains draft for owner review.
+
+Safari/Firefox, real devices, assistive technology, full security/privacy hardening,
+public deployment remain unverified. Owner has approved screenshots and branch publication;
+no additional API key or benchmark is required. Phase 6 remains behind its explicit
+go gate. No Phase 6 implementation or deployment was performed.

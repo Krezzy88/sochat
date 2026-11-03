@@ -172,3 +172,30 @@ OpenAPI 3.1 derives inputs/outputs from the same zod schemas registered with the
 routes. Validate the generated artifact and its equality to the live contract.
 The OpenAPI validator requires Node 22.19+, so the minimum declared Node 22 minor
 and runtime guard are raised accordingly; the pinned Node remains 22.23.4.
+
+## ADR-013: React web client and isolated browser evidence
+
+Date: 2026-11-03. Status: implemented for Phase 5.
+
+Use React 19, Vite and Recharts with hash-based page navigation and per-page lazy
+chunks. Keep the original Express/PostgreSQL API and cookie/CSRF contract. Vite's
+local /api proxy preserves the browser's Origin and cookies; production hosting
+remains a later phase. No credentials are exposed through VITE_* or web storage.
+
+Parse is a proposal; explicit editable confirmation is the only client action
+that persists its items. Snapshot the payload and UUID on first attempt and retain
+both for retries after uncertain network outcomes. Definite server validation
+rejection permits correction. Pending intent is memory-only and is not an offline
+queue; document the reload/navigation limit rather than claiming durable retries.
+
+Use exact bigint/Intl for monetary labels and API totals for budgets/goals. Chart
+coordinates use approximate integer thousands; expanded HTML tables retain exact
+amounts. Label, line style and marker distinctions supplement color.
+
+Browser tests run a production web build against disposable PostgreSQL 18 and
+FakeProvider with random test-only session secret; never load .env or call Gemini.
+Desktop/mobile Chromium journeys run locally and are configured in CI. Measure
+Lighthouse on authenticated synthetic Chat/Dashboard, retaining selected metrics
+only, because full reports can contain Cookie headers. Measured V8 browser ranges
+include bundled libraries and are separate from TypeScript line/branch coverage.
+No hosted CI, deployment or manual accessibility certification is implied.

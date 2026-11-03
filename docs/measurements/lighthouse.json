@@ -1,0 +1,87 @@
+{
+  "scope": "Two single local mobile simulated-throttling runs, authenticated synthetic data, production Vite preview; not hosted performance or manual accessibility certification.",
+  "results": [
+    {
+      "page": "chat",
+      "fetchTime": "2026-11-03T06:35:04.322Z",
+      "lighthouseVersion": "13.6.0",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+      "formFactor": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "performance": 0.92,
+      "accessibility": 1,
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 754.578,
+          "display": "0.8 s"
+        },
+        "largest-contentful-paint": {
+          "value": 1559.867,
+          "display": "1.6 s"
+        },
+        "speed-index": {
+          "value": 754.578,
+          "display": "0.8 s"
+        },
+        "total-blocking-time": {
+          "value": 0,
+          "display": "0 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0.17911101450648093,
+          "display": "0.179"
+        }
+      },
+      "failedAccessibility": [],
+      "warnings": []
+    },
+    {
+      "page": "dashboard",
+      "fetchTime": "2026-11-03T06:35:09.824Z",
+      "lighthouseVersion": "13.6.0",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+      "formFactor": "mobile",
+      "throttling": {
+        "rttMs": 150,
+        "throughputKbps": 1638.4,
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.5600000000002,
+        "uploadThroughputKbps": 675,
+        "cpuSlowdownMultiplier": 4
+      },
+      "performance": 0.89,
+      "accessibility": 1,
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 756.348,
+          "display": "0.8 s"
+        },
+        "largest-contentful-paint": {
+          "value": 1854.522,
+          "display": "1.9 s"
+        },
+        "speed-index": {
+          "value": 828.2413429069032,
+          "display": "0.8 s"
+        },
+        "total-blocking-time": {
+          "value": 8.5,
+          "display": "10 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0.20986519246422636,
+          "display": "0.21"
+        }
+      },
+      "failedAccessibility": [],
+      "warnings": []
+    }
+  ]
+}
