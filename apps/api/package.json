@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "0.300.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.300.0",
+    "@opentelemetry/resources": "3.0.0",
+    "@opentelemetry/sdk-metrics": "3.0.0",
+    "@opentelemetry/sdk-node": "0.300.0",
+    "@opentelemetry/sdk-trace": "3.0.0",
     "argon2": "0.45.2",
     "connect-pg-simple": "10.0.0",
     "express": "5.3.0",

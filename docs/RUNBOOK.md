@@ -97,3 +97,45 @@ are disclosed rather than forced into incompatible downgrades. Filesystem scanni
 does not prove that all base-image operating-system packages are patched; an image
 scan and host/provider controls remain distinct checks. Hosted scan results must be
 observed before claiming CI is green. No automatic merge or deployment is configured.
+
+## Optional AI expansion / Docker hardening
+
+Native migrations add preferences (default false) and derived-vector storage. They
+DO NOT enable RLS or change the native PostgreSQL role. Semantic storage uses a
+portable 768-element `double precision[]`, not a required PostgreSQL extension.
+At the current bounded 1,000-note scope, exact owner-filtered search is intentional;
+pgvector/ANN requires a measured scale/recall justification before adoption.
+
+Before enabling demo RLS: stop writes, create a local owner-only backup outside the
+repository (`umask 077`; `docker exec sochat-demo-db-1 pg_dump -U sochat_demo -d
+sochat_demo > /private/tmp/<private-backup>.sql`), verify it, apply migrations, then:
+
+```sh
+docker exec -i sochat-demo-db-1 psql -v ON_ERROR_STOP=1 -U sochat_demo -d sochat_demo < db/enable-rls.sql
+docker compose --env-file .env -p sochat-demo -f compose.yaml -f compose.gemini.yaml -f compose.hardening.yaml up --build --wait
+```
+
+The hardening override requires the role/policies to exist. It enables local-only
+OpenTelemetry spans and 60-second metric exports. Do not attach an external
+collector or enable auto instrumentation without privacy review. The SDK accepts
+only localhost/collector endpoints. No raw bodies/errors/identity fields are added.
+Check fixed `otel_trace` fields in local logs; do not copy all logs into reports.
+
+In Settings, opt in to semantic notes. In Transactions,
+explicitly index 20 notes at a time and search the indexed subset. Turning semantic
+off deletes vectors; note edits invalidate vectors and need explicit reindexing.
+
+Owner-authorized local real-provider checks (never CI; consume shared daily caps):
+
+```sh
+node --experimental-strip-types scripts/check-ai-expansion-live.ts
+npx playwright test --config playwright.expansion.config.ts
+```
+
+Both require the real Gemini Docker demo and create/delete synthetic accounts.
+The browser test can run with `SOCHAT_LIVE_FEATURES_ONLY=true` to check just the
+remaining consent/index/search journey when chat has already been verified,
+conserving the shared quota. Reports state which assertions ran. No microphone,
+synthetic speech file or voice permission is required in the current product.
+Do not increase/reset quota to bypass limits silently. Sanitized reports are saved
+under docs/measurements; older voice results are explicitly historical.

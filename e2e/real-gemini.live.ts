@@ -55,7 +55,7 @@ test('real Gemini, grouped money, accessible auth and responsive playful UI', as
       (r) =>
         r.url().includes('/api/chat/parse') && r.request().method() === 'POST',
     );
-    await page.getByRole('button', { name: 'Phân tích', exact: true }).click();
+    await page.getByRole('button', { name: 'Gửi', exact: true }).click();
     const response = await parsed;
     expect(response.status()).toBe(200);
     const result = await response.json();

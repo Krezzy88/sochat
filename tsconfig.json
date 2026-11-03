@@ -33,6 +33,7 @@
     "playwright.compose.config.ts",
     "playwright.live.config.ts",
     "scripts/**/*.ts",
-    "playwright.query.config.ts"
+    "playwright.query.config.ts",
+    "playwright.expansion.config.ts"
   ]
 }

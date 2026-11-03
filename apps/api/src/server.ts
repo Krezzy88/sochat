@@ -1,3 +1,5 @@
+import { startTelemetry, stopTelemetry } from './telemetry.ts';
+import { tenantPool } from './db/tenant.ts';
 import process from 'node:process';
 import pg from 'pg';
 import { createExtractor } from './extraction/factory.ts';
@@ -18,8 +20,9 @@ pool.on('error', () =>
   process.stderr.write('Database connection unavailable.\n'),
 );
 try {
+  startTelemetry();
   await pool.query('SELECT 1');
-  const extractor = await createExtractor(pool);
+  const extractor = await createExtractor(tenantPool(pool));
   const runtime = await createApp({
     pool,
     extractor,
@@ -44,7 +47,10 @@ try {
     if (stopping) return;
     stopping = true;
     server.close(() => {
-      void runtime.close().finally(() => pool.end());
+      void runtime.close().finally(async () => {
+        await pool.end();
+        await stopTelemetry();
+      });
     });
   };
   process.on('SIGINT', stop);

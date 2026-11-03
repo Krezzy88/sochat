@@ -111,7 +111,7 @@ try {
     JSON.stringify(
       {
         scope:
-          'Two single local mobile simulated-throttling runs, authenticated synthetic data, production Vite preview; not hosted performance or manual accessibility certification.',
+          'Two single local mobile simulated-throttling runs, authenticated synthetic data, production Vite build served locally; not hosted performance or manual accessibility certification.',
         results,
       },
       null,

@@ -1,3 +1,7 @@
+import { indexNotes, semanticSearch } from './semantic.ts';
+import { instrument } from '../telemetry.ts';
+import { tenantPool, withTenant } from '../db/tenant.ts';
+import { revisionInput, revise } from './revision.ts';
 import { interpretQuestion } from './assistant.ts';
 import express from 'express';
 import type { Request, Response } from 'express';
@@ -114,7 +118,8 @@ export async function createApp(options: ApiOptions) {
   )
     throw new Error('Invalid proxy hop configuration.');
   const now = options.now ?? (() => new Date());
-  const repo = apiRepository(options.pool, options.sessionSecret);
+  const tenantDB = tenantPool(options.pool);
+  const repo = apiRepository(tenantDB, options.sessionSecret);
   const app = express();
   const dummyHash = await argon2.hash(randomBytes(32).toString('hex'), {
     type: argon2.argon2id,
@@ -312,7 +317,11 @@ export async function createApp(options: ApiOptions) {
       const query = read((spec.query ?? c.empty) as Q, req.query);
       const params = read((spec.params ?? c.empty) as P, req.params);
       user = req.session.userId ?? '';
-      const result = await handler({ req, res, user, body, query, params });
+      const result = await instrument(method, path, code, () =>
+        withTenant(spec.public ? '' : user, async () =>
+          handler({ req, res, user, body, query, params }),
+        ),
+      );
       if (res.headersSent) return;
       if (code === 204) {
         res.status(204).end();
@@ -498,7 +507,7 @@ export async function createApp(options: ApiOptions) {
         body.message,
         now(),
         user,
-        options.pool,
+        tenantDB,
       );
       if (intent.needs_clarification)
         return {
@@ -584,6 +593,89 @@ export async function createApp(options: ApiOptions) {
           user,
         )),
       };
+    },
+  );
+  route(
+    'post',
+    '/api/assistant/index',
+    { body: c.empty },
+    async ({ req, res, user }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Cần Gemini thật.');
+      await rate(req, res, 'embedding', user, user, 3);
+      return indexNotes(user, tenantDB, now());
+    },
+  );
+  route(
+    'post',
+    '/api/assistant/search',
+    { body: z.strictObject({ query: z.string().trim().min(1).max(300) }) },
+    async ({ req, res, user, body }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Cần Gemini thật.');
+      await rate(req, res, 'semantic', user, user, 5);
+      return semanticSearch(body.query, user, tenantDB, now());
+    },
+  );
+  const preferences = z.strictObject({
+    semantic_enabled: z.boolean(),
+  });
+  route(
+    'get',
+    '/api/me/ai-preferences',
+    { response: preferences },
+    async ({ user }) => {
+      const result = await tenantDB.query(
+        'SELECT semantic_enabled FROM ai_preferences WHERE user_id=$1',
+        [user],
+      );
+      return result.rows[0] ?? { semantic_enabled: false };
+    },
+  );
+  route(
+    'put',
+    '/api/me/ai-preferences',
+    { body: preferences, response: preferences },
+    async ({ user, body }) => {
+      const client = await tenantDB.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          'INSERT INTO ai_preferences(user_id,semantic_enabled) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET semantic_enabled=$2,updated_at=now()',
+          [user, body.semantic_enabled],
+        );
+        if (!body.semantic_enabled)
+          await client.query(
+            'DELETE FROM transaction_embeddings WHERE user_id=$1',
+            [user],
+          );
+        await client.query('COMMIT');
+        return body;
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+  );
+  route(
+    'post',
+    '/api/assistant/revise',
+    {
+      body: revisionInput,
+      response: z.strictObject({
+        items: revisionInput.shape.items,
+        needs_clarification: z.boolean(),
+        question: z.string(),
+        changed_indices: z.array(z.number().int()),
+      }),
+    },
+    async ({ req, res, user, body }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Chỉnh bằng hội thoại cần Gemini thật.');
+      await rate(req, res, 'revision', user, user, 5);
+      return revise(body, now(), user, tenantDB);
     },
   );
   route(

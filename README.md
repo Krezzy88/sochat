@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Pre-deploy UX refinement**. Playful 2D UI, grouped VND inputs, clearer auth and real Gemini provenance are implemented locally. Public deployment and real-user validation remain owner-gated Phase 8.
+Status: **Pre-deploy AI and UX expansion**. Playful 2D UI, grouped VND inputs, clearer auth and real Gemini provenance are implemented locally. Public deployment and real-user validation remain owner-gated Phase 8.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP supports authentication, chat extraction with editable confirmation,
@@ -38,8 +38,8 @@ cp .env.example .env
 ```
 
 Parser/evaluation commands do not load `.env` or call Gemini. Database migrations load `.env`; integration tests require Docker and use isolated PostgreSQL 18.
-Never commit API keys or real personal/financial data. Tests and CI use a
-deterministic fake extraction provider.
+Never commit API keys or real personal/financial data. CI uses deterministic
+providers/transport; separately labeled owner-authorized local checks use real Gemini.
 
 ## Workspace
 
@@ -89,7 +89,8 @@ explicit request and is never part of unit tests or CI.
 
 ## Engineering boundaries
 
-- Rules first; Gemini is an extraction fallback behind `ExtractionProvider`.
+- Rules first; Gemini extracts transaction fields, typed question filters and unsaved edit plans.
+- Optional consented Gemini embeddings support bounded semantic/keyword retrieval.
 - All calculations and business logic run in code/SQL.
 - Integer VND, PostgreSQL `bigint`, calendar dates in `Asia/Ho_Chi_Minh` and injected time.
 - Parsing proposes transactions; saving always requires user confirmation.
@@ -256,3 +257,25 @@ matching transactions as evidence. Gemini receives only the question/current dat
 fixed owner-scoped SQL calculates totals. There is no model-authored SQL, ledger
 history transfer, automatic write or financial advice. This slice supports one
 month and optional category; later conversation/voice/search stages remain planned.
+
+## Pre-deploy AI expansion
+
+One chatbot-style composer supports recording, asking one-month totals and revising
+an unsaved draft (for example “tăng thêm 20k”). Gemini extracts a validated intent;
+SQL/TypeScript calculates exact VND and the user confirms every save. Answers show
+filters and matching-transaction evidence. Chat history is temporary page memory.
+
+Optional semantic search is off by default. Enable it in Settings, explicitly index
+notes in batches of 20, then search by meaning in Transactions. Only sanitized notes
+and the search phrase go to Gemini Embedding 2; personal text may still remain.
+Turning it off deletes vectors. Note edits invalidate them; account deletion cascades.
+The small eight-note/four-query check measured top-1 **3/4 hybrid vs 1/4 keyword**,
+including one failed query; this is not representative retrieval accuracy. Exact
+ranking uses PostgreSQL arrays over at most 1,000 owned notes; pgvector is deferred.
+Voice was removed at owner request and is not part of the product.
+
+The Docker demo additionally opts into PostgreSQL RLS after a private backup and
+isolation checks, plus local-only OpenTelemetry traces/metrics without transaction
+content or identity. Native PostgreSQL remains unchanged. See [expansion scope](docs/AI_EXPANSION.md),
+[privacy](docs/PRIVACY.md), [threat model](docs/THREAT_MODEL.md), and the explicit
+[hardening steps](docs/RUNBOOK.md). No public deployment or new CI result is implied.

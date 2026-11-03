@@ -1,3 +1,4 @@
+import SemanticSearch from './SemanticSearch.tsx';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { dateLabel, errorText, money, request } from '../api.ts';
@@ -87,6 +88,7 @@ export default function Transactions({
           + Ghi khoản mới
         </a>
       </header>
+      <SemanticSearch />
       <form className="panel filters" onSubmit={apply}>
         <label>
           Từ ngày

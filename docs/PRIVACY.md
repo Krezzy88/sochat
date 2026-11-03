@@ -31,3 +31,38 @@ removes user-owned database rows and all user sessions through foreign-key casca
 a regression test checks every public table with user_id. Anonymous sessions and
 global aggregate quota counts contain no account reference. Provider logs and any
 future external backup copies are not erased by a PostgreSQL cascade.
+
+## Owner-approved optional AI inputs (2026-11-03)
+
+Semantic search is OFF for every account unless explicitly enabled in Settings.
+Consent is stored per account and enforced server-side. Turning it on does not
+start indexing or searching automatically.
+
+Voice was removed at the owner’s request before deployment. The UI requests no
+microphone permission and there is no audio upload/transcription endpoint.
+
+Semantic: an explicit indexing action sends up to 20 sanitized transaction notes
+per request to Gemini Embedding 2. Numeric strings, email addresses, URLs and common
+API-key patterns are removed; the payload excludes transaction amounts, account IDs
+and timestamps. This is minimization, not reliable anonymization: names, locations,
+spelled-out numbers and other personal details may remain in notes. Search sends
+the sanitized search phrase. Embeddings are derived personal data stored with the
+owner and transaction IDs. Note edits invalidate them; transaction/account deletion
+cascades; disabling semantic consent deletes that user's vectors. A consent change
+is checked again before committing an indexing response. Already transmitted data
+cannot be recalled from the provider.
+
+Read-only questions send only the question and current date. Draft revision sends
+only the new instruction and draft indices/types/categories, excluding existing
+amounts, notes and dates. All totals and delta arithmetic run in SQL/TypeScript;
+models produce only validated intents/plans. No model-generated SQL or autonomous
+ledger changes. Chat history remains in page memory and resets on navigation/reload.
+
+OpenTelemetry records fixed route templates, method, response status, duration and
+trace IDs. No request bodies, notes, amounts, account identifiers, cookies or raw
+exceptions are instrumented. No automatic HTTP/SQL instrumentation or external
+collector is enabled. The opt-in hardening Compose file logs locally; log rotation
+and retention remain deployment configuration. CI uses mocked transport solely for
+deterministic regressions; separately labeled owner-authorized local checks use the
+real Gemini API and synthetic accounts. Historical pre-removal audio checks are
+labeled as such and do not describe current product features.

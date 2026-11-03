@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { request, errorText, money, dateLabel } from '../api.ts';
 import type { Category, Transaction } from '../api.ts';
 import { Alert } from '../ui.tsx';
-interface Answer {
+export interface Answer {
   needs_clarification: boolean;
   question: string;
   month: string | null;
@@ -12,34 +11,21 @@ interface Answer {
   expense_vnd: string;
   evidence_url: string | null;
 }
-export function QueryPanel({ categories }: { categories: Category[] }) {
+export function QueryAnswer({
+  categories,
+  answer,
+}: {
+  categories: Category[];
+  answer: Answer;
+}) {
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState(''),
-    [answer, setAnswer] = useState<Answer>();
+    [error, setError] = useState('');
   const [rows, setRows] = useState<Transaction[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
-  async function ask(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    setRows([]);
-    setCursor(null);
-    try {
-      setAnswer(
-        await request<Answer>('/assistant/query', 'POST', {
-          message: new FormData(e.currentTarget).get('question'),
-        }),
-      );
-    } catch (e) {
-      setError(errorText(e));
-      setAnswer(undefined);
-    } finally {
-      setBusy(false);
-    }
-  }
   async function evidence(next = false) {
     if (!answer?.evidence_url?.startsWith('/api/transactions?')) return;
     setBusy(true);
+    setError('');
     try {
       const result = await request<{
         items: Transaction[];
@@ -57,27 +43,7 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
     }
   }
   return (
-    <section className="panel editor" id="ask-ledger">
-      <span className="eyebrow">AI HIỂU CÂU HỎI · SQL TÍNH SỐ TIỀN</span>
-      <h2>Hỏi cuốn sổ</h2>
-      <p className="muted">
-        Gemini chỉ nhận câu hỏi và ngày hiện tại. Giao dịch được truy vấn, tính
-        toán ở máy chủ; không gửi lịch sử chi tiêu lên model.
-      </p>
-      <form onSubmit={ask}>
-        <label>
-          Câu hỏi về thu chi
-          <input
-            name="question"
-            maxLength={500}
-            required
-            placeholder="Tháng này chi ăn uống bao nhiêu?"
-          />
-        </label>
-        <button className="primary" disabled={busy}>
-          {busy ? 'Đang tra sổ…' : 'Hỏi cuốn sổ'}
-        </button>
-      </form>
+    <section className="chat-answer" aria-label="Câu trả lời từ cuốn sổ">
       {error && <Alert>{error}</Alert>}
       {answer && (
         <div className="success" role="status">
@@ -85,6 +51,7 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
             <strong>{answer.question}</strong>
             {!answer.needs_clarification && (
               <>
+                <p>AI hiểu yêu cầu; hệ thống tính từ giao dịch đã lưu.</p>
                 <p>
                   Bộ lọc: tháng {answer.month}; danh mục{' '}
                   {categories.find((c) => c.key === answer.category)?.name_vi ??

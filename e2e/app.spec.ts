@@ -25,7 +25,7 @@ async function register(page: Page) {
 }
 async function parse(page: Page, text = 'ăn phở 50k') {
   await page.getByLabel('Tin nhắn thu chi').fill(text);
-  await page.getByRole('button', { name: 'Phân tích', exact: true }).click();
+  await page.getByRole('button', { name: 'Gửi', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Kiểm tra trước khi lưu' }),
   ).toBeVisible();
@@ -317,4 +317,102 @@ test('cursor filters and goal edit/delete controls work', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Bạn đang ấp ủ điều gì?' }),
   ).toBeVisible();
+});
+
+test('semantic consent defaults off, persists, revokes; voice is absent', async ({
+  page,
+}) => {
+  await expect(
+    page.getByRole('button', { name: 'Ghi âm', exact: true }),
+  ).toHaveCount(0);
+  await go(page, 'Cài đặt');
+  const toggle = page.getByLabel(
+    'Cho phép gửi ghi chú giao dịch để tìm theo ý nghĩa',
+  );
+  await expect(toggle).not.toBeChecked();
+  const updated = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/me/ai-preferences') &&
+      r.request().method() === 'PUT',
+  );
+  await toggle.check();
+  expect((await updated).status()).toBe(200);
+  await expect(toggle).toBeChecked();
+  await expect(toggle).toBeEnabled();
+  await page.reload();
+  await expect(toggle).toBeChecked();
+  const revoked = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/me/ai-preferences') &&
+      r.request().method() === 'PUT',
+  );
+  await toggle.uncheck();
+  expect((await revoked).status()).toBe(200);
+  await expect(toggle).not.toBeChecked();
+  expect(
+    (
+      await page.request.post('/api/assistant/transcribe', {
+        data: { audio: 'removed' },
+      })
+    ).status(),
+  ).toBe(404);
+});
+
+test('client transcript retains draft across question and revision (mocked transport, no live AI)', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await page.route('**/api/assistant/query', (route) =>
+    route.fulfill({
+      json: {
+        needs_clarification: false,
+        question: 'Các khoản đã lưu',
+        month: '2026-11',
+        category: 'an_uong',
+        income_vnd: '0',
+        expense_vnd: '0',
+        evidence_url: '/api/transactions?from=2026-11-01&to=2026-11-30',
+      },
+    }),
+  );
+  await page
+    .getByLabel('Tin nhắn thu chi')
+    .fill('Tháng này chi ăn uống bao nhiêu?');
+  await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+  await expect(
+    page.getByRole('region', { name: 'Câu trả lời từ cuốn sổ' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Kiểm tra trước khi lưu' }),
+  ).toBeVisible();
+  await page.route('**/api/assistant/revise', async (route) => {
+    const input = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        items: input.items.map((i: object) => ({ ...i, amount_vnd: '70000' })),
+        needs_clarification: false,
+        question: 'Đã sửa bản nháp; kiểm tra trước khi lưu.',
+        changed_indices: [0],
+      },
+    });
+  });
+  await page.getByLabel('Tin nhắn thu chi').fill('tăng thêm 20k');
+  await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+  await expect(
+    page.getByText('Gemini đã hỗ trợ sửa bản nháp', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('log', { name: 'Lịch sử trò chuyện' }),
+  ).toContainText('Bạn: ăn phở 50k');
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(0);
+  await expect(
+    page.getByRole('textbox', { name: 'Tin nhắn thu chi' }),
+  ).toHaveCount(1);
+  await save(page);
+  const rows = (await (await page.request.get('/api/transactions')).json())
+    .items;
+  expect(rows).toHaveLength(1);
+  expect(rows[0].amount_vnd).toBe('70000');
 });

@@ -1,0 +1,7 @@
+# Local opt-in, only AFTER db/enable-rls.sql is applied by an administrator.
+# Telemetry stays on the machine; no external collector is configured.
+services:
+  api:
+    environment:
+      ENABLE_RLS: 'true'
+      OTEL_ENABLED: 'true'

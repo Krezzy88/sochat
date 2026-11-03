@@ -50,6 +50,13 @@ beforeAll(async () => {
     max: 10,
   });
   await migrate(pool);
+  await pool.query(
+    readFileSync(
+      new URL('../../../../db/enable-rls.sql', import.meta.url),
+      'utf8',
+    ),
+  );
+  vi.stubEnv('ENABLE_RLS', 'true');
   runtime = await createApp({
     pool,
     origin,
@@ -71,6 +78,7 @@ beforeAll(async () => {
     ),
     limits: { login: 2, parse: 2, register: 100, authIp: 100 },
   });
+  vi.unstubAllEnvs();
 });
 afterAll(async () => {
   await runtime?.close();
@@ -725,4 +733,53 @@ it('executes only typed read filters, isolates users, and never sends ledger row
     transport.mockRestore();
     vi.unstubAllEnvs();
   }
+});
+
+it('AI consent defaults off, is owner isolated, and disabling clears only derived owner data', async () => {
+  expect(
+    (await a.agent.get('/api/me/ai-preferences').expect(200)).body,
+  ).toEqual({ semantic_enabled: false });
+  await a.agent
+    .put('/api/me/ai-preferences')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', a.token)
+    .send({ semantic_enabled: true })
+    .expect(200);
+  expect((await b.agent.get('/api/me/ai-preferences')).body).toEqual({
+    semantic_enabled: false,
+  });
+  const category = (
+    await pool.query(
+      "SELECT id FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    )
+  ).rows[0].id;
+  const txns = await pool.query(
+    "INSERT INTO transactions(user_id,category_id,type,amount_vnd,occurred_on,note) VALUES($1,$3,'expense',1,'2026-11-03','alpha'),($2,$3,'expense',2,'2026-11-03','beta') RETURNING id,user_id",
+    [a.id, b.id, category],
+  );
+  for (const t of txns.rows)
+    await pool.query(
+      'INSERT INTO transaction_embeddings(user_id,transaction_id,model,note_hash,embedding) VALUES($1,$2,$3,$4,$5)',
+      [t.user_id, t.id, 'test', 'hash', Array(768).fill(0.1)],
+    );
+  await a.agent
+    .put('/api/me/ai-preferences')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', a.token)
+    .send({ semantic_enabled: false })
+    .expect(200);
+  expect(
+    (await pool.query('SELECT user_id FROM transaction_embeddings')).rows,
+  ).toEqual([{ user_id: b.id }]);
+  const tb = txns.rows.find((t) => t.user_id === b.id)!;
+  await pool.query("UPDATE transactions SET note='changed' WHERE id=$1", [
+    tb.id,
+  ]);
+  expect(
+    (await pool.query('SELECT count(*) FROM transaction_embeddings')).rows[0]
+      .count,
+  ).toBe('0');
+  expect(
+    (await pool.query('SELECT count(*) FROM transactions')).rows[0].count,
+  ).toBe('2');
 });

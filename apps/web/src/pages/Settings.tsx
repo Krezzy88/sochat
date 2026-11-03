@@ -1,3 +1,4 @@
+import AiPreferences from './AiPreferences.tsx';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { downloadCsv, errorText, request } from '../api.ts';
@@ -67,6 +68,7 @@ export default function Settings({
         </p>
       )}
       <div className="settings-stack">
+        <AiPreferences />
         <section className="panel settings-card">
           <h2>Tài khoản</h2>
           <dl>

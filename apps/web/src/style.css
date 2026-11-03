@@ -2080,3 +2080,65 @@ th {
     min-height: 110px;
   }
 }
+.chat-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.chat-aside {
+  display: none;
+}
+.chat-panel {
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+}
+.chat-body {
+  max-height: 65dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.chat-turn {
+  margin: 22px 0;
+}
+.source-message {
+  max-width: 85%;
+  margin-left: auto;
+  background: #e0edff;
+  border: 1px solid #8fa4c0;
+}
+.bot-message {
+  background: #edf4e5;
+  padding: 14px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+}
+.chat-answer {
+  padding: 8px 0;
+}
+.chat-intent {
+  font-size: 12px;
+}
+.chat-intent select {
+  font-size: 13px;
+  min-height: 38px;
+  padding: 7px;
+}
+.composer {
+  position: relative;
+}
+.conversation {
+  overflow-wrap: anywhere;
+}
+.consent-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 0;
+}
+.consent-option input[type='checkbox'] {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  margin: 0;
+  accent-color: var(--primary, #205d49);
+}
