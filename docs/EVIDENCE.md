@@ -2076,3 +2076,73 @@ labeling toward at least 200 examples with at least 50 held out before tuning.
 
 Phase 3 local implementation acceptance is met; stop at the owner real-evaluation
 gate. No Phase 4 implementation is authorized by this report.
+
+## 2026-11-03 — Owner real hybrid run and conflicting-amount correction
+
+Owner supplied a terminal log and the retained
+[real hybrid report](../eval/results/owner-hybrid/hybrid-gemini-dev.json), generated
+at 2026-11-03T03:00:09.745Z on source 45b6930, model gemini-3.5-flash-lite.
+The agent did not initiate or repeat the live evaluation. Its original JSON/Markdown
+are preserved unchanged, including their original generic fake-provider caveat;
+provider=gemini identifies this real run. Future report wording now distinguishes
+real and fake provider context.
+
+| Metric                        | Owner real run                       |
+| ----------------------------- | ------------------------------------ |
+| Exact cases                   | 64/65 (98.46%)                       |
+| Amount                        | 69/70 (98.57%)                       |
+| Category / date / type        | 70/70 each                           |
+| Clarification                 | TP 5, FP 0, FN 0, TN 60              |
+| Provider attempts             | 5                                    |
+| Input / output / total tokens | 775 / 246 / 1021                     |
+| Rules-only share              | 60/65 (92.31%)                       |
+| Pipeline p50 / p95            | 0.037333 ms / 1121.933958 ms         |
+| Observed-token cost estimate  | unknown (null; no prices configured) |
+
+These are synthetic dev seed results, not real-user accuracy. Pipeline percentiles
+mix 60 rules cases and 5 model cases; they are not provider-only p95 estimates.
+No billing amount is inferred from tokens or a presumed free tier.
+
+Only seed-064 differed: the model proposed 150,000 from a message containing both
+200k and 150k. The system still correctly requested clarification with multiple_amounts;
+no transaction was saved. The gold amount remained null and the gold label was not
+changed to improve a score. A new regression test failed with 'expected 150000 to
+be null', then the hybrid validator was changed to preserve the unresolved rules
+proposal whenever conflicting amounts are present. This applies to both fresh
+provider responses and cache hits; model-only evaluation remains independent of
+rule fallback predictions. Fix commit: 3b2258a4e3bbcdb06321bd2b6f75d905f3646dd7.
+
+`npm run lint && npm run typecheck && npm test` all exited 0 after the fix:
+7 unit files, **201 passed, 0 failed**. No database schema changed; integration tests
+were not repeated for this orchestration/report-wording correction. Previous
+16-test PostgreSQL result remains recorded above. Coverage was not remeasured.
+
+### Current local migration status
+
+The pasted earlier ENOTFOUND base failure referred to an earlier URL configuration.
+A credential-redacted check of the current env found localhost and sochat_dev;
+connection succeeded to PostgreSQL 18.6. All three migration names were present:
+001_schema.sql, 002_reporting_indexes.sql, 004_llm_limits.sql. `npm run db:migrate`
+then exited 0 again. No local URL edit was needed in this audit, no credentials
+were printed, and no unrelated data was modified.
+
+### Offline verification, not a new live score
+
+Attempted a read-only full replay of existing cached outputs with provider/network
+calls disabled. The cache contained four entries, so a complete replay was not
+possible; no full-dataset result was written or claimed. The cause of the missing
+raw response is not inferred from cache count alone.
+
+Then replayed **only seed-064** through the corrected HybridExtractor, using
+PgExtractionStore.get and callbacks that prohibit quota reservation, cache writes
+and provider calls. Result in
+[offline-replay-after-fix.json](../eval/results/owner-hybrid/offline-replay-after-fix.json):
+path=cache, amount=null, exact case=1/1, provider_calls=0. It records source 3b2258a
+and identifies itself as an offline single-case replay. It measures no new API
+latency or billing. Do not present it as a new 65/65 live Gemini run.
+
+Real hybrid connectivity/output is now owner-verified by the retained run; the
+post-fix full live hybrid score, model-only real evaluation, current token pricing
+and remote CI remain NOT VERIFIED. Held-out runs remain 0. Phase 4 is not started.
+A later owner rerun may reuse cache, so interpret attempts and latency accordingly;
+use a new output directory to preserve the original report.
