@@ -351,3 +351,133 @@ by the parser, tests or evaluation command.
   then record the command/results and increment the cumulative run count.
 - Existing license/model/hosting questions remain open in `docs/BACKLOG.md`.
 - Stop at the Phase 1 gate. Phase 2 requires the owner's next `go`.
+
+## 2026-11-03 — Phase 2 persistence (owner acceptance pending)
+
+Implementation commit: `c7c421b816a04339d2d6e5cfc3f0d24493c11341` on
+`feat/phase-2`. Node 22.23.4 / npm 10.9.4, Darwin arm64. Docker Desktop was started
+for disposable integration containers; existing local databases were not modified.
+
+The owner explicitly requested moving from PostgreSQL 16 to the installed local
+PostgreSQL 18. The charter and active agent instructions were updated accordingly;
+ADR-010 supersedes the earlier baseline decisions. Existing reference snippets and
+historical evidence remain reference material. The official image tag
+`postgres:18.6-bookworm` was checked on https://hub.docker.com/_/postgres and then
+successfully exercised by Testcontainers. A baseline upgrade is not a speed claim.
+
+### Files and design
+
+- SQL migrations 001/002, pg migration runner with advisory lock, transaction,
+  checksum verification and ordering checks; rollback/checksum behavior tested.
+- Aggregate repositories: users, categories, transactions, budgets, goals and
+  contributions, reports and cache. All runtime query values are parameterized.
+  Trusted migration SQL and catalog table identifiers are the explicit exceptions;
+  catalog identifiers are validated before quoting in the deletion test.
+- Cache now has user ownership and cascades on account deletion. Contributions have
+  a composite foreign key binding goal and owner. Private category references are
+  checked by repository SQL. Full authentication/endpoints remain Phase 4 work.
+- Fixed-seed benchmark (20261103), dedicated disposable container, no destructive
+  local database reset, timing samples and EXPLAIN ANALYZE BUFFERS JSON output.
+- Local role/database provisioning script and instructions. No monthly rollup.
+
+### Dependency verification
+
+Commands: `npm view pg version engines --json --fetch-retries=0`,
+`npm view @types/pg version --json --fetch-retries=0`, and
+`npm view @testcontainers/postgresql version engines --json --fetch-retries=0`.
+Selected versions: pg 8.23.1 (Node >=16), @types/pg 8.23.1, PostgreSQL Testcontainers
+12.2.1. Exact versions installed; lockfile retained. Installation reported 18 moderate
+vulnerability entries and an upstream glob deprecation; these are not claimed fixed.
+
+### Commands and actual results
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run test:integration -- --coverage
+bash -n db/bench.sh
+```
+
+Lint, strict typecheck and shell syntax checks exited 0. Existing unit suite:
+**154 passed, 0 failed**. Final PostgreSQL 18 integration suite: **13 passed, 0 failed**.
+Coverage for database TypeScript (migration runner and repositories), excluding
+integration-test source: lines **86.66% (52/60)**, statements **85.93% (55/64)**,
+branches **70.58% (12/17)**, functions **100% (30/30)**. CLI-only migration paths are
+not fully covered. This is not coverage for all future API behavior.
+
+Integration assertions cover empty-database migrations/repeat execution, failed
+batch rollback, modified migration rejection, amount CHECKs (zero, negative, >1e11,
+inclusive maximum), first-of-month budgets, category uniqueness including NULL
+system ownership, cross-owner contributions, id-based mutation/read isolation,
+private-category references, list/cache/budget isolation, dynamic zero-residue
+account deletion across every table with user_id, and hand-computed month/year totals.
+Daily output is checked for expected row count; broader daily-series fixtures can
+be added with the reporting API.
+
+The initial PostgreSQL 16 suite had 12 setup failures because TRUNCATE users CASCADE
+also removed system categories. Cleanup was corrected to DELETE users, preserving
+shared categories. Then all 12 passed on 16 and on 18; the additional migration
+rollback/checksum test brought the final 18 suite to 13 passing tests.
+
+### Mutation check (PostgreSQL 18)
+
+Temporarily changed the transaction CHECK from `amount_vnd > 0` to `amount_vnd >= 0`,
+then ran `npm run test:integration` against a fresh container:
+
+```text
+FAIL rejects invalid money 0n
+AssertionError: promise resolved "{ id: '1' }" instead of rejecting
+Tests 1 failed | 12 passed (13)
+MUTATION_EXIT_CODE: 1
+RESTORED: True
+```
+
+Restored the migration in a finally block. Re-run with coverage: **13 passed**.
+No mutated migration was committed.
+
+### Local PostgreSQL and owner tasks
+
+`/Library/PostgreSQL/18/bin/psql` exists. The elevated check
+`/Library/PostgreSQL/18/bin/pg_isready -h localhost` reported accepting connections
+on localhost:5432. An administrator connection using `psql -w -h localhost -U
+postgres -d postgres` failed with `fe_sendauth: no password supplied`. No password
+was guessed or requested in chat. Authenticated local server version, provisioning
+and local migration are **NOT VERIFIED** pending the owner's local configuration.
+
+Owner chose SQL setup instructions. Run from the project directory:
+
+```sh
+/Library/PostgreSQL/18/bin/psql -h localhost -U postgres -d postgres -W -f db/setup-local.sql
+```
+
+The script prompts for passwords locally and creates only sochat_dev role/database;
+existing names cause a safe stop. Fill DATABASE_URL in ignored .env, preserving other
+local secrets. Do not paste the connection URL in chat. Then run `npm run db:migrate`
+or tell the agent the local configuration is ready so it can run that command.
+
+Owner-only benchmark command (not run by the agent):
+
+```sh
+ROWS=1000000 RUNS=11 ./db/bench.sh > /tmp/sochat-benchmark.log
+```
+
+Share `db/results/benchmark.json` with host CPU/OS/Docker memory allocation and
+source revision. The report contains p50/p95 and EXPLAIN ANALYZE BUFFERS plans for
+baseline/btree/covering scenarios. Benchmark runtime and million-row seed execution
+remain **NOT VERIFIED**; bash syntax and TypeScript checks alone do not verify them.
+
+| Scenario | Month       | Daily       | Year        | Plans       |
+| -------- | ----------- | ----------- | ----------- | ----------- |
+| Baseline | TODO(owner) | TODO(owner) | TODO(owner) | TODO(owner) |
+| Btree    | TODO(owner) | TODO(owner) | TODO(owner) | TODO(owner) |
+| Covering | TODO(owner) | TODO(owner) | TODO(owner) | TODO(owner) |
+
+ADR-006 defers rollup until owner evidence or an explicit request. No benchmark
+numbers were copied from the kit. Remote CI/PR and clean-clone installation of this
+phase are **NOT VERIFIED**. CI includes the integration command; no remote green
+claim is made. Held-out runs remain 0. No LLM call was made.
+
+Phase 2 implementation is available, but its gate is **pending**, especially the
+owner benchmark evidence and local provisioning. Do not advance automatically to
+Phase 3 or claim full Phase 2 acceptance.
