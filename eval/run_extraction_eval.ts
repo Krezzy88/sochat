@@ -143,7 +143,10 @@ export async function runExtractionEvaluation(
       source_commit: commit,
       working_tree_dirty: dirty,
       seed_set_caveat:
-        'The 65 synthetic seed cases and reference rules share an author. FakeProvider always asks for clarification; fake accuracy/cost/latency is not Gemini performance. Unlabeled owner inbox is excluded.',
+        'The 65 synthetic seed cases and reference rules share an author; scores are not representative of real users. Unlabeled owner inbox is excluded. ' +
+        (options.provider === 'fake'
+          ? 'FakeProvider always asks for clarification; fake metrics are not Gemini performance.'
+          : 'This is an explicit owner-run real Gemini evaluation.'),
     };
     const report = {
       ...common,

@@ -57,7 +57,8 @@ and ask for confirmation. This is deliberately conservative: unsupported slang o
 number words are not legitimized just because the model guesses the intended amount.
 Low confidence (<0.8) and tiny amounts are also highlighted. Existing rules ambiguity
 cannot be erased by high model confidence. Rules confidence is null rather than a
-fabricated probability. In hybrid mode, partial rules items are preserved when the provider can only
+fabricated probability. In hybrid mode, conflicting amounts retain the unresolved rules proposal rather
+than selecting one of the model suggestions (including on cache hits). Partial rules items are preserved when the provider can only
 ask a question. Forced llm mode never borrows rule predictions after a provider
 refusal or failure; this keeps the model-only evaluation honest. Category/type consistency is checked before constructing proposals.
 

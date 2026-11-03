@@ -158,9 +158,12 @@ export class HybridExtractor {
     ): ExtractionResult | null => {
       const parsed = LlmResult.safeParse(value);
       if (!parsed.success) return null;
-      const items = parsed.data.items.length
-        ? guardAmounts(message, parsed.data.items)
-        : base.items;
+      const items =
+        mode === 'hybrid' && rules.reasons.includes('multiple_amounts')
+          ? base.items
+          : parsed.data.items.length
+            ? guardAmounts(message, parsed.data.items)
+            : base.items;
       // Rules-derived safety ambiguities cannot be erased by a model's confidence.
       const unresolved =
         rules.needs_clarification ||

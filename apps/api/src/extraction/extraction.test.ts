@@ -384,3 +384,24 @@ it('does not borrow rule predictions when a forced LLM-only provider declines', 
   expect(result.items).toEqual([]);
   expect(result.needs_clarification).toBe(true);
 });
+
+it('keeps conflicting hybrid amounts unresolved on fresh and cached model responses', async () => {
+  const { service, provider } = setup([
+    {
+      ...output,
+      items: [{ ...item, category: 'mua_sam', amount_vnd: 150000 }],
+    },
+  ]);
+  for (const path of ['llm', 'cache']) {
+    const result = await service.parseHybrid(
+      'mua áo 200k giảm còn 150k',
+      NOW,
+      'u',
+    );
+    expect(result.path).toBe(path);
+    expect(result.items[0]?.amount_vnd).toBeNull();
+    expect(result.items[0]?.flags).toContain('multiple_amounts');
+    expect(result.needs_clarification).toBe(true);
+  }
+  expect(provider.calls).toBe(1);
+});
