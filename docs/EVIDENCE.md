@@ -2836,3 +2836,66 @@ tracking assets or fonts were added. Reduced-motion and overflow assertions pass
 See UX_REFINEMENT.md for current commands, contract and remaining human/browser
 validation. This branch's hosted CI, Safari/Firefox, screen readers, broad-age human
 usability and public deployment remain NOT VERIFIED. No new public push/PR/merge.
+
+## 2026-11-03 — Approved staged AI expansion, first read-only slice
+
+Owner grants operational access and asks to approve high-risk actions first. Chosen
+stages are recorded in AI_EXPANSION.md and charter: read-only ledger questions,
+then conversational draft revision, short voice input, measured semantic retrieval,
+and separately reviewed telemetry/RLS. Only the first monthly-query slice ships
+here; the other stages are not represented as implemented. Source:
+3944406991afe928df4e9d3621758be745f22a52 on feat/playful-ux-gemini.
+
+Added POST /api/assistant/query with existing auth/CSRF/strict message validation,
+5/user/minute rate limit and shared daily quota reservation (10/user, 30/global).
+Only a Gemini-configured app may call it; CI is prohibited. An 8-second, single-
+attempt request sends question/current Vietnam date and a fixed structured-output
+schema, never user identity, ledger rows or aggregates. Validated month/category
+filters select existing parameterized owner-scoped report queries. Code/SQL calculate
+integer totals and generate the answer/evidence URL; no AI SQL, monetary calculation,
+financial advice or ledger mutation. Unsupported/multi-month requests are instructed
+to clarify. Actual semantic intent accuracy remains unbenchmarked; UI displays the
+interpreted filters so users can verify what was queried.
+
+Chat includes Hỏi cuốn sổ, exact VND results and paginated matching transactions as
+evidence. This slice supports one month/optional one category; comparative reports,
+voice and arbitrary tool execution are not yet supported. API contract regenerated.
+No DB migration, new dependency, historical-data transfer or public deployment.
+
+Commands: npm run lint, npm run typecheck, npm run api:openapi, npm test all passed.
+Unit: 9 files, **203 passed**. Added schema tests rejecting invalid dates/categories,
+SQL and identity fields. npm run test:integration -- --coverage: **52 passed**,
+3 files. New HTTP tests prove fake apps cannot invoke live inference, client account
+IDs are rejected, two users get 50000 and 900000 independently, clarification/invalid
+model filters/CI blocking work, outbound payloads omit private fixture notes/email,
+and queries leave the ledger unchanged. Gemini transport is scripted in these
+integration tests, not misrepresented as a real-model check.
+
+Integration coverage: lines 91.00% (425/467), statements 90.03% (452/502), branches
+81.43% (272/334), functions 94.40% (135/143); existing gates passed unchanged. Added
+explicit *.test.ts exclusion to the integration coverage configuration when the
+first colocated HTTP unit test would otherwise have been counted as unexecuted
+production code. No production files were excluded to inflate a score. Unit suite
+coverage was not remeasured for this slice.
+
+Real-provider command:
+
+```sh
+npx playwright test --config playwright.query.config.ts
+```
+
+Actual Gemini-backed 8080 app with temporary synthetic user/rows. Latest run:
+**1 passed**, 2.7 seconds. "Tháng 11 năm 2026 chi ăn uống bao nhiêu?" produced
+month=2026-11/category=an_uong. SQL returned expense_vnd="50000", excluded a 90000
+transport row, and the evidence table showed only the matching lunch. Ledger stayed
+at two rows; finally removed this synthetic account via its authenticated API.
+Artifact: measurements/assistant-query-live.json. It is a connectivity/one-example
+flow check, not representative accuracy, provider latency benchmark or billing.
+No held-out data was accessed, no real user's transactions were inspected or erased.
+
+Rebuilt sochat-demo with the existing real Gemini override at localhost:8080; its
+volume/accounts were preserved. New model calls use the already authorized local
+credentials, never committed or printed. Hosted CI for this new source, retrieval
+quality, other browsers and human usability remain NOT VERIFIED. No new public
+push, merge, paid infrastructure or bulk mutation. Future high-risk changes need
+owner review as requested.
