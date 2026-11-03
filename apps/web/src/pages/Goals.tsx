@@ -1,3 +1,4 @@
+import { useFeedback } from '../Feedback.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { dateLabel, errorText, money, request, today } from '../api.ts';
@@ -24,7 +25,7 @@ export default function Goals() {
   const [contributing, setContributing] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const setNotice = useFeedback().success;
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
@@ -63,8 +64,16 @@ export default function Goals() {
       setBusy(false);
     }
   }
+  const confirmAction = useFeedback().confirm;
   async function remove(g: Goal) {
-    if (!window.confirm('Xóa quỹ “' + g.name + '” và toàn bộ đóng góp?'))
+    if (
+      !(await confirmAction({
+        title: 'Xóa quỹ?',
+        message:
+          'Xóa quỹ “' + g.name + '” và toàn bộ đóng góp? Không thể hoàn tác.',
+        accept: 'Xóa quỹ',
+      }))
+    )
       return;
     setBusy(true);
     setError('');
@@ -92,11 +101,6 @@ export default function Goals() {
         </span>
       </header>
       {error && <Alert>{error}</Alert>}
-      {notice && (
-        <p role="status" className="success">
-          {notice}
-        </p>
-      )}
       <div className="split-layout">
         <section>
           {state.loading ? (

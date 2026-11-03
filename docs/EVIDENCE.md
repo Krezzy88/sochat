@@ -3052,3 +3052,31 @@ browser tests caught a period-label accessibility selector issue and a too-speci
 label selector in the new modal test; both corrected. New synthetic screenshots:
 screenshots/ux/edit-dialog-desktop.png and edit-dialog-mobile.png. No new real Gemini
 calls, no new hosted CI, no claim that all possible UI defects are exhausted.
+
+## 2026-11-03 — Unified action feedback and balanced report controls
+
+Introduced an application-wide feedback provider. Successful saves/edits/deletes,
+CSV download preparation, auth actions and AI preference updates use themed toasts;
+query/search results, clarification and validation remain contextual data rather
+than disappearing notifications. Toasts cap at three, auto-dismiss after seven
+seconds, pause on hover or keyboard focus and have explicit dismiss controls.
+They persist across page transitions and announce via polite status semantics.
+
+Replaced native browser confirmations for transaction/goal deletion with styled
+native dialog popups. Cancel receives initial focus, Escape cancels, focus returns
+to the initiating control; no request occurs on cancellation. Enabling semantic AI
+requires a themed consent popup with privacy text. Account deletion uses a themed
+modal while retaining the typed XÓA requirement and displaying errors inside it.
+
+Report period/month/year controls now use two equal grid columns with identical
+52px control height, typography, borders and label baseline, including mobile.
+Measured browser geometry checks require equal widths/heights/top positions within
+one pixel. Local demo rebuilt healthy; no backend/database/calculation change and
+no new real Gemini call.
+
+Checks: lint/typecheck passed; 20 existing desktop/mobile browser journeys passed,
+plus two focused desktop/mobile journeys for toast dismissal, Escape cancellation,
+unchanged ledger on cancel, consent denial and equal report control geometry.
+New real-app synthetic screenshots are review candidates in screenshots/ux:
+action-toast-desktop, confirmation-desktop and period-controls-desktop/mobile.
+No new hosted CI or human usability certification is claimed.

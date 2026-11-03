@@ -1,3 +1,4 @@
+import { useFeedback } from '../Feedback.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { Draft } from '../api.ts';
 import { request, errorText } from '../api.ts';
@@ -15,6 +16,7 @@ export default function DraftRevision({
   const [text, setText] = useState(''),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState('');
+  const notify = useFeedback().success;
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -39,8 +41,10 @@ export default function DraftRevision({
           }>('/assistant/revise', 'POST', { message: text, items })
             .then((r) => {
               if (!mounted.current) return;
-              if (!r.needs_clarification) onChange(r.items);
-              setNotice(r.question);
+              if (!r.needs_clarification) {
+                onChange(r.items);
+                notify(r.question);
+              } else setNotice(r.question);
             })
             .catch((e) => setNotice(errorText(e)))
             .finally(() => {

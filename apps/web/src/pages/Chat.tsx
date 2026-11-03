@@ -1,3 +1,4 @@
+import { useFeedback } from '../Feedback.tsx';
 import DraftRevision from './DraftRevision.tsx';
 import { QueryPanel } from './QueryPanel.tsx';
 import { Mascot } from '../Mascot.tsx';
@@ -19,7 +20,7 @@ export function Chat({ categories }: { categories: Category[] }) {
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const setSuccess = useFeedback().success;
   const pending = useRef<
     { idempotency_key: string; items: Draft[] } | undefined
   >(undefined);
@@ -168,13 +169,6 @@ export function Chat({ categories }: { categories: Category[] }) {
                   <br />
                   Số tiền chưa rõ? Mình sẽ hỏi lại bạn.
                 </p>
-              </div>
-            )}
-            {success && (
-              <div className="success" role="status">
-                <Icon name="check" />
-                {success}
-                <a href="#transactions">Xem giao dịch →</a>
               </div>
             )}
             {proposal && (

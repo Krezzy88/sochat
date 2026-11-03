@@ -1,3 +1,4 @@
+import { useFeedback } from '../Feedback.tsx';
 import { useState } from 'react';
 import { request, errorText } from '../api.ts';
 import { money } from '../api.ts';
@@ -14,15 +15,17 @@ export default function SemanticSearch() {
       score: number;
     }[]
   >([]);
+  const notify = useFeedback().success;
   async function index() {
     setBusy(true);
+    setMessage('');
     try {
       const r = await request<{ indexed: number }>(
         '/assistant/index',
         'POST',
         {},
       );
-      setMessage(
+      notify(
         `Đã xử lý ${r.indexed} ghi chú. Mỗi lượt tối đa 20; bấm lại nếu còn dữ liệu.`,
       );
     } catch (e) {

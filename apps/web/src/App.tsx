@@ -1,3 +1,4 @@
+import { useFeedback } from './Feedback.tsx';
 import { Mascot } from './Mascot.tsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -23,6 +24,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const notify = useFeedback().success;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fields = Object.fromEntries(new FormData(e.currentTarget));
@@ -51,6 +53,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
         'POST',
         fields,
       );
+      notify(register ? 'Đã tạo tài khoản.' : 'Đã đăng nhập.');
       onAuth(data.user);
     } catch (e) {
       setError(
@@ -261,12 +264,14 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
     if (initialPage.current) initialPage.current = false;
     else heading.current?.focus();
   }, [page]);
+  const notify = useFeedback().success;
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
   async function logout() {
     setLoggingOut(true);
     try {
       await request('/auth/logout', 'POST');
+      notify('Đã đăng xuất.');
       onExit();
     } catch (e) {
       setLogoutError(errorText(e));

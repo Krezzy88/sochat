@@ -180,7 +180,9 @@ test('transaction edit/delete and budget warning use persisted data', async ({
   await page.getByRole('button', { name: /^Sửa / }).click();
   await page.getByLabel('Số tiền (đ)', { exact: true }).fill('80000');
   await page.getByRole('button', { name: 'Lưu thay đổi' }).click();
-  await expect(page.getByRole('status')).toContainText('Đã cập nhật');
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Đã cập nhật giao dịch.' }),
+  ).toBeVisible();
   await expect(page.getByRole('cell', { name: /80.000/ })).toBeVisible();
   await go(page, 'Ngân sách');
   await page.getByLabel('Giới hạn tháng (đ)').fill('100000');
@@ -188,8 +190,11 @@ test('transaction edit/delete and budget warning use persisted data', async ({
   await expect(page.getByText('Đã dùng từ 80%', { exact: true })).toBeVisible();
   await expect(page.getByText('Đã dùng 80%', { exact: true })).toBeVisible();
   await go(page, 'Giao dịch');
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: /^Xóa / }).click();
+  await page
+    .getByRole('dialog', { name: 'Xóa giao dịch?' })
+    .getByRole('button', { name: 'Xóa giao dịch', exact: true })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'Chưa có giao dịch phù hợp' }),
   ).toBeVisible();
@@ -312,8 +317,11 @@ test('cursor filters and goal edit/delete controls work', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Quỹ đã sửa', exact: true }),
   ).toBeVisible();
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Xóa quỹ Quỹ đã sửa' }).click();
+  await page
+    .getByRole('dialog', { name: 'Xóa quỹ?' })
+    .getByRole('button', { name: 'Xóa quỹ', exact: true })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'Bạn đang ấp ủ điều gì?' }),
   ).toBeVisible();
@@ -335,7 +343,11 @@ test('semantic consent defaults off, persists, revokes; voice is absent', async 
       r.url().includes('/api/me/ai-preferences') &&
       r.request().method() === 'PUT',
   );
-  await toggle.check();
+  await toggle.click();
+  await page
+    .getByRole('dialog', { name: 'Cho phép tìm kiếm bằng AI?' })
+    .getByRole('button', { name: 'Bật tính năng' })
+    .click();
   expect((await updated).status()).toBe(200);
   await expect(toggle).toBeChecked();
   await expect(toggle).toBeEnabled();
@@ -450,4 +462,54 @@ test('editing a scrolled transaction opens a visible modal and Escape returns fo
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
+});
+
+test('toasts dismiss, themed cancel preserves data, reporting boxes are equal', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  const toast = page.locator('.toast').filter({ hasText: 'Đã lưu 1 khoản' });
+  await expect(toast).toBeVisible();
+  await toast.getByRole('button', { name: 'Đóng thông báo' }).click();
+  await expect(toast).toHaveCount(0);
+  await go(page, 'Giao dịch');
+  const remove = page.getByRole('button', { name: /^Xóa / });
+  await remove.click();
+  const confirm = page.getByRole('dialog', { name: 'Xóa giao dịch?' });
+  await expect(
+    confirm.getByRole('button', { name: 'Hủy', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(confirm).toHaveCount(0);
+  await expect(remove).toBeFocused();
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(1);
+  await go(page, 'Tổng quan');
+  const period = await page
+      .getByLabel('Kỳ báo cáo', { exact: true })
+      .boundingBox(),
+    month = await page
+      .getByLabel('Tháng báo cáo', { exact: true })
+      .boundingBox();
+  expect(period).not.toBeNull();
+  expect(month).not.toBeNull();
+  expect(Math.abs(period!.width - month!.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(period!.height - month!.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(period!.y - month!.y)).toBeLessThanOrEqual(1);
+  await go(page, 'Cài đặt');
+  const consent = page.getByLabel(
+    'Cho phép gửi ghi chú giao dịch để tìm theo ý nghĩa',
+  );
+  await consent.click();
+  await page
+    .getByRole('dialog', { name: 'Cho phép tìm kiếm bằng AI?' })
+    .getByRole('button', { name: 'Hủy', exact: true })
+    .click();
+  await expect(consent).not.toBeChecked();
+  expect(
+    (await (await page.request.get('/api/me/ai-preferences')).json())
+      .semantic_enabled,
+  ).toBe(false);
 });

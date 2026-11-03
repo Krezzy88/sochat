@@ -1,3 +1,4 @@
+import { useFeedback } from '../Feedback.tsx';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { errorText, money, request, today } from '../api.ts';
@@ -14,7 +15,7 @@ export default function Budgets({ categories }: { categories: Category[] }) {
   const [month, setMonth] = useState(today().slice(0, 7));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const setNotice = useFeedback().success;
   const state = useLoad(
     () => request<{ items: Budget[] }>('/budgets/status?month=' + month),
     [month],
@@ -134,11 +135,6 @@ export default function Budgets({ categories }: { categories: Category[] }) {
             </label>
             <MoneyInput name="limit_vnd" label="Giới hạn tháng (đ)" />
             {error && <Alert>{error}</Alert>}
-            {notice && (
-              <p className="success" role="status">
-                {notice}
-              </p>
-            )}
             <button className="primary full" disabled={busy}>
               {busy ? 'Đang lưu…' : 'Lưu ngân sách'}
             </button>

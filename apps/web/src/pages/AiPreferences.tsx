@@ -1,3 +1,4 @@
+import { useFeedback } from '../Feedback.tsx';
 import { useEffect, useState } from 'react';
 import { request, errorText } from '../api.ts';
 import { Alert } from '../ui.tsx';
@@ -7,8 +8,8 @@ export interface AiConsent {
 export default function AiPreferences() {
   const [prefs, setPrefs] = useState<AiConsent | null>(null),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(''),
-    [notice, setNotice] = useState('');
+    [error, setError] = useState('');
+  const setNotice = useFeedback().success;
   useEffect(() => {
     let active = true;
     request<AiConsent>('/me/ai-preferences')
@@ -22,8 +23,19 @@ export default function AiPreferences() {
       active = false;
     };
   }, []);
+  const confirmAction = useFeedback().confirm;
   async function change(key: keyof AiConsent, value: boolean) {
     if (!prefs) return;
+    if (
+      value &&
+      !(await confirmAction({
+        title: 'Cho phép tìm kiếm bằng AI?',
+        message:
+          'Ghi chú bạn chủ động lập chỉ mục và nội dung tìm kiếm sẽ được gửi đến Gemini. Ghi chú vẫn có thể chứa thông tin cá nhân. Bạn có thể tắt và xóa embedding bất cứ lúc nào.',
+        accept: 'Bật tính năng',
+      }))
+    )
+      return;
     setBusy(true);
     setError('');
     setNotice('');
@@ -54,7 +66,7 @@ export default function AiPreferences() {
         được lọc trước khi tạo embedding.
       </p>
       {error && <Alert>{error}</Alert>}
-      {notice && <p role="status">{notice}</p>}
+
       <label className="consent-option">
         <input
           type="checkbox"

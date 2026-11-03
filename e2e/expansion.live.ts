@@ -99,7 +99,11 @@ test('separate panels support expense, question, draft edit; consented search an
       'Cho phép gửi ghi chú giao dịch để tìm theo ý nghĩa',
     );
     await expect(semantic).not.toBeChecked();
-    await semantic.check();
+    await semantic.click();
+    await page
+      .getByRole('dialog', { name: 'Cho phép tìm kiếm bằng AI?' })
+      .getByRole('button', { name: 'Bật tính năng' })
+      .click();
     await expect(semantic).toBeChecked();
     await expect(semantic).toBeEnabled();
     await page.screenshot({

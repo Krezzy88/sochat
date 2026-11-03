@@ -1,3 +1,4 @@
+import { useFeedback } from '../Feedback.tsx';
 import SemanticSearch from './SemanticSearch.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -23,7 +24,7 @@ export default function Transactions({
   const [editing, setEditing] = useState<Transaction>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const setNotice = useFeedback().success;
   useEffect(() => {
     if (!editing) return;
     const trigger = document.activeElement as HTMLElement | null;
@@ -68,8 +69,16 @@ export default function Transactions({
       setBusy(false);
     }
   }
+  const confirmAction = useFeedback().confirm;
   async function remove(t: Transaction) {
-    if (!window.confirm('Xóa giao dịch “' + t.note + '”? Không thể khôi phục.'))
+    if (
+      !(await confirmAction({
+        title: 'Xóa giao dịch?',
+        message:
+          'Xóa giao dịch “' + t.note + '”? Thao tác này không thể hoàn tác.',
+        accept: 'Xóa giao dịch',
+      }))
+    )
       return;
     setBusy(true);
     setError('');
@@ -128,11 +137,6 @@ export default function Transactions({
           Lọc giao dịch
         </button>
       </form>
-      {notice && (
-        <p role="status" className="success">
-          {notice}
-        </p>
-      )}
       {error && !editing && <Alert>{error}</Alert>}
       {editing && (
         <dialog
