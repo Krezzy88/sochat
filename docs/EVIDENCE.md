@@ -1856,3 +1856,16 @@ Complete timing samples are retained in the linked JSON artifact.
   pass claim is made. No held-out evaluation or Gemini call occurred.
 
 Phase 2 gate is ready for owner review. Do not implement Phase 3 until the next go.
+
+## 2026-11-03 — Owner phrasing intake
+
+Saved 50 distinct owner-supplied messages verbatim in
+[eval/inbox/owner-20261103.jsonl](../eval/inbox/owner-20261103.jsonl). Validated JSONL,
+unique IDs and dev-candidate status. These are unlabeled examples, not a verified
+real-user study. No expected labels or injected timestamps were invented.
+Slang values, abbreviations and clarification policy were sent to the owner for
+confirmation. No parser changes, tuning, evaluation or LLM call was performed.
+Original 65 seed cases retain SHA-256
+`525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839`.
+Held-out runs remain 0. Phase 3 is not started by this data-intake step.
+No tests were rerun for this data/documentation-only update.

@@ -9,3 +9,6 @@ eval/results/
 eval/cases.jsonl
 
 db/results/
+
+# Preserve owner phrasing exactly.
+eval/inbox/*.jsonl

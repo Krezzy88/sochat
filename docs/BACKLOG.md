@@ -7,8 +7,10 @@
 - Choose the Gemini model or delegate selection; verify current official support
   in Phase 3. Keep `GEMINI_MODEL` blank until then.
 - Choose demo hosting before deployment; use synthetic demo data only.
-- Confirm whether at least 50 anonymized real phrasing examples already exist.
-  Target at least 200 labeled examples, with at least 50 held out before tuning.
+- Owner supplied 50 unlabeled dev phrasing candidates on 2026-11-03; see
+  eval/inbox. Confirm slang/abbreviation meanings, unitless-number policy and gold
+  labels before evaluation. Collection provenance is not verified. Target at least
+  200 labeled examples, with at least 50 held out before tuning.
 
 ## Clarifications to resolve before the relevant phase
 
