@@ -142,33 +142,4 @@ export function LoadError({
     </>
   );
 }
-export function MoneyInput({
-  name = 'amount_vnd',
-  label = 'Số tiền (đ)',
-  value,
-  onChange,
-}: {
-  name?: string;
-  label?: string;
-  value?: string;
-  onChange?: (v: string) => void;
-}) {
-  return (
-    <label>
-      {label}
-      <input
-        name={name}
-        type="number"
-        inputMode="numeric"
-        min="1"
-        max="100000000000"
-        step="1"
-        required
-        {...(value === undefined
-          ? {}
-          : { value, onChange: (e) => onChange?.(e.target.value) })}
-        placeholder="Ví dụ: 50000"
-      />
-    </label>
-  );
-}
+export { MoneyInput } from './money-input.tsx';

@@ -214,20 +214,12 @@ export default function Goals() {
                 required
               />
             </label>
-            <label>
-              Số tiền mục tiêu (đ)
-              <input
-                name="target_vnd"
-                type="number"
-                inputMode="numeric"
-                min="1"
-                max="100000000000"
-                step="1"
-                defaultValue={editing?.target_vnd ?? ''}
-                required
-                placeholder="Ví dụ: 3000000"
-              />
-            </label>
+            <MoneyInput
+              name="target_vnd"
+              label="Số tiền mục tiêu (đ)"
+              defaultValue={editing?.target_vnd ?? ''}
+            />
+
             <label>
               Ngày mục tiêu
               <input

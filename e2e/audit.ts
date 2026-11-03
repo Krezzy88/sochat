@@ -1,8 +1,10 @@
+import process from 'node:process';
 // Run only against `npm run e2e:serve` (isolated DB + fake), not local owner data.
 import lighthouse from 'lighthouse';
 import { chromium } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
+const base = process.env.SOCHAT_AUDIT_URL ?? 'http://localhost:5173';
 const browser = await chromium.launch({
   headless: true,
   args: ['--remote-debugging-port=9222'],
@@ -11,25 +13,22 @@ const context = await browser.newContext();
 const api = context.request;
 let token = '';
 try {
-  const csrf = await api.get('http://localhost:5173/api/auth/csrf');
-  const registration = await api.post(
-    'http://localhost:5173/api/auth/register',
-    {
-      headers: { 'X-CSRF-Token': (await csrf.json()).csrf_token },
-      data: {
-        email: `audit-${randomUUID()}@example.test`,
-        password: 'Synthetic-audit-password-2026',
-        display_name: 'Bạn sinh viên',
-      },
+  const csrf = await api.get(base + '/api/auth/csrf');
+  const registration = await api.post(base + '/api/auth/register', {
+    headers: { 'X-CSRF-Token': (await csrf.json()).csrf_token },
+    data: {
+      email: `audit-${randomUUID()}@example.test`,
+      password: 'Synthetic-audit-password-2026',
+      display_name: 'Bạn sinh viên',
     },
-  );
+  });
   if (registration.status() !== 201)
     throw new Error('Synthetic audit account setup failed.');
   token = (await registration.json()).csrf_token;
   const date = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Ho_Chi_Minh',
   }).format(new Date());
-  const saved = await api.post('http://localhost:5173/api/transactions/batch', {
+  const saved = await api.post(base + '/api/transactions/batch', {
     headers: { 'X-CSRF-Token': token },
     data: {
       idempotency_key: randomUUID(),
@@ -58,7 +57,7 @@ try {
     .join('; ');
   const results = [];
   for (const page of ['chat', 'dashboard']) {
-    const result = await lighthouse('http://localhost:5173/#' + page, {
+    const result = await lighthouse(base + '/#' + page, {
       port: 9222,
       logLevel: 'error',
       onlyCategories: ['performance', 'accessibility'],
@@ -108,7 +107,7 @@ try {
   }
   mkdirSync('docs/measurements', { recursive: true });
   writeFileSync(
-    'docs/measurements/lighthouse.json',
+    process.env.SOCHAT_AUDIT_OUT ?? 'docs/measurements/lighthouse.json',
     JSON.stringify(
       {
         scope:
@@ -121,7 +120,7 @@ try {
   );
 } finally {
   if (token)
-    await api.delete('http://localhost:5173/api/me', {
+    await api.delete(base + '/api/me', {
       headers: { 'X-CSRF-Token': token },
     });
   await browser.close();

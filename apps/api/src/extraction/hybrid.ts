@@ -92,6 +92,9 @@ export interface ExtractorOptions {
   log?: (event: CallLog) => void;
 }
 export class HybridExtractor {
+  get providerName(): 'gemini' | 'fake' {
+    return this.provider.model === 'fake-v1' ? 'fake' : 'gemini';
+  }
   private readonly provider: ExtractionProvider;
   private readonly store: ExtractionStore;
   private readonly caps: Caps;

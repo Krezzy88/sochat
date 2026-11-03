@@ -1,0 +1,42 @@
+{
+  "kind": "Owner-authorized local real Gemini smoke, two synthetic inputs; not representative accuracy or held-out evaluation",
+  "model": "gemini-3.5-flash-lite",
+  "generated_at": "2026-11-03T08:00:37.453Z",
+  "results": [
+    {
+      "synthetic_message": "mua mô hình lắp ráp 275k",
+      "path": "rules",
+      "attempts": 0,
+      "needs_clarification": false,
+      "amounts": [275000],
+      "reasons": [],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    {
+      "synthetic_message": "ăn phở 35",
+      "path": "llm",
+      "attempts": 1,
+      "needs_clarification": true,
+      "amounts": [null],
+      "reasons": ["bare_small_number"],
+      "usage": {
+        "input_tokens": 153,
+        "output_tokens": 39,
+        "total_tokens": 192
+      }
+    }
+  ],
+  "operational_events": [
+    {
+      "input_tokens": 153,
+      "output_tokens": 39,
+      "total_tokens": 192,
+      "latency_ms": 1444.552208,
+      "outcome": "success"
+    }
+  ]
+}

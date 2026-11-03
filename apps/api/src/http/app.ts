@@ -26,6 +26,7 @@ export interface ApiOptions {
   trustProxyHops?: number;
   now?: () => Date;
   extractor: {
+    readonly providerName?: 'gemini' | 'fake';
     parseHybrid(
       message: string,
       now: string,
@@ -467,7 +468,14 @@ export async function createApp(options: ApiOptions) {
     },
     async ({ user }) => ({ items: await repo.categories(user) }),
   );
+  route(
+    'get',
+    '/api/chat/status',
+    { response: z.strictObject({ provider: z.enum(['gemini', 'fake']) }) },
+    () => ({ provider: options.extractor.providerName ?? 'fake' }),
+  );
   const proposal = z.strictObject({
+    provider: z.enum(['gemini', 'fake']),
     items: z.array(
       z.object({
         type: z.enum(['income', 'expense']),
@@ -497,11 +505,14 @@ export async function createApp(options: ApiOptions) {
     { body: c.message, response: proposal },
     async ({ req, res, user, body }) => {
       await rate(req, res, 'parse', user, user, options.limits?.parse ?? 20);
-      return options.extractor.parseHybrid(
-        body.message,
-        now().toISOString(),
-        user,
-      );
+      return {
+        provider: options.extractor.providerName ?? 'fake',
+        ...(await options.extractor.parseHybrid(
+          body.message,
+          now().toISOString(),
+          user,
+        )),
+      };
     },
   );
   route(

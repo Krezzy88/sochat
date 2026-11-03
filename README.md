@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 7 containers and verification**. The local MVP is implemented; public demo deployment and real-user validation remain owner-gated Phase 8.
+Status: **Pre-deploy UX refinement**. Playful 2D UI, grouped VND inputs, clearer auth and real Gemini provenance are implemented locally. Public deployment and real-user validation remain owner-gated Phase 8.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP supports authentication, chat extraction with editable confirmation,
@@ -49,7 +49,7 @@ deterministic fake extraction provider.
 | `apps/api`        | Express 5 + TypeScript API, PostgreSQL via `pg` | 4 (database in 2)    |
 | `apps/web`        | React + Vite dashboard, Vietnamese UI           | 5                    |
 | `scripts`         | Toolchain validation                            | 0                    |
-| `docs/agent`      | Unmodified owner-supplied project documents     | Reference            |
+| `docs/agent`      | Owner-approved scope and phase references       | Reference            |
 
 The API starts from apps/api/src/server.ts; React starts from apps/web/src/main.tsx.
 Root lint and typecheck commands cover all three workspaces. Root Vitest discovers
@@ -148,6 +148,20 @@ redaction regression, Dependabot, bounded tracked-file secret checks and CI audi
 Production-only audit found zero advisories; development tooling still has moderate
 advisories. These dated results and limits are recorded in EVIDENCE.md, not a
 promise that future audits or public deployment are secure.
+
+## Real Gemini pre-deploy profile
+
+See [UX refinement and real-provider checks](docs/UX_REFINEMENT.md). The owner
+explicitly authorized real local Gemini calls. With the key/model in ignored .env:
+
+```sh
+docker compose --env-file .env -f compose.yaml -f compose.gemini.yaml up --build --wait
+```
+
+Open http://localhost:8080. The UI distinguishes configured Gemini, rules-only
+results, actual model responses and cache reuse. It never claims a model call for
+rules-only processing. CI and the credential-free base demo remain deterministic;
+new local real-call measurements are separate from historical hosted CI below.
 
 ## Container demo
 

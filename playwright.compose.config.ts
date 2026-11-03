@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
@@ -8,7 +9,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     ...devices['Desktop Chrome'],
-    baseURL: 'http://localhost:18080',
+    baseURL: process.env.SOCHAT_TEST_URL ?? 'http://localhost:18080',
     trace: 'off',
     screenshot: 'off',
   },

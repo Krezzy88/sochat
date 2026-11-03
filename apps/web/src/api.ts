@@ -19,6 +19,8 @@ export interface Transaction {
 }
 export type Draft = Omit<Transaction, 'id'>;
 export interface Proposal {
+  provider: 'gemini' | 'fake';
+  path: 'rules' | 'llm' | 'cache';
   items: (Omit<Draft, 'amount_vnd' | 'occurred_on'> & {
     amount_vnd: number | null;
     occurred_on: string | null;

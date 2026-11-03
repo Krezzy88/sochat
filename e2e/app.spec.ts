@@ -14,6 +14,9 @@ async function register(page: Page) {
     .getByLabel('Mật khẩu', { exact: true })
     .fill('Synthetic-browser-password-2026');
   await page
+    .getByLabel('Xác nhận mật khẩu', { exact: true })
+    .fill('Synthetic-browser-password-2026');
+  await page
     .getByRole('button', { name: 'Tạo tài khoản', exact: true })
     .click();
   await expect(

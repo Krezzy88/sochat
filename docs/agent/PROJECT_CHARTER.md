@@ -105,3 +105,13 @@ Nếu bị trễ: cắt Phase 5 phần quỹ mục tiêu trước, không cắt 
 | Bài đo 1 triệu dòng (sandbox) | quét toàn bảng 77–87 ms → btree 0,3–1,4 ms → covering index 0,1–0,25 ms; rollup năm 0,11 ms | **Số tuyệt đối phụ thuộc máy.** Ý nghĩa: ở quy mô này covering index đã đủ nhanh, rollup có thể không đáng độ phức tạp |
 | Schema zod cho kết quả LLM, guard số tiền | từ chối đúng các đầu vào xấu; guard chặn số ảo và injection mẫu | chưa kiểm tra ngày lịch hợp lệ (regex chỉ kiểm định dạng) |
 | API, web, CI, LLM thật | **chưa kiểm tra** | là việc của các phase |
+
+## 13. Owner-approved pre-deploy UX refinement — 2026-11-03
+
+Owner requests playful 2D/meme accents with plain accessible task language, grouped
+VND entry, confirmation/password visibility/rules within existing auth scope, and
+honest rules/Gemini/cache provenance. Email verification/reset remains out of scope.
+Owner explicitly authorizes the agent to run real Gemini API tests locally using
+synthetic data and existing local credentials. CI remains isolated/deterministic;
+no key is published, no real-call score is inferred from fake results. Deployment
+is still separately gated. No financial advice/calculations delegated to the LLM.

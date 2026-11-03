@@ -2,7 +2,14 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { dateLabel, errorText, money, request } from '../api.ts';
 import type { Category, Transaction } from '../api.ts';
-import { Alert, Empty, Loading, LoadError, useLoad } from '../ui.tsx';
+import {
+  MoneyInput,
+  Alert,
+  Empty,
+  Loading,
+  LoadError,
+  useLoad,
+} from '../ui.tsx';
 export default function Transactions({
   categories,
 }: {
@@ -160,21 +167,11 @@ export default function Transactions({
                     ))}
                 </select>
               </label>
-              <label>
-                Số tiền (đ)
-                <input
-                  name="amount_vnd"
-                  type="number"
-                  min="1"
-                  max="100000000000"
-                  step="1"
-                  required
-                  value={editing.amount_vnd}
-                  onChange={(e) =>
-                    setEditing({ ...editing, amount_vnd: e.target.value })
-                  }
-                />
-              </label>
+              <MoneyInput
+                value={editing.amount_vnd}
+                onChange={(v) => setEditing({ ...editing, amount_vnd: v })}
+              />
+
               <label>
                 Ngày giao dịch
                 <input

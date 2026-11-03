@@ -1,0 +1,23 @@
+{
+  "kind": "Owner-authorized synthetic real Gemini browser smoke",
+  "generated_at": "2026-11-03T08:21:21.815Z",
+  "provider": "gemini",
+  "path": "llm",
+  "attempts": 1,
+  "usage": {
+    "input_tokens": 160,
+    "output_tokens": 116,
+    "total_tokens": 276
+  },
+  "needs_clarification": false,
+  "confirmed_amount_vnd": "185000",
+  "checks": [
+    "password confirmation/visibility",
+    "real Gemini fallback",
+    "no save before confirmation",
+    "grouping/paste/caret",
+    "integer confirmation",
+    "390px no overflow",
+    "reduced motion"
+  ]
+}

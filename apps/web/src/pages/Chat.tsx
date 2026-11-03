@@ -1,9 +1,14 @@
+import { Mascot } from '../Mascot.tsx';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, errorText, money, request } from '../api.ts';
 import type { Category, Draft, Proposal } from '../api.ts';
-import { Alert, Icon } from '../ui.tsx';
+import { Alert, Icon, MoneyInput, useLoad } from '../ui.tsx';
 export function Chat({ categories }: { categories: Category[] }) {
+  const engine = useLoad(
+    () => request<{ provider: 'gemini' | 'fake' }>('/chat/status'),
+    [],
+  );
   const [message, setMessage] = useState('');
   const [source, setSource] = useState('');
   const [proposal, setProposal] = useState<Proposal>();
@@ -66,7 +71,9 @@ export function Chat({ categories }: { categories: Category[] }) {
     setLocked(true);
     try {
       await request('/transactions/batch', 'POST', pending.current);
-      setSuccess(`Đã lưu ${pending.current.items.length} khoản vào sổ.`);
+      setSuccess(
+        `Đã lưu ${pending.current.items.length} khoản vào sổ. Não được nghỉ một chút rồi!`,
+      );
       setProposal(undefined);
       setDrafts([]);
       setMessage('');
@@ -99,6 +106,21 @@ export function Chat({ categories }: { categories: Category[] }) {
           <Icon name="chat" size={30} />
         </span>
       </header>
+      <div className="engine-status" role="status">
+        <strong>
+          {engine.data?.provider === 'gemini'
+            ? '✦ Gemini thật đã bật'
+            : engine.loading
+              ? 'Đang kiểm tra bộ phân tích…'
+              : engine.error
+                ? 'Không kiểm tra được kết nối bộ phân tích'
+                : 'Bản kiểm thử · Không gọi Gemini'}
+        </strong>
+        <span>
+          Tự nhận diện câu rõ ràng → Gemini hỗ trợ khi cần → bạn xác nhận trước
+          khi lưu.
+        </span>
+      </div>
       <div className="chat-layout">
         <section className="chat-panel panel">
           <div className="panel-heading">
@@ -125,6 +147,7 @@ export function Chat({ categories }: { categories: Category[] }) {
             </div>
             {!proposal && (
               <div className="chat-prompt">
+                <Mascot />
                 <span className="prompt-illustration">
                   <Icon name="list" size={42} />
                   <span>✦</span>
@@ -149,6 +172,17 @@ export function Chat({ categories }: { categories: Category[] }) {
                 <p className="source-message">{source}</p>
                 <div className="confirm-heading">
                   <h3>Kiểm tra trước khi lưu</h3>
+                  <span className="route-label">
+                    {proposal.path === 'rules'
+                      ? proposal.reasons.some((r) => r.startsWith('llm_'))
+                        ? 'AI chưa xử lý được · bạn kiểm tra lại'
+                        : 'Tự nhận diện · không cần gọi AI'
+                      : proposal.path === 'cache'
+                        ? 'Dùng kết quả lần trước · không gọi lại AI'
+                        : proposal.provider === 'gemini'
+                          ? 'Gemini đã hỗ trợ bóc tách'
+                          : 'Phản hồi mô phỏng kiểm thử'}
+                  </span>
                   <span className="count-pill">{drafts.length} khoản</span>
                 </div>
                 {proposal.needs_clarification && (
@@ -216,26 +250,11 @@ export function Chat({ categories }: { categories: Category[] }) {
                                     ))}
                                 </select>
                               </label>
-                              <label
-                                className={
-                                  !item.amount_vnd ? 'field-warning' : ''
-                                }
-                              >
-                                Số tiền (đ)
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="100000000000"
-                                  step="1"
-                                  inputMode="numeric"
-                                  required
-                                  value={item.amount_vnd}
-                                  onChange={(e) =>
-                                    edit(index, 'amount_vnd', e.target.value)
-                                  }
-                                  placeholder="Nhập số tiền chính xác"
-                                />
-                              </label>
+                              <MoneyInput
+                                value={item.amount_vnd}
+                                onChange={(v) => edit(index, 'amount_vnd', v)}
+                              />
+
                               <label
                                 className={
                                   !item.occurred_on ? 'field-warning' : ''

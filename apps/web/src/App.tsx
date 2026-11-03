@@ -1,3 +1,4 @@
+import { Mascot } from './Mascot.tsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, errorText, request } from './api.ts';
@@ -19,11 +20,28 @@ const routes = [
 ] as const;
 function Auth({ onAuth }: { onAuth: (user: User) => void }) {
   const [register, setRegister] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fields = Object.fromEntries(new FormData(e.currentTarget));
+    const password = String(fields.password ?? '');
+    if (register && password !== fields.confirm_password) {
+      setError('Mật khẩu xác nhận chưa khớp. Nhập lại giúp mình nhé.');
+      return;
+    }
+    delete fields.confirm_password;
+    fields.email = String(fields.email ?? '')
+      .trim()
+      .toLowerCase();
+    if (register) {
+      fields.display_name = String(fields.display_name ?? '').trim();
+      if (!fields.display_name) {
+        setError('Tên hiển thị không được chỉ gồm khoảng trắng.');
+        return;
+      }
+    }
     setBusy(true);
     setError('');
     try {
@@ -35,7 +53,13 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
       );
       onAuth(data.user);
     } catch (e) {
-      setError(errorText(e));
+      setError(
+        e instanceof ApiError && e.status === 409 && register
+          ? 'Email này đã được đăng ký. Bạn chuyển sang đăng nhập nhé.'
+          : e instanceof ApiError && e.status === 429
+            ? 'Bạn thử hơi nhanh rồi. Chờ một chút trước khi đăng nhập lại nhé.'
+            : errorText(e),
+      );
     } finally {
       setBusy(false);
     }
@@ -43,6 +67,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
   return (
     <main className="auth">
       <section className="auth-story">
+        <Mascot />
         <a href="#chat" className="brand">
           <span className="brand-mark">
             <Icon name="chat" size={27} />
@@ -87,7 +112,30 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
               ? 'Tạo tài khoản để ghi lại thu chi mỗi ngày.'
               : 'Đăng nhập để tiếp tục câu chuyện thu chi.'}
           </p>
-          <form onSubmit={submit}>
+          <form
+            key={register ? 'register' : 'login'}
+            onSubmit={submit}
+            onInvalidCapture={(e) => {
+              const el = e.target as HTMLInputElement;
+              if (el.name === 'email')
+                el.setCustomValidity(
+                  'Nhập địa chỉ email hợp lệ, ví dụ ban@example.com.',
+                );
+              else if (el.name === 'password')
+                el.setCustomValidity(
+                  register
+                    ? 'Mật khẩu cần từ 12 đến 128 ký tự.'
+                    : 'Nhập mật khẩu để đăng nhập.',
+                );
+              else if (el.name === 'confirm_password')
+                el.setCustomValidity('Nhập lại mật khẩu giống ô phía trên.');
+              else el.setCustomValidity('Bạn điền thông tin này trước nhé.');
+            }}
+            onInput={(e) => {
+              (e.target as HTMLInputElement).setCustomValidity('');
+              setError('');
+            }}
+          >
             {register && (
               <label>
                 Tên hiển thị
@@ -115,7 +163,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
               Mật khẩu
               <input
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 minLength={register ? 12 : 1}
                 maxLength={128}
                 autoComplete={register ? 'new-password' : 'current-password'}
@@ -125,6 +173,44 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
                 }
               />
             </label>
+            <button
+              className="password-toggle text-button"
+              type="button"
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+            </button>
+            {register && (
+              <>
+                <p className="auth-rules" id="password-rules">
+                  Mật khẩu từ 12–128 ký tự. Có thể dùng cụm từ dễ nhớ, khoảng
+                  trắng và password manager.
+                </p>
+                <label>
+                  Xác nhận mật khẩu
+                  <input
+                    name="confirm_password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={12}
+                    maxLength={128}
+                    autoComplete="new-password"
+                    aria-describedby="password-rules"
+                    placeholder="Nhập lại mật khẩu"
+                    onInput={(e) => {
+                      const el = e.currentTarget;
+                      el.setCustomValidity(
+                        el.value !==
+                          String(new FormData(el.form!).get('password'))
+                          ? 'Mật khẩu xác nhận chưa khớp.'
+                          : '',
+                      );
+                    }}
+                  />
+                </label>
+              </>
+            )}
             {error && <Alert>{error}</Alert>}
             <button className="primary full" disabled={busy}>
               {busy ? 'Đang xử lý…' : register ? 'Tạo tài khoản' : 'Đăng nhập'}
@@ -138,6 +224,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
               disabled={busy}
               onClick={() => {
                 setRegister(!register);
+                setShowPassword(false);
                 setError('');
               }}
             >
