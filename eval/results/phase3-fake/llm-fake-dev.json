@@ -1,0 +1,1352 @@
+{
+  "generated_at": "2026-11-03T02:53:44.570Z",
+  "split": "dev",
+  "dataset_sha256": "525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839",
+  "source_commit": "43bb70573ef886f35d210c0aae043f9879694fda",
+  "working_tree_dirty": false,
+  "seed_set_caveat": "The 65 synthetic seed cases and reference rules share an author. FakeProvider always asks for clarification; fake accuracy/cost/latency is not Gemini performance. Unlabeled owner inbox is excluded.",
+  "cases": 65,
+  "exact_case": {
+    "correct": 1,
+    "total": 65,
+    "accuracy": 0.015384615384615385
+  },
+  "fields": {
+    "amount_vnd": {
+      "correct": 0,
+      "total": 70,
+      "accuracy": 0
+    },
+    "category": {
+      "correct": 0,
+      "total": 70,
+      "accuracy": 0
+    },
+    "occurred_on": {
+      "correct": 0,
+      "total": 70,
+      "accuracy": 0
+    },
+    "type": {
+      "correct": 0,
+      "total": 70,
+      "accuracy": 0
+    }
+  },
+  "clarification": {
+    "true_positive": 5,
+    "false_positive": 60,
+    "false_negative": 0,
+    "true_negative": 0,
+    "precision": 0.07692307692307693,
+    "recall": 1
+  },
+  "failures": [
+    {
+      "id": "seed-001",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 50000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-002",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 25000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-003",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 35000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-004",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 45000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-005",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 120000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-006",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 60000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-007",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 1800000,
+            "category": "nha_tro",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-008",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 5500000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-009",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 85000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-010",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 38000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-011",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 90000,
+            "category": "giai_tri",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-012",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 75000,
+            "category": "suc_khoe",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-013",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 450000,
+            "category": "hoa_don",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-014",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 90000,
+            "category": "hoa_don",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-015",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 100000,
+            "category": "hoa_don",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-016",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 250000,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-017",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 1200000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-018",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 150000,
+            "category": "suc_khoe",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-019",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 1500000,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-020",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 2500000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-021",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 500000,
+            "category": "nha_tro",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-022",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 15000000,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-023",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 1500000,
+            "category": "nha_tro",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-024",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 30000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-025",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 120000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-026",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 15000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-027",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 5000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-028",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 230000,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-029",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 59000,
+            "category": "giai_tri",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-030",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 100000,
+            "category": "giai_tri",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-031",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 1250000,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-032",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 2000000,
+            "category": "nha_tro",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-033",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 220000,
+            "category": "hoa_don",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-034",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 300000,
+            "category": "suc_khoe",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-035",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 45000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-036",
+      "expected": {
+        "items": [
+          {
+            "type": "income",
+            "amount_vnd": 3000000,
+            "category": "tro_cap",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-037",
+      "expected": {
+        "items": [
+          {
+            "type": "income",
+            "amount_vnd": 8000000,
+            "category": "luong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-038",
+      "expected": {
+        "items": [
+          {
+            "type": "income",
+            "amount_vnd": 300000,
+            "category": "lam_them",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-039",
+      "expected": {
+        "items": [
+          {
+            "type": "income",
+            "amount_vnd": 1200000,
+            "category": "tro_cap",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-040",
+      "expected": {
+        "items": [
+          {
+            "type": "income",
+            "amount_vnd": 500000,
+            "category": "thu_khac",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-041",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 45000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-01"
+          },
+          {
+            "type": "expense",
+            "amount_vnd": 60000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-01"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-042",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 50000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          },
+          {
+            "type": "expense",
+            "amount_vnd": 35000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-043",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 25000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          },
+          {
+            "type": "expense",
+            "amount_vnd": 5000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-044",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 80000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-045",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 20000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          },
+          {
+            "type": "expense",
+            "amount_vnd": 25000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-046",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 120000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-11-01"
+          },
+          {
+            "type": "expense",
+            "amount_vnd": 15000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-11-01"
+          },
+          {
+            "type": "expense",
+            "amount_vnd": 40000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-01"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-047",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 30000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-01"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-048",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 70000,
+            "category": "an_uong",
+            "occurred_on": "2026-10-31"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-049",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 90000,
+            "category": "giai_tri",
+            "occurred_on": "2026-11-01"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-050",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 50000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-06"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": []
+      }
+    },
+    {
+      "id": "seed-051",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 200000,
+            "category": "an_uong",
+            "occurred_on": "2026-10-30"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-052",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 80000,
+            "category": "hoc_tap",
+            "occurred_on": "2026-10-15"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-053",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 1800000,
+            "category": "nha_tro",
+            "occurred_on": "2025-12-20"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-054",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 50000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-01"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-055",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 300000,
+            "category": "an_uong",
+            "occurred_on": "2026-10-03"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-056",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 300000,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-01"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-057",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 5000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-058",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 70000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-059",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 7000,
+            "category": "di_chuyen",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-060",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 450000,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": false
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-061",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": null,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": true
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "bare_small_number",
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-062",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": null,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": true
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "ambiguous_unit",
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-064",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": null,
+            "category": "mua_sam",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": true
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "multiple_amounts",
+          "llm_cap_reached"
+        ]
+      }
+    },
+    {
+      "id": "seed-065",
+      "expected": {
+        "items": [
+          {
+            "type": "expense",
+            "amount_vnd": 50,
+            "category": "an_uong",
+            "occurred_on": "2026-11-02"
+          }
+        ],
+        "needs_clarification": true
+      },
+      "actual": {
+        "items": [],
+        "needs_clarification": true,
+        "reasons": [
+          "tiny_amount",
+          "llm_cap_reached"
+        ]
+      }
+    }
+  ],
+  "config": "llm",
+  "provider": "fake",
+  "model": "fake-v1",
+  "prompt_version": "extract-v1",
+  "operational": {
+    "messages": 65,
+    "provider_attempts": 50,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0
+    },
+    "no_provider_attempt_share": 0.23076923076923078,
+    "rules_only_share": 0,
+    "latency_ms": {
+      "p50": 0.05504200000001447,
+      "p95": 0.5334589999999935
+    },
+    "observed_token_estimate_usd_per_100_messages": 0,
+    "attempts_with_unknown_usage": 0,
+    "pricing_caveat": "Owner-supplied USD/token rates; observed-token estimate only, not billing. Missing prices yield null. Failed HTTP calls can have unknown billable usage. Fake has no API cost."
+  }
+}
