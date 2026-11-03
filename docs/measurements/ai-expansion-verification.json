@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-11-03T12:42:41.072494+00:00",
+  "source_commit": "7cd3d9438e2b8514479f4cd216b754ab2a21b39c",
+  "scope": "Local predeploy verification; no hosted CI/deployment/user study/heldout claims",
+  "voice_removed": true,
+  "unit": {
+    "tests": 213,
+    "coverage": {
+      "lines": 79.69,
+      "statements": 79.06,
+      "branches": 78.2,
+      "functions": 76.28
+    }
+  },
+  "integration": {
+    "tests": 81,
+    "coverage": {
+      "lines": 90.76,
+      "statements": 90.43,
+      "branches": 83.33,
+      "functions": 93.54
+    }
+  },
+  "desktop_mobile_browser_tests": 18,
+  "default_compose_browser_tests": 9,
+  "default_compose_smoke_passed": true,
+  "lint_typecheck_openapi_passed": true,
+  "daily_ai_calls_observed": 30,
+  "daily_ai_cap_unchanged": 30,
+  "rls_demo_private_tables_enabled_forced": 10,
+  "backup": {
+    "outside_repository": true,
+    "owner_only_mode": "0600",
+    "restore_verified": true,
+    "restored_public_tables": 13,
+    "temporary_restore_database_removed": true
+  },
+  "native_postgresql_modified": false,
+  "telemetry": {
+    "real_local_spans_observed": true,
+    "real_sdk_enabled": true,
+    "sample_allowed_fields": ["route", "method", "status", "duration_ms"],
+    "external_collector": false
+  },
+  "mutation": {
+    "changed": "draft delta addition replaced with subtraction",
+    "test_detected": true,
+    "restored": true
+  },
+  "npm_audit": {
+    "high": 0,
+    "critical": 0,
+    "moderate": 21
+  },
+  "not_verified": [
+    "Hosted CI for these commits",
+    "Full real-provider chat/edit browser rerun after voice removal; daily cap reached, deterministic state tests and separately recorded real calls passed",
+    "Representative retrieval accuracy; author-designed baseline only",
+    "Other browser engines and manual accessibility certification",
+    "Heldout evaluation and student usability sessions"
+  ]
+}

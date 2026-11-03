@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-11-03T12:28:50.584Z",
+  "real_provider": true,
+  "synthetic_audio_device": true,
+  "unified_chat": true,
+  "exact_delta": null,
+  "unsaved_query_excluded": false,
+  "voice_review_without_save": true,
+  "consent_default_off": true,
+  "semantic_search": true,
+  "revocation": true,
+  "page_errors": [],
+  "historical_scope": "Measured before owner removed voice on 2026-11-03; voice is no longer shipped. Other measured model paths remain unchanged."
+}

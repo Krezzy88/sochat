@@ -2899,3 +2899,94 @@ credentials, never committed or printed. Hosted CI for this new source, retrieva
 quality, other browsers and human usability remain NOT VERIFIED. No new public
 push, merge, paid infrastructure or bulk mutation. Future high-risk changes need
 owner review as requested.
+
+## 2026-11-03 — Completed local AI/UX expansion, voice removed by owner
+
+Source commits: `2ce021e0946c893608938748eac146f7fc6e63dc` and
+`7cd3d94` (strict retrieval output contracts). Branch: feat/playful-ux-gemini.
+This is pre-deploy work, not Phase 8 deployment or a new hosted CI result.
+Owner explicitly authorized real local Gemini checks, default-off consent for
+semantic notes, and RLS only on the Docker demo after a protected backup. Owner
+subsequently removed voice from scope: audio controls/endpoint/permission are gone;
+007_remove_voice drops its unused column without editing applied migration 006.
+
+Implemented: one composer/history for expense proposals, one-month read questions
+and unsaved draft corrections; manual intent override; accurate extraction/edit
+provenance; exact code delta arithmetic; explicit idempotent save; evidence links.
+Chat history/drafts are page memory; navigation/reload loss is explained. Optional
+semantic search has explicit consent and 20-note indexing, 768-dimensional Gemini
+embeddings, owner-first bounded exact cosine/keyword ranking, note invalidation,
+account/transaction cascades and derived-data deletion on consent revocation.
+Portable PostgreSQL arrays are deliberate; pgvector ANN remains deferred until
+measured scale/recall need. No model SQL, model arithmetic or autonomous ledger writes.
+
+Final local verification (Node 22.23.4/npm 10.9.4):
+
+| Check                                       | Observed result                                                                                      |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| npm run lint / npm run typecheck            | Passed                                                                                               |
+| npm run test:coverage                       | 213 tests; lines 79.69%, statements 79.06%, branches 78.20%, functions 76.28%                        |
+| npm run test:integration -- --coverage      | 81 tests; lines 90.76%, statements 90.43%, branches 83.33%, functions 93.54%                         |
+| npm run e2e                                 | 18 desktop/mobile journeys passed; includes clearly labeled mocked-transport client state regression |
+| default isolated Compose + docker/smoke.mjs | Healthy and smoke passed, no real provider key                                                       |
+| playwright.compose.config.ts                | 9 desktop container journeys passed                                                                  |
+| OpenAPI generation/retained equality        | Passed generated schema validator and integration equality                                           |
+| npm audit --audit-level=high                | No high/critical; 21 moderate development dependency advisories remain                               |
+| tracked-file secret-pattern guard           | Passed; bounded patterns, not a full secret audit                                                    |
+
+Coverage gates were not lowered and scopes were not pruned. Integration includes
+new tenant, revision and semantic modules. Unit coverage scope remains runtime,
+parser/extraction/eval; telemetry exporter has a separate allowlist unit test but
+is not included in those historical coverage percentages. Browser V8 character
+ranges include dependencies and are not TypeScript line coverage. Mutation check:
+changed bigint delta addition to subtraction; revision unit test failed, mutation
+was restored. New RLS test also fails closed for client queries outside BEGIN and
+destroys a released connection with an open transaction before pool reuse.
+
+Real model evidence: measurements/ai-expansion-live.json verified explicit delta
+50000 + 20000 = 70000 with no ledger write and eight-note indexing. Four synthetic
+retrieval queries measured keyword-substring top-1 1/4 vs hybrid 3/4; one query
+incorrectly ranked tuition above medicine. These tiny author-designed fixtures are
+not representative, held-out, confidence estimates or proof of general accuracy.
+The real-provider browser continuation passed consent/index/search/revocation with
+zero page errors; its report explicitly shows that the question/edit portion was
+skipped to conserve quota. Earlier browser attempts reached successful real question,
+revision and confirmation assertions before unrelated UI/device checks failed.
+The final no-voice build was not rerun through a complete real-provider question/edit
+journey: shared daily 30-call cap was reached and was not reset/increased. The exact
+API calculation and final client state each have separate real/deterministic evidence.
+Historical speech results are labeled pre-removal and are not current feature claims.
+CI still uses deterministic provider/transport fixtures and does not call live Gemini.
+
+RLS: a 0600 SQL backup was created outside Git before migrating/enabling policies.
+Restoration into a temporary database in the same local cluster succeeded (13 public
+tables), then that temporary DB was removed. Ten private tables plus users/categories
+have owner policies; the demo runs with the explicit hardening override. Tests cover
+missing owner predicates, forbidden foreign-owner writes, error rollback, concurrent
+one-connection reuse, and the primary full API fixture under RLS. Native PostgreSQL
+was unchanged. Privileged auth/session bootstrap is documented; RLS is not protection
+against arbitrary backend/admin compromise. No real owner ledger rows were inspected.
+
+OpenTelemetry: real Node SDK and local trace/metric exporters are enabled. Actual
+handler spans were observed with fixed route, method, status and duration. Exporter
+redaction test excludes private attributes; automatic HTTP/SQL instrumentation,
+resource discovery and external collector are disabled. Scope excludes pre-handler
+middleware rejection spans; this is not full distributed tracing across a deployment.
+
+Final no-voice mobile-simulated Lighthouse observation against the authenticated
+Docker-served production Vite build: Chat performance 97/accessibility 100;
+Dashboard performance 100/accessibility 100. A prohibited aria-label on a generic
+conversation div was found and corrected with log semantics before this measurement.
+Artifact: measurements/lighthouse-ai-expansion.json. Two local runs, not hosted
+performance or manual accessibility certification. Later label/output-contract
+changes do not alter the measured initial-page layout; no new performance claim
+beyond this observation is made.
+
+New final screenshots are review candidates under screenshots/ux. Existing owner-
+approved README screenshots were restored and remain unchanged. The isolated
+sochat-predeploy test stack/volume was removed; sochat-demo remains healthy at
+http://localhost:8080 with existing data and sessions preserved. Source and evidence
+are local only: no new public push, merge, deployment, paid infrastructure, user
+study or held-out run. See measurements/ai-expansion-verification.json for the
+machine-readable check summary. Phase 8 still needs its owner deployment decision,
+real student sessions and the separately authorized final held-out evaluation.

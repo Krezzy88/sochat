@@ -1,0 +1,58 @@
+{
+  "kind": "Synthetic real Gemini smoke; small author-designed retrieval set, not representative accuracy",
+  "generated_at": "2026-11-03T12:20:14.341Z",
+  "default_off": true,
+  "revision": {
+    "amount_vnd": "70000",
+    "ledger_unchanged": true
+  },
+  "index": {
+    "indexed": 8
+  },
+  "retrieval": {
+    "cases": [
+      {
+        "query": "chi phí chữa bệnh",
+        "relevant": "Mua thuốc cảm tại nhà thuốc",
+        "keyword_top1": "Mua vé xem phim rạp",
+        "hybrid_top1": "Đóng học phí tiếng Anh",
+        "keyword_hit": false,
+        "hybrid_hit": false
+      },
+      {
+        "query": "khắc phục phương tiện hỏng bánh",
+        "relevant": "Sửa xe máy bị thủng lốp",
+        "keyword_top1": "Đóng học phí tiếng Anh",
+        "hybrid_top1": "Sửa xe máy bị thủng lốp",
+        "keyword_hit": false,
+        "hybrid_hit": true
+      },
+      {
+        "query": "nuôi thú cưng",
+        "relevant": "Mua thức ăn cho mèo",
+        "keyword_top1": "Mua thuốc cảm tại nhà thuốc",
+        "hybrid_top1": "Mua thức ăn cho mèo",
+        "keyword_hit": false,
+        "hybrid_hit": true
+      },
+      {
+        "query": "học ngoại ngữ",
+        "relevant": "Đóng học phí tiếng Anh",
+        "keyword_top1": "Đóng học phí tiếng Anh",
+        "hybrid_top1": "Đóng học phí tiếng Anh",
+        "keyword_hit": true,
+        "hybrid_hit": true
+      }
+    ],
+    "keyword_top1": 1,
+    "hybrid_top1": 3,
+    "total": 4
+  },
+  "voice": {
+    "synthetic_speech": true,
+    "transcript": "Trưa nay ăn phở 50.000 đồng.",
+    "duration_seconds": 2.44425
+  },
+  "revocation_denies_search": true,
+  "historical_scope": "Measured before owner removed voice on 2026-11-03; voice is no longer shipped. Other measured model paths remain unchanged."
+}

@@ -58,8 +58,8 @@ npx playwright test --config playwright.compose.config.ts
 ```
 
 Normal browser tests require free 3000/5173; they never reuse active owner servers.
-Compose browser tests deliberately use 18080 and seven desktop journeys. CI runs
-both the 14 desktop/mobile native journeys and these seven container journeys.
+Compose browser tests deliberately use 18080 and nine desktop journeys. CI runs
+both the 18 desktop/mobile native journeys and these nine container journeys.
 No held-out or real Gemini evaluation runs in CI. Owner-run real commands and
 benchmark instructions remain in eval/README.md and db/README.md.
 
