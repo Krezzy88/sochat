@@ -268,6 +268,8 @@ export function renderMarkdown(report: EvalReport): string {
         '```',
         '',
       ]),
-    ].join('\n') + '\n'
+    ]
+      .join('\n')
+      .trimEnd() + '\n'
   );
 }

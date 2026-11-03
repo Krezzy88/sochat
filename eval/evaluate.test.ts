@@ -214,6 +214,7 @@ describe('evaluation CLI', () => {
     expect(report.dataset_sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.parse(readFileSync(jsonPath, 'utf8'))).toEqual(report);
     expect(readFileSync(markdownPath, 'utf8')).toBe(renderMarkdown(report));
+    expect(readFileSync(markdownPath, 'utf8')).not.toMatch(/\n\n$/);
     expect(readFileSync(markdownPath, 'utf8')).toContain('not representative');
   });
 
