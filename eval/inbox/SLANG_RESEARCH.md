@@ -11,14 +11,17 @@ no runtime parser change, evaluation, gold-label invention or Phase 3 work.
   hqua = hom qua, dt (original đt) = dien thoai, in this dataset's contexts.
   These are contextual abbreviations; tr remains an amount unit when attached to
   a number, and quantity words such as chai can refer to bottles rather than money.
-- Owner specified xi/xich (xị/xịch) = 10,000 VND; lit/lop/soi (lít/lốp/sọi) =
-  100,000 VND; chai/cu (chai/củ) = 1,000,000 VND; toi (tỏi) = 1,000,000,000 VND.
+- Latest owner correction: xị = 100,000 VND and loét = 100,000 VND. This
+  supersedes the earlier owner statement xị = 10,000 VND. The correction names xị
+  explicitly; do not automatically extend it to xịch without confirmation.
+- Other owner-specified values: lit/lop/soi (lít/lốp/sọi) = 100,000 VND;
+  chai/cu (chai/củ) = 1,000,000 VND; toi (tỏi) = 1,000,000,000 VND.
   These are owner-specified conventions, not a verified universal regional dictionary.
 - Owner stated cành = trăm, without an explicit numeric VND value. A reviewed source
   suggests 100,000 VND, but retain the distinction between the exact owner statement
   and a normalized numeric interpretation until the dataset labels are confirmed.
-- Owner did not explicitly define loet (loét) or chuc (chục). Research supports
-  chục = 10,000 VND in shortened price expressions; loét remains unresolved.
+- Owner has now explicitly defined loét. Owner has not explicitly defined chục;
+  research supports chục = 10,000 VND in shortened price expressions.
 
 ## Sources and limitations
 
@@ -43,7 +46,9 @@ no runtime parser change, evaluation, gold-label invention or Phase 3 work.
 Searches included exact and contextual combinations for canh, loet, xi and chuc
 with Vietnamese money amounts. No adequate source explicitly defining loét as a
 money unit was located in this search. This is a search limitation, not proof that
-no such usage or source exists. Unresolved units must keep clarification behavior.
+no such usage or source exists. The later owner confirmation resolves loét for
+this dataset, independently of web verification. It does not establish that the
+cited FPT article supports loét = 100,000. Unresolved units must keep clarification behavior.
 Do not expand this search into foreign currencies, market data or financial advice.
 
 ## Before executable labels or code
@@ -53,3 +58,10 @@ multiple-item segmentation, numeric shorthand suffixes (e.g. lit 8) and remainin
 uncertain units need gold-label review independently of parser predictions. Do not
 use web-derived guesses to manufacture ground truth. Unknown or conflicting
 interpretations must trigger clarification. Existing seed labels remain untouched.
+
+## Effect on pending owner-dev labels
+
+Using the latest explicit owner convention, 2 xị denotes 200,000 VND, 3 xị
+denotes 300,000 VND, 3 loét denotes 300,000 VND and 5 loét denotes 500,000 VND.
+These are deterministic arithmetic consequences of the owner convention, not
+parser outputs or evaluated gold labels. No runtime code or seed case is changed.

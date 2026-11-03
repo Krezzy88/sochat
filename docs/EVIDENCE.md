@@ -1881,3 +1881,13 @@ remains unresolved. No runtime code, seed labels, raw inbox messages or evaluati
 results changed. No tests/evaluation/LLM calls were run for this documentation-only
 update. Held-out runs remain 0. Case-level gold labels and injected time still need
 review before promotion to an executable owner-dev dataset.
+
+## 2026-11-03 — Owner correction: loét and xị
+
+Owner explicitly confirmed loét = 100,000 VND and corrected xị from the earlier
+10,000 to 100,000 VND. Updated the current glossary; the preceding research entry
+is historical and its unresolved-loét status is superseded for this owner's data.
+The web source was not newly verified as supporting loét; owner confirmation and
+source evidence remain distinct. Unitless amounts still require clarification.
+Raw inbox, runtime parser, seed labels and reports are unchanged. No tests, tuning,
+evaluation or LLM calls were run for this documentation-only correction.
