@@ -7,10 +7,16 @@ export default defineConfig({
       'scripts/**/*.test.mjs',
       'packages/**/*.test.ts',
       'apps/**/*.test.ts',
+      'eval/**/*.test.ts',
     ],
     coverage: {
       provider: 'v8',
-      include: ['scripts/check-runtime.mjs'],
+      include: [
+        'scripts/check-runtime.mjs',
+        'packages/parser/src/**/*.ts',
+        'eval/**/*.ts',
+      ],
+      exclude: ['**/*.test.ts'],
       reporter: ['text', 'json-summary'],
       // Phase 7 will calibrate thresholds from measured application coverage.
     },

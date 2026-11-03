@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 0 bootstrap**. There is no running API, database or web application yet.
+Status: **Phase 1 parser and rules evaluation**. There is no running API, database or web application yet.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP will support authentication, chat extraction with editable confirmation,
@@ -37,7 +37,7 @@ npm run format
 cp .env.example .env
 ```
 
-Phase 0 does not load `.env`, require Docker, connect to PostgreSQL or call Gemini.
+The current phase does not load `.env`, require Docker, connect to PostgreSQL or call Gemini.
 Never commit API keys or real personal/financial data. Tests and CI will use a
 deterministic fake extraction provider when the LLM phase is implemented.
 
@@ -51,10 +51,29 @@ deterministic fake extraction provider when the LLM phase is implemented.
 | `scripts`         | Toolchain validation                            | 0                    |
 | `docs/agent`      | Unmodified owner-supplied project documents     | Reference            |
 
-Workspace entry points are intentionally empty until their phase is authorized.
+The API and web entry points remain empty until their phase is authorized.
 Root lint and typecheck commands cover all three workspaces. Root Vitest discovers
-tests under `scripts`, `packages` and `apps`. Coverage currently measures only the
-runtime guard and says nothing about application correctness.
+tests under `scripts`, `packages`, `eval` and `apps`. Coverage measures the runtime
+guard, parser and evaluation harness; there is no API or web coverage yet.
+
+## Parser and evaluation
+
+```sh
+npm run eval
+# Explicit equivalent (rules only, dev only):
+npm run eval -- --config rules --split dev
+```
+
+The pure TypeScript API is `parseMessage(message, nowIso): ParseResult`. It uses
+injected time, exact bigint money normalization, structured flags and Vietnamese
+clarification questions. Invalid amounts and dates stay unresolved. See the
+[parser contract](docs/PARSER.md) and [evaluation guide](eval/README.md).
+
+Reports are written to `eval/results/rules-dev.json` and `rules-dev.md`. The supplied
+65 synthetic dev cases were written by the same developer as the reference rules;
+their score is **not representative of real users**. Results and limitations are
+recorded in [EVIDENCE](docs/EVIDENCE.md). Held-out evaluation requires the owner's
+explicit request and is never part of unit tests or CI.
 
 ## Engineering boundaries
 

@@ -152,3 +152,202 @@ Held-out runs in this project: **0**.
 - When ready to verify remote CI: `git push -u origin feat/phase-0`, open a PR to
   `main`, inspect the CI check and configure branch protection if authorized.
 - Phase 1 starts only after the owner's next `go`.
+
+## 2026-11-03 — Phase 1 parser and rules evaluation
+
+Implementation commits: `98a943c33af426b511733a1346fecec79b01eb26`
+(`feat: add deterministic Vietnamese parser and rules evaluation`) and
+`0624c7ece2861a269ac33601e50cbc405e8307e6`
+(`fix: normalize evaluation report trailing newline`). Branch:
+`feat/phase-1`, based on completed Phase 0. Reports and this evidence entry are
+recorded in a subsequent documentation commit. No remote push or PR was made.
+
+Environment rechecked: Darwin arm64, macOS 27.0.1 (`uname -sm`,
+`sw_vers -productVersion`). All commands below use Node v22.23.4 and npm 10.9.4
+from the isolated Phase 0 toolchain PATH. No Docker, database or real LLM was used.
+
+### Changes and dependency verification
+
+- `packages/parser/src/{index,types,text,amounts,dates,classify}.ts`: strict typed,
+  deterministic, no-I/O parser with `parseMessage(message, nowIso): ParseResult`.
+- Parser regression, baseline and property tests; 500-code-point limit, structured
+  flags/questions, integer-only money and validated calendar dates.
+- `eval/{evaluate,run_eval}.ts`, harness tests, unchanged seed cases and reports.
+- Parser package exports TypeScript source. Root commands use Node's verified
+  type stripping for evaluation; TypeScript retains `noEmit` and strict checking.
+- CI now also runs dev/rules evaluation. README, `docs/PARSER.md` and
+  `eval/README.md` describe the public contract and evaluation discipline.
+
+```sh
+npm view fast-check version engines --json --fetch-retries=0
+# { "version": "4.10.2", "engines": { "node": ">=12.17.0" } }
+npm install --save-dev --save-exact fast-check@4.10.2 --no-fund
+```
+
+fast-check is a root development dependency; the parser package has **no runtime
+dependencies**. The installer still reports 11 moderate development dependency
+entries from the existing audit backlog. No force fix or unrelated upgrade was applied.
+
+### Test-first regressions
+
+Before fixes, the reference JavaScript was copied unchanged from the ZIP into
+`packages/parser/src/index.ts` so Vitest could run the new tests against its behavior.
+This was a temporary baseline, not a claimed strict TypeScript port. The final
+implementation was then split into explicitly typed modules and typechecked.
+
+```sh
+npm test -- packages/parser/src/regressions.test.ts
+```
+
+Initial actual result: **22 failed / 22 tests**. Cases covered:
+
+- Above 100,000,000,000 VND, unsafe integers and a 400-digit amount that overflows
+  JavaScript Number in the reference: now null and `amount_out_of_range`.
+- ASCII/Unicode negative signs (including spaced signs): null and `negative_amount`.
+- `0k` and `0đ`: null and `zero_amount`.
+- `1.5.2tr` and `1,5,2tr`: null and `malformed_amount`, rather than a valid-looking suffix.
+- More than 500 characters: no items and `message_too_long`.
+- Empty, whitespace and emoji-only messages: Vietnamese clarification questions.
+  The reference already returned `needs_clarification: true` without throwing for
+  these inputs; those three tests failed specifically because it had no `questions` field.
+- Invalid calendar dates, including `31/02` and a leap day invalidated by the
+  implicit previous-year fallback: null dates and `invalid_date`.
+
+After fixes: **22 passed / 22 tests**. The original 65 dev cases also pass unchanged.
+An additional test-first review found four failures (90 passed / 94 in
+`parser.test.ts`) for `1tr2345`, `35k50`, `1tr2k` and `1tr 2 người`; these were fixed
+to reject malformed suffixes and avoid treating a quantity as fractional money.
+No floating-point multiplication or rounding is used for money normalization.
+The final whitespace check also caught an extra blank line at the end of generated
+Markdown. A test reproduced it (1 failed / 24 harness tests), then the renderer was
+fixed and the full clean-clone checks were repeated for commit `0624c7e...`.
+
+### Property-based verification
+
+`properties.test.ts` runs four properties with **seed 20261103**, **2,000 generated
+cases each** (8,000 property iterations per complete test run):
+
+1. Arbitrary Unicode messages do not throw, repeat deterministically and return
+   only valid calendar dates or null.
+2. Arbitrary Unicode/numeric-heavy messages yield safe positive integer amounts
+   no greater than 1e11, or null (including the exported amount extractor).
+3. Date-shaped inputs return valid calendar dates or null.
+4. Folding preserves UTF-16 offsets relative to NFC input.
+
+These are generated-input invariants, not a claim of real-world extraction accuracy.
+
+### Mutation check
+
+Temporarily changed the internal bigint cap from `100_000_000_000n` to
+`1_000_000_000_000n`, then ran:
+
+```sh
+npm test -- packages/parser/src/regressions.test.ts
+```
+
+Actual trimmed output:
+
+```text
+FAIL rejects and flags 100000000001
+FAIL rejects and flags 100000001k
+AssertionError: expected false to be true
+Tests 2 failed | 20 passed (22)
+MUTATION_EXIT_CODE: 1
+RESTORED: True
+```
+
+The original source was restored in a `finally` block, then the same command passed
+all 22 tests. The committed cap is 100,000,000,000 VND.
+
+### Clean-clone acceptance and coverage
+
+```sh
+git clone --no-hardlinks /Users/tranphantrungkien/project/sochat /private/tmp/sochat-phase1-clone-0624c7e
+cd /private/tmp/sochat-phase1-clone-0624c7e
+export PATH=/private/tmp/sochat-phase0-runtime/node_modules/node/bin:/private/tmp/sochat-phase0-runtime/node_modules/.bin:$PATH
+node --version
+npm --version
+npm ci && npm run lint && npm run typecheck && npm test && npm run test:coverage && npm run eval -- --config rules --split dev
+```
+
+Actual trimmed output:
+
+```text
+v22.23.4
+10.9.4
+added 148 packages, and audited 152 packages
+All matched files use Prettier code style!
+tsc --noEmit: exit 0
+Test Files 5 passed (5)
+Tests 154 passed (154)
+Statements 95.15% (314/330)
+Branches   93.16% (259/278)
+Functions  94.87% (37/39)
+Lines      96.63% (287/297)
+```
+
+Every command exited 0. Coverage includes parser source, evaluation source and the
+runtime guard, excluding test files. The empty API/web placeholders are not measured.
+Parser line coverage was 100%, statement coverage 98.02%, branch coverage 95.8% and
+function coverage 100%. High coverage is not proof of complete Vietnamese understanding.
+CLI paths run in child processes do not all contribute to the parent coverage report.
+
+### Dev evaluation results
+
+The retained [JSON report](../eval/results/rules-dev.json) and
+[Markdown report](../eval/results/rules-dev.md) were copied from the clean-clone run
+at the generation time recorded in their metadata. They identify source commit `0624c7e...`,
+`working_tree_dirty: false`, config `rules` and split `dev`.
+
+The seed file was byte-compared with `kit/eval/seed_cases.jsonl` from the ZIP:
+**identical**, SHA-256
+`525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839`.
+All 65 rows are dev; no held-out dataset was added or evaluated.
+
+| Metric                  | Correct / total | Result |
+| ----------------------- | --------------- | ------ |
+| Exact case              | 65 / 65         | 100%   |
+| Amount                  | 70 / 70         | 100%   |
+| Category                | 70 / 70         | 100%   |
+| Date                    | 70 / 70         | 100%   |
+| Type                    | 70 / 70         | 100%   |
+| Clarification precision | 5 / 5           | 100%   |
+| Clarification recall    | 5 / 5           | 100%   |
+
+Clarification counts: TP=5, FP=0, FN=0, TN=60. Failures: 0.
+The per-field denominator counts max(expected items, predicted items), aligned by
+order, penalizing both missing and extra items. Undefined ratios are null/n/a.
+Harness tests verify metric arithmetic, bad labels/options, failure exit status and
+both report formats using synthetic dev fixtures.
+
+**The supplied seed set was written by the developer who wrote the reference rules.
+Its 100% result is not representative of real users.** No accuracy claim is made
+for owner-collected messages. Held-out runs this phase: **0**. Cumulative held-out
+runs in the project: **0**. Split-option tests only inspect arguments and skip a
+dummy unreadable held-out row; they never evaluate held-out examples.
+
+### Local secret handling
+
+A key was found in a concurrent edit to the tracked `.env.example` and appeared in
+an inspection tool's diff output. It was preserved in ignored `.env` with file mode
+0600, and the example was restored to a blank key. No key is in the Phase 1 commits,
+reports or this document; no real API call was made. The owner should revoke/replace
+that key because it appeared in tool output. `.env` remains local and is not loaded
+by the parser, tests or evaluation command.
+
+### NOT VERIFIED / risks / owner tasks
+
+- GitHub-hosted CI and branch protection: **NOT VERIFIED**. The workflow was updated;
+  the equivalent local commands pass, but there is no remote run URL or PR claim.
+- Real-world accuracy, held-out accuracy, LLM behavior, database performance and
+  application features are **NOT VERIFIED** and belong to later phases.
+- Keyword categories, number words, conflicting natural-language dates and trailing
+  non-money clauses retain baseline limitations described in `docs/PARSER.md`.
+- TODO(owner): collect/label at least 200 anonymized phrasing examples, including at
+  least 50 held out before tuning. Keep real financial records and secrets out of the dataset.
+- Owner verification command: `npm ci && npm run lint && npm run typecheck && npm test`;
+  then `npm run eval -- --config rules --split dev` to reproduce the dev report.
+- No held-out command is requested now. Only run it on the owner's explicit request,
+  then record the command/results and increment the cumulative run count.
+- Existing license/model/hosting questions remain open in `docs/BACKLOG.md`.
+- Stop at the Phase 1 gate. Phase 2 requires the owner's next `go`.
