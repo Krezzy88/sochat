@@ -924,7 +924,7 @@ export async function createApp(options: ApiOptions) {
         'Content-Disposition',
         'attachment; filename="sochat-transactions.csv"',
       );
-    res.write('id,type,amount_vnd,category,note,occurred_on\r\n');
+    res.write('\uFEFFid,type,amount_vnd,category,note,occurred_on\r\n');
     let after = '0';
     for (;;) {
       if (res.destroyed) return;

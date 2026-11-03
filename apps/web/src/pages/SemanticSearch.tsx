@@ -40,7 +40,12 @@ export default function SemanticSearch() {
         lập chỉ mục mới được tìm. Kết quả là độ liên quan, không phải lời khuyên
         tài chính. Tối đa 1.000 ghi chú đã lập chỉ mục.
       </p>
-      <button type="button" disabled={busy} onClick={() => void index()}>
+      <button
+        className="secondary"
+        type="button"
+        disabled={busy}
+        onClick={() => void index()}
+      >
         Lập chỉ mục 20 ghi chú tiếp theo
       </button>
       <form
@@ -72,7 +77,9 @@ export default function SemanticSearch() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <button disabled={busy}>Tìm giao dịch</button>
+        <button className="primary" disabled={busy}>
+          Tìm giao dịch
+        </button>
       </form>
       {message && <p role="status">{message}</p>}
       <ul>

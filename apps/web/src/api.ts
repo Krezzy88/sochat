@@ -124,8 +124,10 @@ export async function downloadCsv() {
   const link = document.createElement('a');
   link.href = url;
   link.download = 'sochat-giao-dich.csv';
+  document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export const money = (value: string | bigint | number) =>
   new Intl.NumberFormat('vi-VN', {

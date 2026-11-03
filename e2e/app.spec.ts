@@ -408,3 +408,46 @@ test('separate question form preserves expense draft (mocked question transport)
       .amount_vnd,
   ).toBe('70000');
 });
+
+test('editing a scrolled transaction opens a visible modal and Escape returns focus', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  await go(page, 'Giao dịch');
+  const trigger = page.getByRole('button', { name: /^Sửa / }).first();
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Sửa giao dịch' });
+  await expect(dialog).toBeInViewport();
+  await expect(
+    dialog.getByRole('combobox', { name: 'Loại', exact: true }),
+  ).toBeFocused();
+  await dialog.getByLabel('Số tiền (đ)', { exact: true }).fill('75000');
+  await page.route(
+    '**/api/transactions/*',
+    (r) =>
+      r.fulfill({
+        status: 503,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ detail: 'Không lưu được, thử lại nhé.' }),
+      }),
+    { times: 1 },
+  );
+  await dialog.getByRole('button', { name: 'Lưu thay đổi' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Không lưu được');
+  await dialog.getByRole('button', { name: 'Lưu thay đổi' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Đã cập nhật giao dịch.' }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items[0]
+      .amount_vnd,
+  ).toBe('75000');
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});

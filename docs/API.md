@@ -102,3 +102,11 @@ No email verification/reset-password, OCR, bank linking, shared wallets, investm
 or tax functionality is implemented. Security/privacy hardening remain later phases; Phase 5 now provides the React UI and Chromium e2e. Deployment and full security review are
 later work. Deployment proxy/HTTPS remains unverified; Phase 5 hosted CI results
 are recorded in EVIDENCE.md.
+
+CSV export uses UTF-8 with a BOM, comma-separated RFC-style quoted cells and CRLF.
+The header remains `id,type,amount_vnd,category,note,occurred_on`. Amounts are raw
+integer VND (no grouping punctuation); dates are ISO calendar dates. Leading formula
+characters in text cells remain escaped. Excel/Numbers import may still require
+selecting UTF-8 and comma delimiters depending on locale; no native spreadsheet-app
+compatibility certification is claimed. Export includes only the authenticated
+owner's transactions and streams in bounded pages.

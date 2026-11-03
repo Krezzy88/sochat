@@ -505,6 +505,11 @@ describe('reports, budgets, goals, export and account deletion', () => {
     ]);
     const exported = await call(a, 'get', '/api/me/export').expect(200);
     expect(exported.type).toBe('text/csv');
+    expect(
+      exported.text.startsWith(
+        '\uFEFFid,type,amount_vnd,category,note,occurred_on\r\n',
+      ),
+    ).toBe(true);
     expect(exported.text).toContain('50000');
     expect(exported.text).toContain("'=HYPERLINK");
     expect(exported.headers['content-disposition']).toContain('attachment');

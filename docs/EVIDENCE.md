@@ -3021,3 +3021,34 @@ browser journeys passed, including a separate question preserving the pending dr
 and a draft revision saved as exactly 70000. Mocked transport in this client regression
 is explicitly labeled; no new live provider call was made. Local Docker is healthy.
 Current screenshot candidates: screenshots/ux/restored-chat-*.
+
+## 2026-11-03 — Transaction editor, CSV and UI review
+
+Owner reported edit clicks appeared inert and provided a CSV plus UI screenshots.
+The editor was rendered above the transaction table without scroll/focus management;
+clicks below that area did not visibly bring it into view. Replaced it with a native
+modal dialog, bounded to the viewport, keyboard focus/return and Escape cancellation.
+Save errors now render inside the dialog; inputs lock while saving. Goal editing
+also brings the existing form into view and focuses its first input.
+
+The supplied private CSV was valid UTF-8 with comma quoting/CRLF but lacked a BOM.
+Added UTF-8 BOM to server exports, retaining headers, integer VND, ISO dates,
+streaming/ownership filters and formula-injection protection. Created a private
+0600 BOM-corrected copy outside Git for the owner; no private CSV rows were committed.
+Verified BOM bytes from the actual Docker endpoint with a deleted-after-test
+synthetic account. Actual Excel/Numbers UI import was not tested; locale-dependent
+comma import can still require explicit selection.
+
+Styled previously bare semantic-search buttons, added spacing below filters and
+above report sections, aligned report period controls with visible labels, and
+prevented requests for incomplete years while typing. The browser download now
+attaches/removes its link and delays object URL cleanup.
+
+Validation: lint/typecheck and 81 PostgreSQL integration tests passed with unchanged
+coverage gates (90.76% lines). Complete desktop/mobile suite: 20 passed. Additional
+modal error/retry regression run after the final in-dialog alert fix: see command
+`npm run e2e -- --grep 'editing a scrolled'` (2 desktop/mobile checks). Earlier
+browser tests caught a period-label accessibility selector issue and a too-specific
+label selector in the new modal test; both corrected. New synthetic screenshots:
+screenshots/ux/edit-dialog-desktop.png and edit-dialog-mobile.png. No new real Gemini
+calls, no new hosted CI, no claim that all possible UI defects are exhausted.

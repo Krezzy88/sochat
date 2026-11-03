@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { dateLabel, errorText, money, request, today } from '../api.ts';
 import type { Goal } from '../api.ts';
@@ -14,6 +14,13 @@ import {
 export default function Goals() {
   const state = useLoad(() => request<{ items: Goal[] }>('/goals'), []);
   const [editing, setEditing] = useState<Goal>();
+  const editor = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (editing) {
+      editor.current?.scrollIntoView({ block: 'center' });
+      editor.current?.querySelector('input')?.focus({ preventScroll: true });
+    }
+  }, [editing?.id]);
   const [contributing, setContributing] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -201,7 +208,7 @@ export default function Goals() {
             </Empty>
           )}
         </section>
-        <section className="panel side-form">
+        <section ref={editor} className="panel side-form">
           <h2>{editing ? 'Chỉnh sửa quỹ' : 'Tạo quỹ mới'}</h2>
           <form key={editing?.id ?? 'new'} onSubmit={save}>
             <label>

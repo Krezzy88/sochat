@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [month, setMonth] = useState(today().slice(0, 7));
   const [year, setYear] = useState(today().slice(0, 4));
+  const [yearInput, setYearInput] = useState(year);
   const state = useLoad<MonthReport | YearReport>(
     () =>
       period === 'month'
@@ -68,17 +69,18 @@ export default function Dashboard() {
           <p>Hiểu những khoản đã qua, nhẹ đầu cho ngày tới.</p>
         </div>
         <div className="period-controls">
-          <label className="sr-only" htmlFor="period">
+          <label className="period-kind" htmlFor="period">
             Kỳ báo cáo
+            <select
+              id="period"
+              aria-label="Kỳ báo cáo"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as 'month' | 'year')}
+            >
+              <option value="month">Theo tháng</option>
+              <option value="year">Theo năm</option>
+            </select>
           </label>
-          <select
-            id="period"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as 'month' | 'year')}
-          >
-            <option value="month">Theo tháng</option>
-            <option value="year">Theo năm</option>
-          </select>
           {period === 'month' ? (
             <label>
               Tháng
@@ -100,8 +102,17 @@ export default function Dashboard() {
                 type="number"
                 min="1"
                 max="9998"
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
+                value={yearInput}
+                onChange={(e) => {
+                  setYearInput(e.target.value);
+                  if (
+                    /^\d{4}$/.test(e.target.value) &&
+                    Number(e.target.value) > 0 &&
+                    Number(e.target.value) < 9999
+                  )
+                    setYear(e.target.value);
+                }}
+                onBlur={() => setYearInput(year)}
               />
             </label>
           )}

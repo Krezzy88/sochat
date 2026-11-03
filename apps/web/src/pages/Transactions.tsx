@@ -1,5 +1,5 @@
 import SemanticSearch from './SemanticSearch.tsx';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { dateLabel, errorText, money, request } from '../api.ts';
 import type { Category, Transaction } from '../api.ts';
@@ -16,6 +16,7 @@ export default function Transactions({
 }: {
   categories: Category[];
 }) {
+  const editor = useRef<HTMLDialogElement>(null);
   const [filter, setFilter] = useState('');
   const [cursor, setCursor] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -23,6 +24,12 @@ export default function Transactions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (!editing) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    editor.current?.showModal();
+    return () => trigger?.focus();
+  }, [editing?.id]);
   const query =
     filter + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
   const state = useLoad(
@@ -126,78 +133,89 @@ export default function Transactions({
           {notice}
         </p>
       )}
-      {error && <Alert>{error}</Alert>}
+      {error && !editing && <Alert>{error}</Alert>}
       {editing && (
-        <section className="panel editor">
-          <h2>Sửa giao dịch</h2>
+        <dialog
+          ref={editor}
+          className="panel editor transaction-dialog"
+          aria-labelledby="edit-transaction-title"
+          onCancel={(e) => {
+            if (busy) e.preventDefault();
+            else setEditing(undefined);
+          }}
+        >
+          <h2 id="edit-transaction-title">Sửa giao dịch</h2>
+          {error && <Alert>{error}</Alert>}
           <form onSubmit={update}>
-            <div className="form-grid">
-              <label>
-                Loại
-                <select
-                  name="type"
-                  value={editing.type}
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      type: e.target.value as Transaction['type'],
-                      category:
-                        categories.find((c) => c.type === e.target.value)
-                          ?.key ?? '',
-                    })
-                  }
-                >
-                  <option value="expense">Chi tiêu</option>
-                  <option value="income">Thu nhập</option>
-                </select>
-              </label>
-              <label>
-                Danh mục
-                <select
-                  name="category"
-                  value={editing.category}
-                  onChange={(e) =>
-                    setEditing({ ...editing, category: e.target.value })
-                  }
-                >
-                  {categories
-                    .filter((c) => c.type === editing.type)
-                    .map((c) => (
-                      <option key={c.id} value={c.key}>
-                        {c.name_vi}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <MoneyInput
-                value={editing.amount_vnd}
-                onChange={(v) => setEditing({ ...editing, amount_vnd: v })}
-              />
+            <fieldset disabled={busy} className="editor-fields">
+              <div className="form-grid">
+                <label>
+                  Loại
+                  <select
+                    name="type"
+                    value={editing.type}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        type: e.target.value as Transaction['type'],
+                        category:
+                          categories.find((c) => c.type === e.target.value)
+                            ?.key ?? '',
+                      })
+                    }
+                  >
+                    <option value="expense">Chi tiêu</option>
+                    <option value="income">Thu nhập</option>
+                  </select>
+                </label>
+                <label>
+                  Danh mục
+                  <select
+                    name="category"
+                    value={editing.category}
+                    onChange={(e) =>
+                      setEditing({ ...editing, category: e.target.value })
+                    }
+                  >
+                    {categories
+                      .filter((c) => c.type === editing.type)
+                      .map((c) => (
+                        <option key={c.id} value={c.key}>
+                          {c.name_vi}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <MoneyInput
+                  value={editing.amount_vnd}
+                  onChange={(v) => setEditing({ ...editing, amount_vnd: v })}
+                />
 
+                <label>
+                  Ngày giao dịch
+                  <input
+                    name="occurred_on"
+                    type="date"
+                    required
+                    value={editing.occurred_on}
+                    onChange={(e) =>
+                      setEditing({ ...editing, occurred_on: e.target.value })
+                    }
+                  />
+                </label>
+              </div>
               <label>
-                Ngày giao dịch
+                Ghi chú
                 <input
-                  name="occurred_on"
-                  type="date"
-                  required
-                  value={editing.occurred_on}
+                  name="note"
+                  maxLength={300}
+                  value={editing.note}
                   onChange={(e) =>
-                    setEditing({ ...editing, occurred_on: e.target.value })
+                    setEditing({ ...editing, note: e.target.value })
                   }
                 />
               </label>
-            </div>
-            <label>
-              Ghi chú
-              <input
-                name="note"
-                maxLength={300}
-                value={editing.note}
-                onChange={(e) =>
-                  setEditing({ ...editing, note: e.target.value })
-                }
-              />
-            </label>
+            </fieldset>
             <div className="actions">
               <button className="primary" disabled={busy}>
                 Lưu thay đổi
@@ -212,7 +230,7 @@ export default function Transactions({
               </button>
             </div>
           </form>
-        </section>
+        </dialog>
       )}
       {state.loading ? (
         <Loading />

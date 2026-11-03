@@ -2114,3 +2114,61 @@ th {
   cursor: pointer;
   font-weight: 600;
 }
+.transaction-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 24px;
+  margin: auto;
+  color: var(--text);
+}
+.transaction-dialog::backdrop {
+  background: rgb(22 45 37 / 55%);
+}
+.editor-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.filters {
+  margin-bottom: 24px;
+}
+.report-grid {
+  margin-top: 24px;
+}
+.period-controls {
+  align-items: flex-end;
+}
+.period-controls label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.period-controls input,
+.period-controls select {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+}
+.semantic-options form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+.semantic-options > .secondary {
+  margin: 8px 0;
+}
+@media (max-width: 640px) {
+  .transaction-dialog {
+    padding: 18px;
+  }
+  .transaction-dialog .actions {
+    flex-wrap: wrap;
+  }
+  .period-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+}
