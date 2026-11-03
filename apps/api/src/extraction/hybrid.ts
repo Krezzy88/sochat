@@ -1,0 +1,290 @@
+import { createHash } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import {
+  parseMessage,
+  extractAmounts,
+  fold,
+  localToday,
+} from '../../../../packages/parser/src/index.ts';
+import type {
+  Classification,
+  ParsedItem,
+} from '../../../../packages/parser/src/index.ts';
+import { LlmResult } from './schema.ts';
+import type { LlmOutput } from './schema.ts';
+import { PROMPT_VERSION, ProviderError } from './provider.ts';
+import type { ExtractionProvider, Usage } from './provider.ts';
+import { validateCaps } from './store.ts';
+import type { Caps, ExtractionStore } from './store.ts';
+export type ProposalItem = Classification &
+  Omit<ParsedItem, 'type' | 'category' | 'flags'> & {
+    flags: string[];
+    needs_confirmation: true;
+    confidence: number | null;
+  };
+export interface ExtractionResult {
+  items: ProposalItem[];
+  needs_clarification: boolean;
+  questions: string[];
+  reasons: string[];
+  path: 'rules' | 'llm' | 'cache';
+  attempts: number;
+  usage: Usage;
+}
+export interface CallLog extends Usage {
+  latency_ms: number;
+  outcome:
+    | 'success'
+    | 'invalid_output'
+    | 'transient'
+    | 'timeout'
+    | 'unavailable'
+    | 'authentication'
+    | 'invalid_response'
+    | 'failure';
+}
+const ZERO: Usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+export function cacheKey(
+  message: string,
+  today: string,
+  model: string,
+): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        message.normalize('NFC').trim(),
+        today,
+        PROMPT_VERSION,
+        model,
+      ]),
+    )
+    .digest('hex');
+}
+export function guardAmounts(
+  message: string,
+  items: LlmOutput['items'],
+): ProposalItem[] {
+  const present = new Set(
+    extractAmounts(fold(message))
+      .map((a) => a.value)
+      .filter((v) => v !== null),
+  );
+  return items.map((item) => {
+    const flags: string[] = [];
+    if (!present.has(item.amount_vnd)) flags.push('llm_amount_not_in_message');
+    if (item.confidence < 0.8) flags.push('low_confidence');
+    if (item.amount_vnd < 1000) flags.push('tiny_amount');
+    // Never trust model-authored notes as free-form instructions or explanations.
+    return {
+      ...item,
+      ...({ type: item.type, category: item.category } as Classification),
+      note: message.normalize('NFC').slice(0, 120),
+      flags,
+      needs_confirmation: true,
+    };
+  });
+}
+export interface ExtractorOptions {
+  timeoutMs?: number;
+  quotaNow?: () => string;
+  random?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+  log?: (event: CallLog) => void;
+}
+export class HybridExtractor {
+  private readonly provider: ExtractionProvider;
+  private readonly store: ExtractionStore;
+  private readonly caps: Caps;
+  private readonly options: ExtractorOptions;
+  constructor(
+    provider: ExtractionProvider,
+    store: ExtractionStore,
+    caps: Caps,
+    options: ExtractorOptions = {},
+  ) {
+    this.provider = provider;
+    this.store = store;
+    this.caps = caps;
+    this.options = options;
+    validateCaps(caps);
+    if (
+      options.timeoutMs !== undefined &&
+      (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
+    )
+      throw new Error('Invalid extraction timeout');
+  }
+  async parseHybrid(
+    message: string,
+    now: string,
+    user: string,
+    mode: 'hybrid' | 'llm' = 'hybrid',
+  ): Promise<ExtractionResult> {
+    const rules = parseMessage(message, now);
+    const base: ExtractionResult = {
+      ...rules,
+      items: rules.items.map((item) => ({
+        ...item,
+        confidence: null,
+        needs_confirmation: true,
+      })),
+      path: 'rules',
+      attempts: 0,
+      usage: { ...ZERO },
+    };
+    if (
+      rules.reasons.some((r) => r === 'message_too_long' || r === 'invalid_now')
+    )
+      return base;
+    const low = rules.items.some((item) => item.category === 'khac');
+    if (mode === 'hybrid' && !rules.needs_clarification && !low) return base;
+    const today = localToday(now)?.toISOString().slice(0, 10);
+    if (!today) return base;
+    const failure = (reason: string): ExtractionResult => ({
+      ...base,
+      needs_clarification: true,
+      reasons: [...new Set([...base.reasons, reason])],
+      questions: [
+        ...base.questions,
+        'Chưa thể xác định chắc chắn khoản tiền. Bạn kiểm tra hoặc nhập rõ số tiền và ngày nhé?',
+      ],
+    });
+    const key = cacheKey(message, today, this.provider.model);
+    const validated = (
+      value: unknown,
+      path: 'llm' | 'cache',
+    ): ExtractionResult | null => {
+      const parsed = LlmResult.safeParse(value);
+      if (!parsed.success) return null;
+      const items = parsed.data.items.length
+        ? guardAmounts(message, parsed.data.items)
+        : base.items;
+      // Rules-derived safety ambiguities cannot be erased by a model's confidence.
+      const unresolved =
+        rules.needs_clarification ||
+        items.some((i) => i.flags.length > 0) ||
+        parsed.data.needs_clarification;
+      const reasons = [
+        ...new Set([...rules.reasons, ...items.flatMap((i) => i.flags)]),
+      ];
+      return {
+        ...base,
+        items,
+        path,
+        needs_clarification: unresolved,
+        reasons,
+        questions: unresolved
+          ? [
+              ...rules.questions,
+              'Bạn xác nhận hoặc chỉnh lại các trường chưa rõ trước khi lưu nhé?',
+            ]
+          : [],
+      };
+    };
+    try {
+      const cached = await this.store.get(user, key);
+      if (cached !== null) {
+        const result = validated(cached, 'cache');
+        if (result) return result;
+      }
+      const deadline = performance.now() + (this.options.timeoutMs ?? 8000);
+      const total: Usage = { ...ZERO };
+      let attempts = 0;
+      for (let retry = 0; retry <= 2; retry++) {
+        if (performance.now() >= deadline)
+          return { ...failure('llm_timeout'), attempts, usage: total };
+        if (
+          !(await this.store.reserve(
+            user,
+            localToday(
+              (this.options.quotaNow ?? (() => new Date().toISOString()))(),
+            )
+              ?.toISOString()
+              .slice(0, 10) ??
+              (() => {
+                throw new Error('Invalid operational clock');
+              })(),
+            this.caps,
+          ))
+        )
+          return { ...failure('llm_cap_reached'), attempts, usage: total };
+        const controller = new AbortController();
+        const started = performance.now();
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        attempts++;
+        try {
+          const response = await Promise.race([
+            this.provider.extract({ message, today }, controller.signal),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => {
+                  controller.abort();
+                  reject(new ProviderError('timeout'));
+                },
+                Math.max(1, deadline - performance.now()),
+              );
+            }),
+          ]);
+          const usage: Usage = {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+          };
+          for (const name of Object.keys(usage) as (keyof Usage)[]) {
+            const value = response.usage[name];
+            if (Number.isSafeInteger(value) && value >= 0) {
+              usage[name] = value;
+              total[name] += value;
+            }
+          }
+          const result = validated(response.output, 'llm');
+          this.options.log?.({
+            ...usage,
+            latency_ms: performance.now() - started,
+            outcome: result ? 'success' : 'invalid_output',
+          });
+          if (!result)
+            return { ...failure('llm_invalid_output'), attempts, usage: total };
+          try {
+            await this.store.put(
+              user,
+              key,
+              this.provider.model,
+              LlmResult.parse(response.output),
+            );
+          } catch {
+            /* Cache is optional; the provider attempt was already logged. */
+          }
+          return { ...result, attempts, usage: total };
+        } catch (error) {
+          const safe = error instanceof ProviderError ? error.code : 'failure';
+          this.options.log?.({
+            ...ZERO,
+            latency_ms: performance.now() - started,
+            outcome: safe,
+          });
+          if (
+            !(error instanceof ProviderError) ||
+            !error.retryable ||
+            retry === 2
+          )
+            return { ...failure(`llm_${safe}`), attempts, usage: total };
+        } finally {
+          if (timer) clearTimeout(timer);
+          controller.abort();
+        }
+        const wait = Math.min(
+          100 * 2 ** retry +
+            Math.floor((this.options.random ?? Math.random)() * 100),
+          Math.max(0, deadline - performance.now()),
+        );
+        await (
+          this.options.sleep ??
+          ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+        )(wait);
+      }
+      return failure('llm_failure');
+    } catch {
+      return failure('llm_storage_or_processing_failure');
+    }
+  }
+}

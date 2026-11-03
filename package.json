@@ -23,7 +23,8 @@
     "test:coverage": "vitest run --coverage",
     "eval": "node --experimental-strip-types eval/run_eval.ts",
     "db:migrate": "node --env-file=.env --experimental-strip-types apps/api/src/db/migrate.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "eval:llm": "node --env-file=.env --experimental-strip-types eval/run_eval.ts --provider gemini"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

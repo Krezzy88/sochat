@@ -1,3 +1,5 @@
+import { performance } from 'node:perf_hooks';
+import { parseMessage } from '../packages/parser/src/index.ts';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -7,9 +9,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { evaluateCases, loadCases, renderMarkdown } from './evaluate.ts';
 import type { EvalReport, SelectedSplit } from './evaluate.ts';
 
-interface Options {
+export interface Options {
   split: SelectedSplit;
-  config: 'rules';
+  config: 'rules' | 'llm' | 'hybrid';
+  provider: 'fake' | 'gemini';
   cases: string;
   outDir: string;
 }
@@ -19,6 +22,7 @@ export function parseArgs(args: readonly string[]): Options {
   const options: Options = {
     split: 'dev',
     config: 'rules',
+    provider: 'fake',
     cases: resolve(ROOT, 'eval/cases.jsonl'),
     outDir: resolve(ROOT, 'eval/results'),
   };
@@ -38,10 +42,12 @@ export function parseArgs(args: readonly string[]): Options {
       case '--config':
         if (!['rules', 'llm', 'hybrid'].includes(value))
           throw new Error('Config must be rules, llm or hybrid.');
-        if (value !== 'rules')
-          throw new Error(
-            `${value} is unavailable in Phase 1. Only rules is implemented; no LLM call was made.`,
-          );
+        options.config = value as Options['config'];
+        break;
+      case '--provider':
+        if (value !== 'fake' && value !== 'gemini')
+          throw new Error('Provider must be fake or gemini.');
+        options.provider = value;
         break;
       case '--cases':
         options.cases = resolve(value);
@@ -62,6 +68,8 @@ export function runEvaluation(args: readonly string[]): {
   markdownPath: string;
 } {
   const options = parseArgs(args);
+  if (options.config !== 'rules')
+    throw new Error('Use the asynchronous CLI for provider evaluation.');
   const dataset = readFileSync(options.cases, 'utf8');
   const cases = loadCases(dataset, options.split);
   let sourceCommit: string | null = null;
@@ -81,6 +89,20 @@ export function runEvaluation(args: readonly string[]): {
   } catch {
     /* A source archive can legitimately have no .git directory. */
   }
+  const latencies: number[] = [];
+  let resolved = 0;
+  const measured = evaluateCases(cases, (message, now) => {
+    const start = performance.now();
+    const parsed = parseMessage(message, now);
+    latencies.push(performance.now() - start);
+    if (
+      !parsed.needs_clarification &&
+      !parsed.items.some((item) => item.category === 'khac')
+    )
+      resolved++;
+    return parsed;
+  });
+  latencies.sort((a, b) => a - b);
   const report: EvalReport = {
     generated_at: new Date().toISOString(),
     config: 'rules',
@@ -90,7 +112,18 @@ export function runEvaluation(args: readonly string[]): {
     working_tree_dirty: dirty,
     seed_set_caveat:
       'The 65 supplied synthetic dev seed cases were written by the developer who wrote the reference rules. Their score is not representative of real users. Additional owner-labeled data must be assessed separately.',
-    ...evaluateCases(cases),
+    ...measured,
+    operational: {
+      provider_attempts: 0,
+      rules_only_share: resolved / cases.length,
+      latency_ms: {
+        p50: latencies[Math.ceil(latencies.length * 0.5) - 1] ?? null,
+        p95: latencies[Math.ceil(latencies.length * 0.95) - 1] ?? null,
+      },
+      observed_token_estimate_usd_per_100_messages: 0,
+      pricing_caveat:
+        'Rules-only local execution; no API cost. Latencies are local parser timings, not API latency.',
+    },
   };
   mkdirSync(options.outDir, { recursive: true });
   const jsonPath = resolve(options.outDir, `rules-${options.split}.json`);
@@ -105,12 +138,22 @@ if (
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   try {
-    const { report, jsonPath, markdownPath } = runEvaluation(
-      process.argv.slice(2),
-    );
-    process.stdout.write(renderMarkdown(report));
-    process.stdout.write(`JSON: ${jsonPath}\nMarkdown: ${markdownPath}\n`);
-    process.exitCode = report.failures.length ? 1 : 0;
+    const args = process.argv.slice(2);
+    const options = parseArgs(args);
+    if (options.config !== 'rules') {
+      const { runExtractionEvaluation } =
+        await import('./run_extraction_eval.ts');
+      process.exitCode = await runExtractionEvaluation(options);
+    } else {
+      if (options.provider !== 'fake')
+        throw new Error(
+          'Select --config llm or hybrid for provider evaluation.',
+        );
+      const { report, jsonPath, markdownPath } = runEvaluation(args);
+      process.stdout.write(renderMarkdown(report));
+      process.stdout.write(`JSON: ${jsonPath}\nMarkdown: ${markdownPath}\n`);
+      process.exitCode = report.failures.length ? 1 : 0;
+    }
   } catch (error) {
     process.stderr.write(
       `Evaluation failed: ${error instanceof Error ? error.message : String(error)}\n`,

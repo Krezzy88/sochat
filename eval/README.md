@@ -15,8 +15,10 @@ when preserving historical runs:
 npm run eval -- --config rules --split dev --cases ./eval/cases.jsonl --out-dir /tmp/sochat-dev-eval
 ```
 
-`--config llm` and `--config hybrid` are recognized and rejected clearly until Phase 3;
-no network call is made. Invalid options, invalid labels, empty selections or any
+`--config llm` and `--config hybrid` now support `--provider fake` (default).
+Only the explicit owner command `npm run eval:llm -- --config hybrid --split dev`
+selects the real provider and loads .env; CI rejects real Gemini. See
+[extraction instructions](../docs/EXTRACTION.md). Invalid options, invalid labels, empty selections or any
 prediction failure cause a nonzero exit. Prediction failures still produce both reports.
 
 ## Dataset
@@ -61,4 +63,6 @@ unreadable dummy held-out row; they do not evaluate a held-out dataset.
 - Failures show case IDs and scored fields/reasons, excluding notes and raw message
   text. Keep reports limited to synthetic or owner-approved anonymized material.
 
-Phase 1 does not measure LLM costs or latency and does not claim real-world accuracy.
+Provider reports include measured local p50/p95 and observed-token cost estimates.
+Fake results are not Gemini measurements; real evaluation is owner-run. No
+real-world accuracy claim is made.

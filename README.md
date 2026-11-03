@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 2 database and repositories**. Database migrations and repositories are available; there is no HTTP API or web application yet.
+Status: **Phase 3 guarded extraction**. Database migrations and repositories are available; there is no HTTP API or web application yet.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP will support authentication, chat extraction with editable confirmation,
@@ -97,3 +97,9 @@ MIT is a suggestion, not an approved license.
 
 See [database setup and owner benchmark](db/README.md). Run `npm run test:integration`
 with Docker running for the PostgreSQL 18 integration suite. The owner-run million-row benchmark and its limitations are recorded in EVIDENCE.md.
+
+## Guarded LLM extraction
+
+Gemini/FakeProvider adapters and rules-first orchestration are implemented; real
+Gemini evaluation remains owner-run. See [extraction setup and safety contract](docs/EXTRACTION.md).
+CI runs only rules and fake evaluation. No HTTP API or web UI is implemented yet.

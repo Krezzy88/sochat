@@ -6,10 +6,7 @@ import {
   MAX_AMOUNT_VND,
   parseMessage,
 } from '../packages/parser/src/index.ts';
-import type {
-  Classification,
-  ParseResult,
-} from '../packages/parser/src/index.ts';
+import type { Classification } from '../packages/parser/src/index.ts';
 
 export type Split = 'dev' | 'heldout';
 export type SelectedSplit = Split | 'all';
@@ -113,7 +110,7 @@ export interface Failure {
   actual: {
     items: ScoredItem[];
     needs_clarification: boolean;
-    reasons: ParseResult['reasons'];
+    reasons: string[];
   };
 }
 export interface Evaluation {
@@ -146,7 +143,14 @@ const scored = ({
 
 export function evaluateCases(
   cases: readonly EvalCase[],
-  parser = parseMessage,
+  parser: (
+    message: string,
+    now: string,
+  ) => {
+    items: ScoredItem[];
+    needs_clarification: boolean;
+    reasons: string[];
+  } = parseMessage,
 ): Evaluation {
   const fields = {
     amount_vnd: metric(0, 0),
@@ -227,7 +231,8 @@ export interface ReportMetadata {
   working_tree_dirty: boolean | null;
   seed_set_caveat: string;
 }
-export type EvalReport = ReportMetadata & Evaluation;
+export type EvalReport = ReportMetadata &
+  Evaluation & { operational?: unknown };
 
 const percent = (value: number | null): string =>
   value === null ? 'n/a' : `${(value * 100).toFixed(2)}%`;
@@ -258,6 +263,16 @@ export function renderMarkdown(report: EvalReport): string {
       '',
       'Items are aligned by order. Each field denominator is the sum of max(expected items, predicted items) per case; extra/missing items count as errors. Null fields are scored by exact equality. Exact case also requires matching item count and clarification state. Undefined ratios are n/a (null in JSON).',
       '',
+      ...(report.operational === undefined
+        ? []
+        : [
+            '## Operational metrics',
+            '',
+            '```json',
+            JSON.stringify(report.operational, null, 2),
+            '```',
+            '',
+          ]),
       `## Failures (${report.failures.length})`,
       '',
       ...report.failures.flatMap((failure) => [

@@ -33,3 +33,4 @@ jobs:
       - run: npm test
       - run: npm run test:integration
       - run: npm run eval -- --config rules --split dev
+      - run: npm run eval -- --config hybrid --provider fake --split dev
