@@ -2146,3 +2146,51 @@ post-fix full live hybrid score, model-only real evaluation, current token prici
 and remote CI remain NOT VERIFIED. Held-out runs remain 0. Phase 4 is not started.
 A later owner rerun may reuse cache, so interpret attempts and latency accordingly;
 use a new output directory to preserve the original report.
+
+## 2026-11-03 — Owner post-fix hybrid evaluation accepted
+
+Owner ran the requested post-fix dev command:
+
+```sh
+npm run eval:llm -- --config hybrid --split dev --out-dir eval/results/owner-hybrid-after-fix
+```
+
+The agent inspected and retained the generated JSON/Markdown without initiating
+another Gemini request. Report generated at 2026-11-03T03:09:28.876Z, model
+gemini-3.5-flash-lite, source e56475315a8384440af548f6c4a41a968148e4ff,
+working_tree_dirty=false. Dataset SHA-256 matches the unchanged 65 dev seed cases.
+Artifact: [post-fix hybrid report](../eval/results/owner-hybrid-after-fix/hybrid-gemini-dev.json).
+Artifact SHA-256: a1d3a338659b5102a5de64328b5083dded6fa9d480ec101da73bf4120b69825d.
+
+Validation assertions passed: provider/config/split, exact cases, all four field
+counts, zero failures, dataset hash and observed attempt/token counts.
+
+| Metric                          | Post-fix owner run                             |
+| ------------------------------- | ---------------------------------------------- |
+| Exact cases                     | 65/65                                          |
+| Amount / category / date / type | 70/70 each                                     |
+| Clarification                   | TP=5, FP=0, FN=0, TN=60; precision/recall=100% |
+| Rules-only resolution share     | 60/65 (92.31%)                                 |
+| Provider attempts in this run   | 1                                              |
+| Input / output / total tokens   | 152 / 20 / 172                                 |
+| Pipeline p50 / p95              | 0.050375 ms / 3.813584 ms                      |
+| Cost estimate                   | null; current token prices not configured      |
+
+This is an actual owner-run post-fix end-to-end hybrid result, unlike the earlier
+single-case offline replay. It reuses the persistent cache and makes only one
+new provider attempt. The 3.81 ms p95 mixes rules/cache/model processing and is
+**not Gemini-only network latency**, nor evidence of a model speedup over the
+previous 1121.93 ms mixed p95. No provider-only percentile can be estimated from
+one new call. The original 64/65 report remains preserved alongside this one.
+
+The 65 seeds were authored with the reference rules, so 100% here is not a
+real-world accuracy claim. The 50 owner phrases remain unscored/unlabeled candidates;
+held-out runs remain 0. Model-only real evaluation, a cache-cold three-way comparison,
+real billed cost and hosted GitHub CI remain NOT VERIFIED. These limitations are
+retained rather than filled with estimates or invented results.
+
+Phase 3 local implementation and the owner post-fix hybrid check are accepted.
+This resolves the requested post-fix hybrid gate; it does not claim completion of
+all future dataset/cost experiments. No code changed in this evidence-only update,
+so tests were not repeated; latest unit suite is 201 passed and existing database
+suite is 16 passed. Phase 4 still requires the owner's explicit go.
