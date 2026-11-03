@@ -481,3 +481,41 @@ claim is made. Held-out runs remain 0. No LLM call was made.
 Phase 2 implementation is available, but its gate is **pending**, especially the
 owner benchmark evidence and local provisioning. Do not advance automatically to
 Phase 3 or claim full Phase 2 acceptance.
+
+## 2026-11-03 — Owner local-setup completion audit
+
+Source: Phase 2 implementation c7c421b; previous evidence 547096c. Owner asked to
+check readiness for the Phase 2 gate. No benchmark was executed by the agent.
+
+- A local-only inspection found a duplicated DATABASE_URL assignment prefix in
+  ignored .env. Removed only the extra prefix, preserved the other variables and
+  file permissions 0600, and never displayed the connection URL/password.
+- Connection through pg using `node --env-file=.env --input-type=module` succeeded.
+  `SELECT version(),current_database(),current_user` returned PostgreSQL **18.6**
+  on aarch64-apple-darwin24.6.0, database **sochat_dev**, role **sochat_dev**.
+- schema_migrations was initially absent (42P01). Verified public had zero tables
+  before applying migrate(pool) through the checked-in runner. Migration succeeded:
+  001_schema.sql and 002_reporting_indexes.sql. Tables: users, categories,
+  transactions, budgets, goals, goal_contributions, llm_cache, schema_migrations.
+  No unrelated database or existing table was changed.
+- Re-ran `npm run lint && npm run typecheck && npm test`: all exited 0; **154 unit
+  tests passed**. `npm run test:integration`: **13 passed** on isolated PostgreSQL 18.
+- The real local database is now verified; the prior pending-credentials and
+  pending-local-migration status is superseded by this entry.
+- Neither db/results/benchmark.json nor /tmp/sochat-benchmark.log existed at audit
+  time. No benchmark figures/plans can yet be accepted or recorded. The Phase 2
+  benchmark table above remains TODO(owner); its gate is still pending that evidence.
+
+Owner next command (Node 22, dependencies installed, Docker Desktop running):
+
+```sh
+ROWS=1000000 RUNS=11 ./db/bench.sh > /tmp/sochat-benchmark.log 2>&1
+```
+
+This benchmark uses a disposable PostgreSQL 18 container, not sochat_dev. Once it
+finishes, the agent can inspect db/results/benchmark.json and record actual timings
+and plans, with host/Docker environment details. Remote CI remains NOT VERIFIED;
+no held-out evaluation or Gemini call occurred.
+
+Post-migration verification: `npm run db:migrate` exited 0 on the existing local
+schema (checksum/idempotency check); `git check-ignore .env` returned `.env`.

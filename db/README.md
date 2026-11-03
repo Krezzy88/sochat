@@ -52,4 +52,5 @@ error; do not drop existing databases to resolve it. Set the ignored .env variab
 DATABASE_URL to a PostgreSQL connection URL for role sochat_dev and database
 sochat_dev on localhost:5432, percent-encoding special characters in the password.
 Do not send that URL in chat or commit it. Then run `npm run db:migrate`.
-Local provisioning and migrations remain pending administrator credentials.
+Local sochat_dev connectivity and migrations were verified on PostgreSQL 18.6 on
+2026-11-03; see the latest EVIDENCE entry. Owner benchmark evidence remains pending.
