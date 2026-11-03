@@ -3,7 +3,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: 'v8',
-      include: ['apps/api/src/db/**/*.ts'],
+      include: ['apps/api/src/db/**/*.ts', 'apps/api/src/http/**/*.ts'],
       exclude: ['**/*.integration.ts'],
       reporter: ['text', 'json-summary'],
       reportsDirectory: 'coverage/integration',

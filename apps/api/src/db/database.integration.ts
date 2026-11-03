@@ -49,6 +49,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
         '001_schema.sql',
         '002_reporting_indexes.sql',
         '004_llm_limits.sql',
+        '005_api_state.sql',
       ])
         writeFileSync(
           join(directory, name),
@@ -57,7 +58,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
           ),
         );
       writeFileSync(
-        join(directory, '005_probe.sql'),
+        join(directory, '006_probe.sql'),
         'CREATE TABLE rollback_probe(id int); SELECT 1/0;',
       );
       await expect(
@@ -67,7 +68,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
         (await pool.query("SELECT to_regclass('rollback_probe') AS name"))
           .rows[0].name,
       ).toBeNull();
-      rmSync(join(directory, '005_probe.sql'));
+      rmSync(join(directory, '006_probe.sql'));
       writeFileSync(join(directory, '001_schema.sql'), '-- altered');
       await expect(
         migrate(pool, pathToFileURL(directory + '/')),
@@ -83,7 +84,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
     expect(
       (await pool.query('SELECT count(*) FROM schema_migrations')).rows[0]
         .count,
-    ).toBe('3');
+    ).toBe('4');
   });
   it.each([0n, -1n, 100_000_000_001n])(
     'rejects invalid money %s',
