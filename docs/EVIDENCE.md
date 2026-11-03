@@ -2568,3 +2568,120 @@ npm run test:coverage also exited 0: 202 passed; configured unit-scope line cove
 runtime guard/parser/extraction/eval, not HTTP/React or combined application coverage.
 Browser ranges in the alternate-port run were 304750/665050 (45.82%), including
 bundled dependencies, not TypeScript lines. No coverage threshold added in Phase 6.
+
+## 2026-11-03 — Phase 7 containers, CI gates and documentation
+
+Owner requested go phase 7. Implementation commit
+5321802a48f16ae88254697a74dac7024d4c49e2 on feat/phase-7. Native environment:
+Darwin arm64, Node 22.23.4/npm 10.9.4; Docker Engine 29.9.2, Compose v5.6.1.
+The owner independently merged Phase 6 PR #7; read-only GitHub inspection and
+fetch confirmed origin/main's files match the local Phase 6 base. No merge here.
+
+### Container implementation and exercised startup
+
+Added multi-stage non-root API/web Dockerfiles and an isolated PostgreSQL 18.6
+Compose service. Official node:22.23.4-bookworm-slim was pulled and its digest
+verified as sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da;
+both Dockerfiles pin that digest. Node image npm is 10.9.9, within the declared npm
+10 range; native/CI pin remains 10.9.4. Build uses npm ci, runtime omits dev deps.
+No .env, local node_modules or evaluation results enter the Docker build context.
+
+API accepts HOST from trusted environment (native default remains loopback); image
+sets 0.0.0.0 internally. Startup applies migrations through the existing runner.
+Web serves built React and proxies /api to a fixed internal host, preserving cookie
+headers. Healthchecks gate startup; only the web port is published to 127.0.0.1.
+Known synthetic credentials and fake extraction are deliberately local-demo-only;
+HTTP API development cookie mode is explicit. This is not a public TLS deployment.
+
+Commands executed:
+
+```sh
+docker compose --env-file /dev/null -p sochat-phase7-check config --quiet
+SOCHAT_WEB_PORT=18080 docker compose --env-file /dev/null -p sochat-phase7-check up --build --wait
+npx playwright test --config playwright.compose.config.ts
+node docker/smoke.mjs
+docker compose --env-file /dev/null -p sochat-phase7-check exec -T api id -u
+docker compose --env-file /dev/null -p sochat-phase7-check exec -T web id -u
+docker compose --env-file /dev/null -p sochat-phase7-check down --volumes --remove-orphans
+```
+
+All restored-state commands exited 0. All three services became healthy; UID was
+1000 for both applications. **7 Compose Chromium journeys passed** in 13.8 seconds:
+full account/parse/edit-confirm/report/goal/CSV/delete flow, ambiguity, lost-response
+retry, transaction/budget changes, session/keyboard/login, report retry/year table,
+21-row cursor/filter and goal edit/delete. The native owner database and servers
+were untouched. Only this temporary project's synthetic volume/network were removed.
+This proves the Compose browser path, not production deployment/security/load.
+
+### Gates and measured coverage
+
+npm run lint, npm run typecheck, npm run test:coverage and tracked-file secret check
+passed. Unit: **202 passed**, 8 files. npm run test:integration -- --coverage:
+**50 passed**, 3 files, PostgreSQL 18.6. No new application feature was added.
+
+| Scope                     | Lines           | Statements      | Branches        | Functions       |
+| ------------------------- | --------------- | --------------- | --------------- | --------------- |
+| Unit measured             | 79.83 (471/590) | 79.19 (510/644) | 78.50 (409/521) | 77.08 (74/96)   |
+| Unit enforced gate        | 76              | 76              | 75              | 74              |
+| Integration measured      | 91.82 (393/428) | 91.06 (418/459) | 81.96 (250/305) | 96.24 (128/133) |
+| Integration enforced gate | 88              | 88              | 78              | 93              |
+
+Each gate is floor(retained baseline metric) minus 3. Unit baseline is Phase 6;
+integration baseline is the earlier 50-case suite and was remeasured here unchanged.
+Unit excludes React/HTTP/container proxy and includes parser/extraction/eval/runtime
+guard; integration includes db/http and excludes tests. Entry points outside these
+configured sets are not counted. Browser V8 ranges are separate, not merged line
+coverage. Full exclusions/calibration are documented in RUNBOOK.md.
+
+Rules and FakeProvider dev commands both exited 0, 65/65 exact seed cases. Retained
+in eval/results/phase7-fake with source e4dbdca and dirty=true recorded honestly.
+Previously retained rules-dev reports were restored, not silently overwritten.
+Synthetic seeds share an author with reference rules; these are not real-user or
+Gemini performance results. No real Gemini call or held-out run; held-out remains 0.
+
+### Mutation checks, restored
+
+Changed the web proxy's internal API port from 3000 to 3001, rebuilt only this
+project's web container and ran node docker/smoke.mjs. It failed with
+`502 !== 200` at "web proxies API successfully". Restored source in finally, rebuilt
+web and reran smoke: passed. Thus the retained CI smoke detects broken container
+routing and checks that the session cookie survives the proxy.
+
+Separately raised unit line threshold to 100 temporarily: all 202 tests passed but
+command exited 1 with "Coverage for lines (79.83%) does not meet global threshold
+(100%)". Restored calibrated 76 gate; full coverage command passed. This is coverage
+gate evidence, distinct from the production proxy fault above.
+
+### Trivy, artifacts and README traceability
+
+Verified official registry image aquasec/trivy:0.75.0 at digest
+sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa.
+Ran its filesystem vuln,secret,misconfig scanners with HIGH,CRITICAL and exit-code 1
+on a temporary source-only copy built from non-ignored repository files. The owner's
+ignored .env was never copied/mounted. Exit 0: package-lock and both Dockerfiles had
+zero reported findings at those severities. Scanner default suppresses dev package
+vulnerabilities; npm audit separately covers development dependencies. No base-image
+OS vulnerability scan is claimed from this filesystem result. Definitions are
+current at execution, not a permanent security guarantee.
+
+CI now runs unit/integration coverage gates, audit/secret checks, OpenAPI drift,
+rules/fake eval, 14 native desktop/mobile journeys, Compose build/start/smoke and
+7 container journeys. An independent Trivy job scans checked-out source. Upload
+artifact version v7.0.2 was verified against the official tag and pinned to
+cf430e030ddbb5b0abf93d22962f4752f3646cd9; reports retain 14 days, even on failure.
+Checkout/setup-node retain their verified full SHA pins. No unpinned scanner setup
+action, automatic merge, real-model/held-out command or public deployment is added.
+
+README traceability review: feature list maps to app pages/API and browser tests;
+architecture/pipeline diagrams map to web proxy, API/repository/extraction code;
+owner hybrid table maps to the retained post-fix owner report; benchmark table is
+copied from the retained 99-sample owner benchmark with its selective warm-cache
+caveat. Privacy links map to docs/PRIVACY.md and THREAT_MODEL.md. Coverage commands/
+thresholds map to configurations and measured counts above. Screenshots remain the
+owner-approved Phase 5 artifacts; temporary Compose screenshots were removed.
+Future ideas and owner tasks remain explicitly unimplemented.
+
+At this local evidence commit, hosted Phase 7 CI/publication is NOT VERIFIED yet;
+that acceptance condition requires pushing the reviewable feature branch and
+observing the run. Phase 8 remains owner-gated: no host, demo link, user-test quotes,
+held-out score or production backup/TLS guarantee was invented.
