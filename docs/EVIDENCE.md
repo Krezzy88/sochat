@@ -3080,3 +3080,27 @@ unchanged ledger on cancel, consent denial and equal report control geometry.
 New real-app synthetic screenshots are review candidates in screenshots/ux:
 action-toast-desktop, confirmation-desktop and period-controls-desktop/mobile.
 No new hosted CI or human usability certification is claimed.
+
+## 2026-11-03 — Complete monthly budget management
+
+Owner reported missing budget edit/delete actions and an unusable time picker.
+Added explicit per-card Sửa hạn mức/Xóa actions. Edit pre-fills and focuses the
+existing limit, retains category/month identity, and offers save/cancel. Form
+submission locks controls while pending; success uses the shared toast and errors
+stay in their action context. Confirmed deletion removes only the authenticated
+owner's category/month limit, never ledger transactions or another month/user.
+
+Monthly budgets now have explicit Vietnamese month selection and a year input
+(applies on blur or Enter), plus an explanation that limits cover the full month.
+This does not introduce daily or arbitrary date-range budgets. Switching periods
+while editing requires the shared confirmation popup before discarding the draft.
+No schema migration or new Gemini call was needed. Added parameterized repository
+DELETE and authenticated, CSRF-protected, validated API route; OpenAPI regenerated.
+
+Validation: lint/typecheck passed. Full desktop/mobile suite: 24 passed. API/PostgreSQL
+suite with RLS: 82 passed, coverage 90.83% lines / 90.50% statements / 83.40% branches /
+93.61% functions, existing gates unchanged. Tests verify update, delete cancellation,
+selected-month deletion, another-month retention, transaction preservation and other
+owner isolation. The focused budget browser regression additionally checks canceled
+period changes retain unsaved limits and typed years apply via Enter. Docker demo
+rebuilt healthy with existing data preserved; no hosted CI/deployment claim.

@@ -110,3 +110,9 @@ characters in text cells remain escaped. Excel/Numbers import may still require
 selecting UTF-8 and comma delimiters depending on locale; no native spreadsheet-app
 compatibility certification is claimed. Export includes only the authenticated
 owner's transactions and streams in bounded pages.
+
+`DELETE /api/budgets/:category?month=YYYY-MM` removes only that category's monthly
+limit for the authenticated user. Returns 204, or 404 if no owned matching budget
+exists. Requires CSRF; invalid month/category is rejected. It never deletes ledger
+transactions or another month's budget. PUT continues to upsert a limit by the
+same owner/category/month identity.

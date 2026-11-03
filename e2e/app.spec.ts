@@ -513,3 +513,96 @@ test('toasts dismiss, themed cancel preserves data, reporting boxes are equal', 
       .semantic_enabled,
   ).toBe(false);
 });
+
+test('budget edit pre-fills limit; month/year selection and confirmed deletion are scoped', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  await go(page, 'Ngân sách');
+  await page.getByLabel('Giới hạn tháng (đ)').fill('100000');
+  await page
+    .getByRole('button', { name: 'Lưu ngân sách', exact: true })
+    .click();
+  const edit = page.getByRole('button', {
+    name: 'Sửa ngân sách Ăn uống',
+    exact: true,
+  });
+  await edit.click();
+  await expect(page.getByLabel('Giới hạn tháng (đ)')).toHaveValue('100.000');
+  await expect(page.getByLabel('Giới hạn tháng (đ)')).toBeFocused();
+  await page.getByLabel('Giới hạn tháng (đ)').fill('150000');
+  const beforeMonth = await page
+    .getByLabel('Tháng ngân sách', { exact: true })
+    .inputValue();
+  await page
+    .getByLabel('Tháng ngân sách', { exact: true })
+    .selectOption(beforeMonth === '12' ? '01' : '12');
+  await page
+    .getByRole('dialog', { name: 'Đổi tháng ngân sách?', exact: true })
+    .getByRole('button', { name: 'Hủy', exact: true })
+    .click();
+  await expect(page.getByLabel('Tháng ngân sách', { exact: true })).toHaveValue(
+    beforeMonth,
+  );
+  await expect(page.getByLabel('Giới hạn tháng (đ)')).toHaveValue('150.000');
+
+  await page
+    .getByRole('button', { name: 'Lưu thay đổi ngân sách', exact: true })
+    .click();
+  await expect(page.getByText('/ 150.000', { exact: false })).toBeVisible();
+  const originalMonth = await page
+      .getByLabel('Tháng ngân sách', { exact: true })
+      .inputValue(),
+    originalYear = await page
+      .getByLabel('Năm ngân sách', { exact: true })
+      .inputValue();
+  const nextYear = String(Number(originalYear) + 1);
+  await page.getByLabel('Năm ngân sách', { exact: true }).fill(nextYear);
+  await page.getByLabel('Năm ngân sách', { exact: true }).press('Enter');
+  await expect(
+    page.getByRole('heading', { name: 'Chưa đặt ngân sách tháng này' }),
+  ).toBeVisible();
+  await page.getByLabel('Tháng ngân sách', { exact: true }).selectOption('12');
+  await page.getByLabel('Giới hạn tháng (đ)').fill('200000');
+  await page
+    .getByRole('button', { name: 'Lưu ngân sách', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Sửa ngân sách Ăn uống', exact: true }),
+  ).toBeVisible();
+  await page.getByLabel('Năm ngân sách', { exact: true }).fill(originalYear);
+  await page.getByLabel('Năm ngân sách', { exact: true }).press('Tab');
+  await page
+    .getByLabel('Tháng ngân sách', { exact: true })
+    .selectOption(originalMonth);
+  await expect(edit).toBeVisible();
+  const remove = page.getByRole('button', {
+    name: 'Xóa ngân sách Ăn uống',
+    exact: true,
+  });
+  await remove.click();
+  await page
+    .getByRole('dialog', { name: 'Xóa ngân sách?', exact: true })
+    .getByRole('button', { name: 'Hủy', exact: true })
+    .click();
+  await expect(remove).toBeVisible();
+  await remove.click();
+  await page
+    .getByRole('dialog', { name: 'Xóa ngân sách?', exact: true })
+    .getByRole('button', { name: 'Xóa ngân sách', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Chưa đặt ngân sách tháng này' }),
+  ).toBeVisible();
+  expect(
+    (
+      await (
+        await page.request.get('/api/budgets?month=' + nextYear + '-12')
+      ).json()
+    ).items[0].limit_vnd,
+  ).toBe('200000');
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(1);
+});

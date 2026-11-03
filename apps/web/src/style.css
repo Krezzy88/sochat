@@ -2295,3 +2295,8 @@ th {
   background-size: 20px;
   cursor: pointer;
 }
+.budget-actions {
+  margin-top: 18px;
+  flex-wrap: wrap;
+  gap: 12px;
+}

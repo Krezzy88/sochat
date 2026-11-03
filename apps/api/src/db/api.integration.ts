@@ -788,3 +788,42 @@ it('AI consent defaults off, is owner isolated, and disabling clears only derive
     (await pool.query('SELECT count(*) FROM transactions')).rows[0].count,
   ).toBe('2');
 });
+
+it('updates and deletes only the owned budget in the selected month, preserving transactions', async () => {
+  for (const actor of [a, b])
+    await call(actor, 'put', '/api/budgets?month=2026-11', {
+      items: [{ category: 'an_uong', limit_vnd: '100000' }],
+    }).expect(200);
+  await call(a, 'put', '/api/budgets?month=2026-12', {
+    items: [{ category: 'an_uong', limit_vnd: '200000' }],
+  }).expect(200);
+  await save(a);
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [{ category: 'an_uong', limit_vnd: '150000' }],
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets?month=2026-11')).body.items[0]
+      .limit_vnd,
+  ).toBe('150000');
+  await call(a, 'delete', '/api/budgets/an_uong?month=2026-11').expect(204);
+  expect(
+    (await call(a, 'get', '/api/budgets?month=2026-11')).body.items,
+  ).toEqual([]);
+  expect(
+    (await call(b, 'get', '/api/budgets?month=2026-11')).body.items[0]
+      .limit_vnd,
+  ).toBe('100000');
+  expect(
+    (await call(a, 'get', '/api/budgets?month=2026-12')).body.items[0]
+      .limit_vnd,
+  ).toBe('200000');
+  expect((await call(a, 'get', '/api/transactions')).body.items).toHaveLength(
+    1,
+  );
+  await call(a, 'delete', '/api/budgets/an_uong?month=2026-11').expect(404);
+  await call(a, 'delete', '/api/budgets/an_uong?month=invalid').expect(400);
+  await a.agent
+    .delete('/api/budgets/an_uong?month=2026-12')
+    .set('Origin', origin)
+    .expect(403);
+});

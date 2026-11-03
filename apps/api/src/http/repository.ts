@@ -354,6 +354,13 @@ export function apiRepository(pool: pg.Pool, secret: string) {
       });
       return this.budgets(user, month);
     },
+    async deleteBudget(user: string, month: string, category: string) {
+      const result = await pool.query(
+        'DELETE FROM budgets b USING categories c WHERE b.category_id=c.id AND b.user_id=$1 AND b.month=$2 AND c.key=$3 RETURNING b.id',
+        [user, month, category],
+      );
+      return result.rowCount !== 0;
+    },
     async budgetStatus(user: string, from: string, to: string) {
       return (
         await pool.query<{

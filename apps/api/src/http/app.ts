@@ -808,6 +808,21 @@ export async function createApp(options: ApiOptions) {
     }),
   );
   route(
+    'delete',
+    '/api/budgets/:category',
+    {
+      query: c.monthQuery,
+      params: z.strictObject({ category: c.category }),
+      status: 204,
+    },
+    async ({ user, query, params }) => {
+      if (
+        !(await repo.deleteBudget(user, query.month + '-01', params.category))
+      )
+        fail(404, 'Không tìm thấy ngân sách trong tháng đã chọn.');
+    },
+  );
+  route(
     'get',
     '/api/budgets/status',
     {
