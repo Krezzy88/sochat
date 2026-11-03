@@ -1869,3 +1869,15 @@ Original 65 seed cases retain SHA-256
 `525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839`.
 Held-out runs remain 0. Phase 3 is not started by this data-intake step.
 No tests were rerun for this data/documentation-only update.
+
+## 2026-11-03 — Owner glossary confirmation and requested web research
+
+Owner retained unitless-number clarification and confirmed five abbreviations.
+Recorded exact slang decisions, contextual research and source-quality limitations in
+[SLANG_RESEARCH.md](../eval/inbox/SLANG_RESEARCH.md). Opened both owner-supplied
+links and searched additional sources for cành, loét, xị and chục. The FPT article
+has an internally inconsistent xị example; it was not treated as gold data. Loét
+remains unresolved. No runtime code, seed labels, raw inbox messages or evaluation
+results changed. No tests/evaluation/LLM calls were run for this documentation-only
+update. Held-out runs remain 0. Case-level gold labels and injected time still need
+review before promotion to an executable owner-dev dataset.
