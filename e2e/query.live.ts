@@ -44,12 +44,14 @@ test('real question filters execute owner-scoped SQL and show ledger evidence', 
     expect(saved.status()).toBe(201);
     await page.goto('/');
     await page
-      .getByLabel('Tin nhắn thu chi')
+      .getByLabel('Câu hỏi về thu chi')
       .fill('Tháng 11 năm 2026 chi ăn uống bao nhiêu?');
     const pending = page.waitForResponse((r) =>
       r.url().includes('/api/assistant/query'),
     );
-    await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Hỏi cuốn sổ', exact: true })
+      .click();
     const response = await pending;
     expect(response.status()).toBe(200);
     const answer = await response.json();

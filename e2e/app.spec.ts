@@ -25,7 +25,7 @@ async function register(page: Page) {
 }
 async function parse(page: Page, text = 'ăn phở 50k') {
   await page.getByLabel('Tin nhắn thu chi').fill(text);
-  await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+  await page.getByRole('button', { name: 'Phân tích', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Kiểm tra trước khi lưu' }),
   ).toBeVisible();
@@ -358,30 +358,25 @@ test('semantic consent defaults off, persists, revokes; voice is absent', async 
   ).toBe(404);
 });
 
-test('client transcript retains draft across question and revision (mocked transport, no live AI)', async ({
+test('separate question form preserves expense draft (mocked question transport)', async ({
   page,
 }) => {
   await parse(page, 'ăn phở 50k');
-  await page.route('**/api/assistant/query', (route) =>
-    route.fulfill({
+  await page.route('**/api/assistant/query', (r) =>
+    r.fulfill({
       json: {
         needs_clarification: false,
         question: 'Các khoản đã lưu',
         month: '2026-11',
-        category: 'an_uong',
+        category: null,
         income_vnd: '0',
         expense_vnd: '0',
         evidence_url: '/api/transactions?from=2026-11-01&to=2026-11-30',
       },
     }),
   );
-  await page
-    .getByLabel('Tin nhắn thu chi')
-    .fill('Tháng này chi ăn uống bao nhiêu?');
-  await page.getByRole('button', { name: 'Gửi', exact: true }).click();
-  await expect(
-    page.getByRole('region', { name: 'Câu trả lời từ cuốn sổ' }),
-  ).toBeVisible();
+  await page.getByLabel('Câu hỏi về thu chi').fill('Tháng này chi bao nhiêu?');
+  await page.getByRole('button', { name: 'Hỏi cuốn sổ', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Kiểm tra trước khi lưu' }),
   ).toBeVisible();
@@ -391,48 +386,25 @@ test('client transcript retains draft across question and revision (mocked trans
       json: {
         items: input.items.map((i: object) => ({ ...i, amount_vnd: '70000' })),
         needs_clarification: false,
-        question: 'Đã sửa bản nháp; kiểm tra trước khi lưu.',
+        question: 'Đã cập nhật bản nháp.',
         changed_indices: [0],
       },
     });
   });
-  await page.getByLabel('Tin nhắn thu chi').fill('tăng thêm 20k');
-  await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+  await page.getByText('Sửa bản nháp bằng câu nói', { exact: true }).click();
+  await page.getByLabel('Yêu cầu sửa bản nháp').fill('tăng thêm 20k');
+  await page
+    .getByRole('button', { name: 'Áp dụng vào bản nháp', exact: true })
+    .click();
   await expect(
-    page.getByText('Gemini đã hỗ trợ sửa bản nháp', { exact: true }),
+    page.getByRole('status').filter({ hasText: 'Đã cập nhật bản nháp.' }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('log', { name: 'Lịch sử trò chuyện' }),
-  ).toContainText('Bạn: ăn phở 50k');
+  await save(page);
   expect(
     (await (await page.request.get('/api/transactions')).json()).items,
-  ).toHaveLength(0);
-  await expect(
-    page.getByRole('textbox', { name: 'Tin nhắn thu chi' }),
-  ).toHaveCount(1);
-  await save(page);
-  const rows = (await (await page.request.get('/api/transactions')).json())
-    .items;
-  expect(rows).toHaveLength(1);
-  expect(rows[0].amount_vnd).toBe('70000');
-});
-
-test('daily entry is visible immediately and advanced tools stay collapsed', async ({
-  page,
-}) => {
-  await expect(page.getByLabel('Tin nhắn thu chi')).toBeInViewport();
-  await expect(
-    page.getByRole('button', { name: 'Gửi', exact: true }),
-  ).toBeInViewport();
-  await expect(page.getByLabel('Cách xử lý')).not.toBeVisible();
-  await page.getByText('Tùy chọn & cách hoạt động', { exact: true }).click();
-  await expect(page.getByLabel('Cách xử lý')).toBeVisible();
-  await go(page, 'Giao dịch');
-  await expect(
-    page.getByLabel('Tìm theo ý nghĩa', { exact: true }),
-  ).not.toBeVisible();
-  await page.getByText('Tìm nâng cao theo ý nghĩa', { exact: true }).click();
-  await expect(
-    page.getByLabel('Tìm theo ý nghĩa', { exact: true }),
-  ).toBeVisible();
+  ).toHaveLength(1);
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items[0]
+      .amount_vnd,
+  ).toBe('70000');
 });

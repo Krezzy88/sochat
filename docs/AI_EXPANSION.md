@@ -57,3 +57,7 @@ validation and the final held-out run remain owner-gated and unclaimed.
 Owner scope correction: voice is excluded from the final expansion. Historical
 voice measurements are retained only as dated engineering evidence, not a shipped
 feature claim.
+
+Latest owner UI preference: restore the pre-unification expense panel and separate
+question form. Draft corrections remain an optional disclosure next to the draft.
+This supersedes the unified-composer UI described above; backend safeguards remain.

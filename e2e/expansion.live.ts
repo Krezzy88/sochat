@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 if (process.env.CI) throw new Error('Local real-provider test only.');
-test('one chat supports expense, question, draft edit; consented search and revocation', async ({
+test('separate panels support expense, question, draft edit; consented search and revocation', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -21,9 +21,32 @@ test('one chat supports expense, question, draft edit; consented search and revo
   expect(auth.status()).toBe(201);
   const token = (await auth.json()).csrf_token;
   const send = async (text: string, path: string) => {
-    await page.getByLabel('Tin nhắn thu chi').fill(text);
+    const revision = path.endsWith('/revise'),
+      question = path.endsWith('/query');
+    if (revision)
+      await page
+        .getByText('Sửa bản nháp bằng câu nói', { exact: true })
+        .click();
+    await page
+      .getByLabel(
+        revision
+          ? 'Yêu cầu sửa bản nháp'
+          : question
+            ? 'Câu hỏi về thu chi'
+            : 'Tin nhắn thu chi',
+      )
+      .fill(text);
     const response = page.waitForResponse((r) => r.url().includes(path));
-    await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+    await page
+      .getByRole('button', {
+        name: revision
+          ? 'Áp dụng vào bản nháp'
+          : question
+            ? 'Hỏi cuốn sổ'
+            : 'Phân tích',
+        exact: true,
+      })
+      .click();
     const r = await response;
     expect(r.status()).toBe(200);
     return r.json();
@@ -53,12 +76,6 @@ test('one chat supports expense, question, draft edit; consented search and revo
       expect(query.expense_vnd).toBe('0');
       const revision = await send('tăng thêm 20k', '/api/assistant/revise');
       expect(revision.items[0].amount_vnd).toBe('70000');
-      await expect(
-        page.getByText('Bạn: ăn phở 50k', { exact: true }),
-      ).toBeVisible();
-      await expect(
-        page.getByText('Bạn: tăng thêm 20k', { exact: true }),
-      ).toBeVisible();
       await page
         .getByRole('button', { name: 'Xác nhận và lưu', exact: true })
         .click();
@@ -71,7 +88,7 @@ test('one chat supports expense, question, draft edit; consented search and revo
     }
     mkdirSync('docs/screenshots/ux', { recursive: true });
     await page.screenshot({
-      path: 'docs/screenshots/ux/unified-chat-desktop.png',
+      path: 'docs/screenshots/ux/separate-panels-desktop.png',
       fullPage: true,
     });
     await page
@@ -140,7 +157,7 @@ test('one chat supports expense, question, draft edit; consented search and revo
         {
           generated_at: new Date().toISOString(),
           real_provider: true,
-          unified_chat: true,
+          separate_panels: true,
           exact_delta:
             process.env.SOCHAT_LIVE_FEATURES_ONLY === 'true' ? null : '70000',
           unsaved_query_excluded:

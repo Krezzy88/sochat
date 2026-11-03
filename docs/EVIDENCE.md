@@ -3007,3 +3007,17 @@ including input/Send in the initial viewport and collapsed advanced controls.
 Docker demo rebuilt healthy at localhost:8080 with preserved data. Earlier
 Lighthouse scores were not remeasured for this layout iteration. New chat images
 are review candidates under screenshots/ux/streamlined-*.
+
+## 2026-11-03 — Owner preferred pre-unification chat
+
+Restored the expense/confirmation layout and separate Hỏi cuốn sổ form from
+67d46f7. Retained current money/auth/consent/RLS/backend safeguards. Draft revision
+has a separate optional form, with save/edit blocked while a revision is in flight.
+No new real Gemini calls; prior unified/streamlined screenshots are historical
+review candidates, not the current layout. Final browser results recorded below.
+
+Restoration checks: lint, typecheck and bounded secret guard passed; 18 desktop/mobile
+browser journeys passed, including a separate question preserving the pending draft
+and a draft revision saved as exactly 70000. Mocked transport in this client regression
+is explicitly labeled; no new live provider call was made. Local Docker is healthy.
+Current screenshot candidates: screenshots/ux/restored-chat-*.

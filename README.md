@@ -260,10 +260,10 @@ month and optional category; later conversation/voice/search stages remain plann
 
 ## Pre-deploy AI expansion
 
-One chatbot-style composer supports recording, asking one-month totals and revising
-an unsaved draft (for example “tăng thêm 20k”). Gemini extracts a validated intent;
+Separate expense and question panels support recording and one-month totals. An
+optional draft-edit form supports corrections (for example “tăng thêm 20k”). Gemini extracts a validated intent;
 SQL/TypeScript calculates exact VND and the user confirms every save. Answers show
-filters and matching-transaction evidence. Chat history is temporary page memory.
+filters and matching-transaction evidence. Unsaved drafts are temporary page memory.
 
 Optional semantic search is off by default. Enable it in Settings, explicitly index
 notes in batches of 20, then search by meaning in Transactions. Only sanitized notes
