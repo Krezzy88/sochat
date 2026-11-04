@@ -113,7 +113,15 @@ export async function request<T>(
     );
   }
   if (response.status === 204) return undefined as T;
-  const data = (await response.json()) as T & { csrf_token?: string };
+  let data: T & { csrf_token?: string };
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError(
+      503,
+      'Máy chủ chưa sẵn sàng. Vui lòng chờ một chút rồi thử lại.',
+    );
+  }
   if (data.csrf_token) csrf = data.csrf_token;
   return data;
 }

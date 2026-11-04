@@ -159,3 +159,14 @@ quantities are excluded. Unknown or conflicting interpretations still ask; every
 proposal still requires editable human confirmation. The web shows the convention.
 Earlier v1 labels/runs remain preserved privately. V2 labels are policy-derived
 revisions of the approved dev set and cannot be compared as an unchanged gold set.
+
+## 17. Phase 8 hosting preference — 2026-11-04
+
+Owner explicitly requests Phase 8, prioritizes free demo hosting and chooses
+“Render Web/API + Neon database; ưu tiên 0đ để giữ demo lâu dài”. React and API
+share one Render service/origin; a fresh Neon Free PG18 database holds only synthetic
+demo data. Vercel is unnecessary for this chosen topology. No paid plan, local owner
+ledger migration, public key disclosure or automatic merge is authorized. Before
+public release confirm the concrete candidate/destination accounts; owner enters
+provider secrets privately and confirms Gemini project Free Tier. Held-out and
+student results remain real-evidence gates; preparation alone does not complete them.

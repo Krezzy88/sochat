@@ -166,3 +166,24 @@ The scoring command requires the 50 owner-approved labels in ignored
 overwritten. Evaluation has a dedicated bounded 50-attempt memory quota and does
 not bypass or change web quotas. Do not run in CI, publish raw phrases/labels or
 report this tuned dev score as held-out accuracy. No current pricing is assumed.
+
+## Phase 8 deployment rehearsal
+
+Owner selected one Render Free Web/API service plus Neon Free PG18; see
+DEPLOYMENT.md. This is separate from the existing local sochat-demo and native DB.
+The new image optionally serves built React through the API's exact HTTPS origin.
+Render's documented RENDER_EXTERNAL_URL is used only when RENDER=true and no explicit
+APP_ORIGIN overrides it. Never set a wildcard Origin to support previews.
+
+```sh
+docker compose --env-file /dev/null -p sochat-phase8-check -f compose.release-test.yaml up --build --wait
+npx playwright test --config playwright.release.config.ts
+# Remove ONLY this disposable rehearsal stack, including its synthetic volumes:
+docker compose --env-file /dev/null -p sochat-phase8-check -f compose.release-test.yaml down --volumes --remove-orphans
+```
+
+This rehearsal uses a non-superuser database owner, no real key and ephemeral local
+self-signed TLS termination. It verifies browser Secure cookies and production-mode
+same-origin behavior, not a real Render certificate/Neon TLS session. Test accounts
+are deleted. It runs in CI on isolated fixture services and never calls Gemini or
+loads owner .env. A real hosted URL and Free Tier account require separate acceptance.

@@ -1,6 +1,8 @@
 import { startTelemetry, stopTelemetry } from './telemetry.ts';
 import { tenantPool } from './db/tenant.ts';
 import process from 'node:process';
+import path from 'node:path';
+import { access } from 'node:fs/promises';
 import pg from 'pg';
 import { createExtractor } from './extraction/factory.ts';
 import { createApp } from './http/app.ts';
@@ -20,6 +22,11 @@ pool.on('error', () =>
   process.stderr.write('Database connection unavailable.\n'),
 );
 try {
+  const webRoot =
+    process.env.SERVE_WEB === 'true'
+      ? path.resolve('apps/web/dist')
+      : undefined;
+  if (webRoot) await access(path.join(webRoot, 'index.html'));
   startTelemetry();
   await pool.query('SELECT 1');
   const extractor = await createExtractor(tenantPool(pool));
@@ -27,7 +34,13 @@ try {
     pool,
     extractor,
     sessionSecret: secret,
-    origin: process.env.APP_ORIGIN ?? 'http://localhost:5173',
+    origin:
+      process.env.APP_ORIGIN ??
+      (process.env.RENDER === 'true'
+        ? process.env.RENDER_EXTERNAL_URL
+        : undefined) ??
+      'http://localhost:5173',
+    ...(webRoot ? { webRoot } : {}),
     production: process.env.NODE_ENV === 'production',
     trustProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? 0),
   });

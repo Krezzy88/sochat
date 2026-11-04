@@ -6,7 +6,10 @@ import {
   MAX_AMOUNT_VND,
   parseMessage,
 } from '../packages/parser/src/index.ts';
-import type { Classification } from '../packages/parser/src/index.ts';
+import type {
+  Classification,
+  MoneyProfile,
+} from '../packages/parser/src/index.ts';
 
 export type Split = 'dev' | 'heldout';
 export type SelectedSplit = Split | 'all';
@@ -223,6 +226,7 @@ export function evaluateCases(
 }
 
 export interface ReportMetadata {
+  money_profile?: MoneyProfile;
   generated_at: string;
   config: 'rules';
   split: SelectedSplit;
@@ -249,6 +253,7 @@ export function renderMarkdown(report: EvalReport): string {
       '',
       `Source commit: ${report.source_commit ?? 'unknown'}. Working tree dirty: ${String(report.working_tree_dirty)}.`,
       `Dataset SHA-256: ${report.dataset_sha256}.`,
+      `Money profile: ${report.money_profile ?? 'standard'}.`,
       '',
       '| Metric | Correct / total | Accuracy |',
       '| --- | --- | --- |',

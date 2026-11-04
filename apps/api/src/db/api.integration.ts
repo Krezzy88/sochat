@@ -1,4 +1,12 @@
-import { readFileSync } from 'node:fs';
+import {
+  readFileSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
@@ -1226,4 +1234,61 @@ it('releases the snapshot transaction when export consumer fails', async () => {
     ).rejects.toThrow('simulated disconnect');
     expect((await repo.exportRows(a.id, '0')).length).toBe(0);
   });
+});
+
+it('serves the production dashboard and assets through the same HTTPS origin without masking API errors', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'sochat-web-'));
+  mkdirSync(join(root, 'assets'));
+  writeFileSync(
+    join(root, 'index.html'),
+    '<!doctype html><title>Synthetic dashboard</title>',
+  );
+  writeFileSync(join(root, 'assets', 'app-hash.js'), '/* synthetic bundle */');
+  writeFileSync(join(root, '.secret'), 'private marker');
+  const prod = await createApp({
+    pool,
+    origin: 'https://sochat.example.test',
+    sessionSecret: 'production-test-secret-'.repeat(3),
+    production: true,
+    trustProxyHops: 1,
+    webRoot: root,
+    extractor: new HybridExtractor(
+      new FakeProvider([]),
+      new MemoryExtractionStore(),
+      { perUser: 1, global: 1 },
+    ),
+  });
+  try {
+    await request(prod.app).get('/').expect(400);
+    const index = await request(prod.app)
+      .get('/')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(200);
+    expect(index.text).toContain('Synthetic dashboard');
+    expect(index.headers['content-security-policy']).toContain(
+      "default-src 'self'",
+    );
+    expect(index.headers['cache-control']).toBe('no-store');
+    const asset = await request(prod.app)
+      .get('/assets/app-hash.js')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(200);
+    expect(asset.headers['cache-control']).toContain('immutable');
+    await request(prod.app)
+      .get('/api/unknown')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(404);
+    await request(prod.app)
+      .get('/.secret')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(404);
+    await request(prod.app)
+      .get('/')
+      .set('X-Forwarded-Proto', 'https')
+      .set('Origin', 'https://foreign.example.test')
+      .expect(403);
+  } finally {
+    await prod.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });

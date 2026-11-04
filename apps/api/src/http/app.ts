@@ -28,6 +28,7 @@ export interface ApiOptions {
   sessionSecret: string;
   origin: string;
   production?: boolean;
+  webRoot?: string;
   trustProxyHops?: number;
   now?: () => Date;
   extractor: {
@@ -1046,6 +1047,20 @@ export async function createApp(options: ApiOptions) {
     },
   };
   app.get('/openapi.json', (_req, res) => res.json(openapi));
+  if (options.webRoot)
+    app.use(
+      express.static(options.webRoot, {
+        dotfiles: 'deny',
+        redirect: false,
+        setHeaders(res, file) {
+          if (/[/\\]assets[/\\]/.test(file))
+            res.setHeader(
+              'Cache-Control',
+              'public, max-age=31536000, immutable',
+            );
+        },
+      }),
+    );
   app.use((_req, _res, next) =>
     next(new HttpProblem(404, 'Không tìm thấy đường dẫn.')),
   );

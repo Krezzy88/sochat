@@ -11,3 +11,6 @@ eval/results
 docs/screenshots
 **/*.test.*
 **/*.integration.ts
+
+.local
+eval/inbox

@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Pre-deploy AI and UX expansion**. Playful 2D UI, grouped VND inputs, clearer auth and real Gemini provenance are implemented locally. Public deployment and real-user validation remain owner-gated Phase 8.
+Status: **Phase 8 preparation — not publicly deployed**. Playful 2D UI, grouped VND inputs, clearer auth and real Gemini provenance are implemented locally. Public deployment and real-user validation remain owner-gated Phase 8.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP supports authentication, chat extraction with editable confirmation,
@@ -296,3 +296,16 @@ calendar/time values are excluded. Explicit units take precedence. Standard prof
 still asks about missing units. Rules/LLM provenance and editable confirmation are
 shown. The owner development set is used for tuning, not representative accuracy;
 final held-out evaluation and user validation remain Phase 8 gates.
+
+## Phase 8 free demo preparation
+
+Owner-selected free-tier route: one Render Free service for React + Node API,
+and a new Neon Free PostgreSQL 18 database. [Deployment guide](docs/DEPLOYMENT.md)
+documents quotas/cold starts, secrets, same-origin cookies and hosted acceptance
+checks. No Vercel service, paid plan or owner-data migration is needed.
+
+The combined non-root image, a local HTTPS rehearsal, backup/restore check,
+[user-test script](docs/USER_TESTING.md), [held-out protocol](docs/release/HELDOUT_PROTOCOL.md)
+and [two-minute demo script](docs/release/DEMO_SCRIPT.md) are prepared. Public CI,
+a live demo URL, managed-host RLS, held-out results and student observations are
+not claimed until actually verified.

@@ -1,5 +1,5 @@
 import { performance } from 'node:perf_hooks';
-import { parseMessage } from '../packages/parser/src/index.ts';
+import { parseMessage, moneyProfile } from '../packages/parser/src/index.ts';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -68,6 +68,7 @@ export function runEvaluation(args: readonly string[]): {
   markdownPath: string;
 } {
   const options = parseArgs(args);
+  const profile = moneyProfile(process.env.MONEY_PROFILE);
   if (options.config !== 'rules')
     throw new Error('Use the asynchronous CLI for provider evaluation.');
   const dataset = readFileSync(options.cases, 'utf8');
@@ -93,7 +94,7 @@ export function runEvaluation(args: readonly string[]): {
   let resolved = 0;
   const measured = evaluateCases(cases, (message, now) => {
     const start = performance.now();
-    const parsed = parseMessage(message, now);
+    const parsed = parseMessage(message, now, profile);
     latencies.push(performance.now() - start);
     if (
       !parsed.needs_clarification &&
@@ -106,6 +107,7 @@ export function runEvaluation(args: readonly string[]): {
   const report: EvalReport = {
     generated_at: new Date().toISOString(),
     config: 'rules',
+    money_profile: profile,
     split: options.split,
     dataset_sha256: createHash('sha256').update(dataset).digest('hex'),
     source_commit: sourceCommit,

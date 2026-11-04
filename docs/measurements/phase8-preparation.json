@@ -1,0 +1,67 @@
+{
+  "generated_at_utc": "2026-11-04T04:28:16.194940+00:00",
+  "status": "LOCAL PREPARATION; public deployment NOT VERIFIED",
+  "base_commit": "ddf4083debe0d81483a6973a9b5decb3ececca48",
+  "branch": "codex/phase-8",
+  "topology": "Render Free combined React/Node API + fresh Neon Free PostgreSQL 18",
+  "hosted_resources_created": false,
+  "paid_plans_enabled": false,
+  "owner_data_uploaded": false,
+  "native_postgresql_modified": false,
+  "existing_docker_demo_modified": false,
+  "real_gemini_calls_this_phase": 0,
+  "hosted_gemini_free_tier_confirmed": false,
+  "heldout_runs_this_phase": 0,
+  "student_sessions_completed": 0,
+  "video_recorded": false,
+  "unit_tests_passed": 248,
+  "integration_tests_passed": 96,
+  "desktop_mobile_journeys_passed": 36,
+  "https_rehearsal_tests_passed": 2,
+  "unit_coverage": {
+    "lines": 80.87,
+    "statements": 80.22,
+    "branches": 80.88,
+    "functions": 78.89
+  },
+  "integration_coverage": {
+    "lines": 91.57,
+    "statements": 91.03,
+    "branches": 85.08,
+    "functions": 94.25
+  },
+  "coverage_gates_unchanged": true,
+  "dependency_advisories_full_install": {
+    "info": 0,
+    "low": 0,
+    "moderate": 21,
+    "high": 0,
+    "critical": 0,
+    "total": 21
+  },
+  "render_schema_url": "https://render.com/schema/render.yaml.json",
+  "render_schema_sha256": "8a3fb8da6b4f55fe686fbefa790e011d3dd7895f013f355953c572a21ab6494a",
+  "render_blueprint_schema_validation_passed": true,
+  "local_tls": "ephemeral self-signed termination; not hosted certificate validation",
+  "database_role": "disposable non-superuser/NOBYPASSRLS database owner; hosted RLS not enabled",
+  "backup_restore_rehearsal": {
+    "synthetic_only": true,
+    "archive_mode": "0600",
+    "restored_into_separate_database": true,
+    "verified_transaction_count": 1,
+    "verified_amount_vnd": "35123",
+    "hosted_restore_verified": false
+  },
+  "source_scan": "Pinned Trivy source-only snapshot passed HIGH/CRITICAL gate; no image/host penetration certification",
+  "hosted_ci": "NOT VERIFIED for new candidate; prior Phase 7 draft PR is separate",
+  "pending": [
+    "Owner Render/Neon login and concrete publication approval",
+    "Owner-confirmed Gemini Free Tier credentials entered privately",
+    "Public CI for exact candidate SHA",
+    "Public HTTPS/database/browser acceptance and owner confirmation",
+    "Untouched heldout >=50 cases with independent approved labels",
+    "Five consenting student sessions",
+    "Actual <=2-minute demo recording"
+  ],
+  "final_render_origin_rehearsed": true
+}

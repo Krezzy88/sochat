@@ -2,7 +2,7 @@
   "kind": "Chromium executed JavaScript UTF-16 ranges across desktop/mobile journeys",
   "includes": "All production web JS chunks, including React/Recharts dependencies",
   "excludes": "CSS, HTML, API, TypeScript line/branch coverage",
-  "covered": 180900,
-  "total": 687983,
-  "percent": 26.29
+  "covered": 325421,
+  "total": 688073,
+  "percent": 47.29
 }

@@ -43,6 +43,10 @@ jobs:
       - run: SOCHAT_WEB_PORT=18080 docker compose --env-file /dev/null -p sochat-ci up --build --wait
       - run: node docker/smoke.mjs
       - run: npx playwright test --config playwright.compose.config.ts
+      - run: docker compose --env-file /dev/null -p sochat-release-ci -f compose.release-test.yaml up --build --wait
+      - run: npx playwright test --config playwright.release.config.ts
+      - if: always()
+        run: docker compose --env-file /dev/null -p sochat-release-ci -f compose.release-test.yaml down --volumes --remove-orphans
       - if: always()
         run: docker compose --env-file /dev/null -p sochat-ci down --volumes --remove-orphans
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

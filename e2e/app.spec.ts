@@ -808,3 +808,22 @@ test('reload recovers a committed goal after losing its response without another
   ).toHaveLength(1);
   await expect(page.getByLabel('Tên quỹ', { exact: true })).toBeEnabled();
 });
+
+test('non-JSON upstream startup response shows a friendly retry message', async ({
+  page,
+}) => {
+  await page.route(
+    '**/api/transactions?*',
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<html>Starting service</html>',
+      }),
+    { times: 1 },
+  );
+  await go(page, 'Giao dịch');
+  await expect(page.getByRole('alert')).toContainText('Máy chủ chưa sẵn sàng');
+  await page.getByRole('button', { name: 'Thử tải lại', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+});
