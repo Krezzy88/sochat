@@ -3,6 +3,7 @@ services:
   api:
     environment:
       LLM_PROVIDER: gemini
+      MONEY_PROFILE: owner-confirmed-v2
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in your ignored local env file}
       GEMINI_MODEL: ${GEMINI_MODEL:?Set GEMINI_MODEL in your ignored local env file}
       LLM_DAILY_CAP_PER_USER: 10

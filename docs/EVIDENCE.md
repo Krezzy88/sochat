@@ -3173,3 +3173,79 @@ is not an unconditional production-readiness or real-user AI accuracy claim.
 
 Audited source commit: `6d98e3fc0e5162ec0eabbf1d63da87dbcd4a02ff`. Machine-readable validation summary:
 measurements/business-audit.json. Local demo was rebuilt healthy with this source.
+
+## 2026-11-04 — Production-hardening follow-up and owner dev evaluation
+
+Code commit: `55513465c7831e1dfeb86e29bc1ade1a02a5100d`. The final dev probe
+recorded a dirty tree containing only `compose.gemini.yaml` (the matching explicit
+v2 deployment profile); parser/provider/API code matched that commit. Aggregate
+record: measurements/production-hardening.json. Raw owner labels/predictions remain
+private under ignored `.local/owner-dev` with owner-only permissions.
+
+Closed the audit's three concrete implementation gaps: atomic owner-scoped goal
+creation UUID replay with payload conflicts and a reload recovery receipt; required
+optimistic versions on transaction/goal mutations and opaque budget id:version
+checks including delete/recreate; a single read-only repeatable-read snapshot for
+all CSV pages. Export response and individual queries have 30-second bounds. An
+interrupted consumer rolls back/releases its snapshot. Old web clients must reload.
+Goal reload recovery stores only a UUID, not the financial draft, in sessionStorage.
+Transaction/contribution in-page retry payloads remain memory-only; no offline
+outbox is claimed.
+
+Final local checks: `npm run test:coverage` **246 passed**; `npm run
+test:integration -- --coverage` **95 passed** against isolated PostgreSQL 18/RLS;
+`npm run e2e` **34 passed** across desktop/mobile Chromium; `npm run
+test:gemini:ui` **1 passed** against the upgraded Docker demo and real Gemini.
+Unit coverage: lines 80.96%, statements 80.31%, branches 80.98%, functions 78.89%.
+Integration: lines 91.38%, statements 90.86%, branches 84.95%, functions 93.75%.
+Existing thresholds are unchanged. Lint/typecheck/OpenAPI generation/secret guard
+and `git diff --check` passed. `npm audit --omit=dev --json`: **0 advisories**
+observed at this run; this does not include development dependencies or promise
+future advisory status. Browser JS-range measurement includes dependencies and is
+not source/test branch coverage; retain its measured value without quality claims.
+
+New regressions cover concurrent UUID creates, changed payloads, owner isolation,
+recovery after deletion/reload, stale updates/deletes across all three entities,
+budget ABA, 500-row export pagination during concurrent edit/insert, and snapshot
+cleanup after consumer failure. Browser drops committed responses, retries, reloads
+and opens two same-account tabs. Mutation proof: deliberately omitted money profile
+from the extraction cache key; the profile-isolation regression failed (1 failed,
+49 skipped), restored the code and reran the focused check (1 passed). Final full
+unit suite passed after all changes. No mutation remains.
+
+### Real owner development data (never held out)
+
+Owner explicitly approved sending the 50 supplied phrases to Gemini and approved
+the private labels, with cành=100000 VND. Under the previous missing-unit-asks
+policy, the stored baseline scored **22/50 exact**, and the improved v1 profile
+scored **49/50 exact**. The remaining mismatch was a label assigning 25000 to
+“cf sáng 25” despite that policy. The owner then explicitly revised the convention:
+bare monetary 1=1000, 10=10000, 100=100000. V2 implements this for 1–999, excluding
+quantities/calendar/time and preserving literal four-digit/grouped VND values.
+Twelve formerly unresolved labels were revised under that owner policy. Prior
+labels/results are retained; do not portray v1→v2 as an unchanged-gold comparison.
+
+Final real hybrid probe, `--tag verified-v2`, model `gemini-3.5-flash-lite`, injected
+Vietnam date 2026-11-03: **50/50 exact cases; 55/55 each amount/category/date/type**.
+**48 rules paths, 2 real Gemini generation attempts**; 814 input + 454 output =
+1268 observed tokens, 3687 ms whole-run elapsed. These are hybrid results, not
+50 independent LLM predictions. This same dev set informed tuning. V2 contains no
+positive clarification labels; precision/recall are **n/a**, not 100%. Ambiguity
+safety is covered separately by deterministic adversarial/unit tests. No billing
+estimate without supplied current prices, representative-user claim or held-out
+result is made. All intermediate local probes retained separate run names.
+
+Live Docker smoke used a disposable synthetic account and real fallback (1 attempt,
+492 observed tokens). It verified shorthand, version increments/stale 409, goal
+replay/recovery, CSV, no automatic save, auth/money controls and responsive/reduced-
+motion behavior, then deleted the account. screenshots/ux contains the new synthetic
+captures; owner-approved README screenshots were preserved.
+
+Before migration 008, created a private mode-0600 Docker `pg_dump -Fc` archive and
+parsed the complete archive with `pg_restore -f /dev/null`. This is structural
+verification, not a new restore rehearsal. Compose rebuilt healthy with existing
+volume retained; migration metadata, Gemini v2 profile and RLS=true were checked
+without inspecting owner ledger rows. Native PostgreSQL remained unchanged. No
+public push, hosted CI, deployment, final held-out run or student interviews were
+performed. Host TLS/secrets/backups/load, representative AI/user validation and
+native spreadsheet/non-Chromium behavior remain Phase 8 work.
