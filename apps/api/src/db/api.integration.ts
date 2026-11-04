@@ -169,98 +169,16 @@ async function goal(actor: Actor = a) {
   }).expect(201);
 }
 describe('auth/session/CSRF and validation', () => {
-  it('recovers a password through public CSRF-protected endpoints without disclosing unknown emails', async () => {
-    vi.stubEnv('RESEND_API_KEY', 'synthetic-key');
-    vi.stubEnv('MAIL_FROM', 'accounts@example.test');
-    const sent: string[] = [];
-    const transport = vi
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(async (_url, options) => {
-        sent.push(JSON.parse(String(options?.body)).text);
-        return new Response('{}');
-      });
-    try {
-      await request(runtime.app)
-        .get('/api/auth/options')
-        .expect(200, { email: true });
-      await call(a, 'get', '/api/me/security').expect(200, {
-        email_verified: false,
-      });
-      const agent = request.agent(runtime.app);
-      const visitor: Actor = {
-        agent,
-        token: (await agent.get('/api/auth/csrf').expect(200)).body.csrf_token,
-        id: '',
-        email: '',
-      };
-      const known = await call(visitor, 'post', '/api/auth/forgot-password', {
-        email: a.email.toUpperCase(),
-      }).expect(204);
-      const unknown = await call(visitor, 'post', '/api/auth/forgot-password', {
-        email: 'unknown@example.test',
-      }).expect(204);
-      expect(known.text).toBe(unknown.text);
-      expect(sent).toHaveLength(1);
-      const token = /#account-reset=([a-f0-9]{64})/.exec(sent[0]!)![1]!;
-      await request(runtime.app)
-        .post('/api/auth/reset-password')
-        .send({ token, password: 'Changed-password-2026' })
-        .expect(403);
-      await call(visitor, 'post', '/api/auth/reset-password', {
-        token,
-        password: 'Changed-password-2026',
-      }).expect(204);
-      await call(a, 'get', '/api/me').expect(401);
-      await call(b, 'get', '/api/me').expect(200);
-      visitor.token = (
-        await agent.get('/api/auth/csrf').expect(200)
-      ).body.csrf_token;
-      await call(visitor, 'post', '/api/auth/reset-password', {
-        token,
-        password: 'Another-password-2026',
-      }).expect(400);
-      await call(visitor, 'post', '/api/auth/login', {
-        email: a.email,
-        password,
-      }).expect(401);
-      const logged = await call(visitor, 'post', '/api/auth/login', {
-        email: a.email,
-        password: 'Changed-password-2026',
-      }).expect(200);
-      visitor.token = logged.body.csrf_token;
-      await call(visitor, 'get', '/api/me/security').expect(200, {
-        email_verified: true,
-      });
-    } finally {
-      transport.mockRestore();
-      vi.unstubAllEnvs();
-    }
-  });
-  it('verifies email once through the public endpoint and reports only owner security state', async () => {
-    vi.stubEnv('RESEND_API_KEY', 'synthetic-key');
-    vi.stubEnv('MAIL_FROM', 'accounts@example.test');
-    let text = '';
-    const transport = vi
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(async (_url, options) => {
-        text = JSON.parse(String(options?.body)).text;
-        return new Response('{}');
-      });
-    try {
-      await call(b, 'post', '/api/me/verification-email').expect(204);
-      const token = /#account-verify=([a-f0-9]{64})/.exec(text)![1]!;
-      await call(a, 'post', '/api/auth/verify-email', { token }).expect(204);
-      await call(a, 'post', '/api/auth/verify-email', { token }).expect(400);
-      await call(b, 'get', '/api/me/security').expect(200, {
-        email_verified: true,
-      });
-      await call(a, 'get', '/api/me/security').expect(200, {
-        email_verified: false,
-      });
-    } finally {
-      transport.mockRestore();
-      vi.unstubAllEnvs();
-    }
+  it('keeps email/OAuth extensions unavailable after the auth rollback', async () => {
+    for (const path of [
+      '/api/auth/password',
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
+      '/api/auth/verify-email',
+      '/api/me/verification-email',
+    ])
+      await call(a, 'post', path, {}).expect(404);
+    await call(a, 'get', '/api/me').expect(200);
   });
 
   it('reports database readiness without exposing connection failures', async () => {
@@ -275,84 +193,6 @@ describe('auth/session/CSRF and validation', () => {
     } finally {
       query.mockRestore();
     }
-  });
-
-  it('requests verification under RLS without exposing email or tokens', async () => {
-    vi.stubEnv('RESEND_API_KEY', 'synthetic-key');
-    vi.stubEnv('MAIL_FROM', 'accounts@example.test');
-    const send = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('{}'));
-    try {
-      await call(a, 'post', '/api/me/verification-email').expect(204);
-      expect(send).toHaveBeenCalledTimes(1);
-      expect(
-        (
-          await pool.query(
-            'SELECT count(*)::text AS n FROM account_tokens WHERE user_id=$1',
-            [a.id],
-          )
-        ).rows[0].n,
-      ).toBe('1');
-    } finally {
-      send.mockRestore();
-      vi.unstubAllEnvs();
-    }
-  });
-  it('does not expose Google login routes', async () => {
-    await a.agent
-      .get('/api/auth/google/callback?code=synthetic&state=invalid')
-      .expect(404);
-    await call(a, 'get', '/api/me').expect(200);
-  });
-
-  it('changes passwords only after verification and revokes every existing session', async () => {
-    const second = request.agent(runtime.app);
-    const csrf = await second.get('/api/auth/csrf').expect(200);
-    await second
-      .post('/api/auth/login')
-      .set('X-CSRF-Token', csrf.body.csrf_token)
-      .send({ email: a.email, password })
-      .expect(200);
-    const next = 'New-synthetic-password-2026';
-    await call(a, 'post', '/api/auth/password', {
-      current_password: 'incorrect',
-      new_password: next,
-    }).expect(400);
-    await call(a, 'get', '/api/me').expect(200);
-    await call(a, 'post', '/api/auth/password', {
-      current_password: password,
-      new_password: password,
-    }).expect(400);
-    await call(a, 'post', '/api/auth/password', {
-      current_password: password,
-      new_password: next,
-    }).expect(204);
-    await call(a, 'get', '/api/me').expect(401);
-    await second.get('/api/me').expect(401);
-    await call(b, 'get', '/api/me').expect(200);
-    expect(
-      (
-        await pool.query(
-          'SELECT count(*)::text AS n FROM sessions WHERE user_id=$1',
-          [a.id],
-        )
-      ).rows[0].n,
-    ).toBe('0');
-    // Isolate password correctness from the fixture's two-attempt login limit.
-    await pool.query('DELETE FROM api_rate_limits');
-    const fresh = request.agent(runtime.app);
-    const token = await fresh.get('/api/auth/csrf').expect(200);
-    await fresh
-      .post('/api/auth/login')
-      .set('X-CSRF-Token', token.body.csrf_token)
-      .send({ email: a.email, password })
-      .expect(401);
-    await fresh
-      .post('/api/auth/login')
-      .set('X-CSRF-Token', token.body.csrf_token)
-      .send({ email: a.email, password: next })
-      .expect(200);
   });
 
   it('stores argon2id hashes and only an opaque httpOnly cookie', async () => {

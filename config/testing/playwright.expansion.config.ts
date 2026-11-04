@@ -1,7 +1,10 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
+const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
 export default defineConfig({
-  testDir: './e2e',
+  testDir: projectRoot + '/e2e',
   testMatch: 'expansion.live.ts',
+  outputDir: projectRoot + '/test-results',
   workers: 1,
   retries: 0,
   timeout: 90000,

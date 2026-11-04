@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-04",
+  "scope": "local responsive revision and owner-requested auth rollback; not deployed",
+  "unit_tests": 255,
+  "postgres_integration_tests": 102,
+  "integration_function_coverage_percent": 93.95,
+  "chromium_full_browser_checks": 54,
+  "webkit_focused_checks": 12,
+  "viewport_checks": [
+    [1366, 768],
+    [1280, 720],
+    [390, 844],
+    [320, 568],
+    [667, 375]
+  ],
+  "main_page_width_checks": [320, 768, 1280],
+  "auth": "registration/login/logout and original sessions; no email/provider extensions",
+  "database_migrations_or_user_data_changed": false,
+  "note": "Normal login viewport fit verified; scrolling remains available for enlarged content/keyboard access. WebKit testing is not a physical Safari/iPhone device certification."
+}

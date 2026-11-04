@@ -24,17 +24,10 @@
     "apps/**/*.tsx",
     "packages/**/*.ts",
     "eval/**/*.ts",
-    "vitest.config.ts",
     "db/**/*.ts",
-    "vitest.integration.config.ts",
     "e2e/**/*.ts",
-    "playwright.config.ts",
     "docker/**/*.ts",
-    "playwright.compose.config.ts",
-    "playwright.live.config.ts",
     "scripts/**/*.ts",
-    "playwright.query.config.ts",
-    "playwright.expansion.config.ts",
-    "playwright.release.config.ts"
+    "config/**/*.ts"
   ]
 }

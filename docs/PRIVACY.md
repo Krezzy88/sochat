@@ -86,14 +86,11 @@ never inspects the owner's saved ledger. The demo profile now explicitly defines
 bare monetary 1–999 as thousands, while dates/times/quantities remain excluded;
 all proposals require human review and no extraction writes ledger rows.
 
-## Account email
+## Authentication scope
 
-Google authentication is not in current scope. Email/password accounts may request
-verification or recovery only when the mail provider is configured. Resend receives
-the recipient address and one-use link; these are never sent to Gemini. Token
-hashes and expiry are stored in PostgreSQL, not token plaintext. Expired token rows
-are purged lazily on new mail requests. New requests replace prior links. Password
-change invalidates pending reset tokens; reset revokes the account's sessions.
-Verification is recorded but does not retroactively block existing accounts.
-Provider mail delivery/storage retention must be configured and disclosed before
-activation; no promise of deletion from the provider is made.
+Owner reverted account extensions on 2026-11-04. Active authentication is password
+registration/login/logout with existing secure sessions and validation. There are
+no active email verification, password recovery/change or Google login endpoints.
+No transactional email is sent. Migration 009 remains unchanged for schema history;
+its inactive fields/tables do not enable provider processing. Existing user accounts
+and password hashes are preserved; database rollback/deletion was not performed.

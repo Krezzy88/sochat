@@ -54,7 +54,7 @@ npm run eval -- --config hybrid --provider fake --split dev
 npx playwright install chromium
 npm run e2e
 # Against the running isolated Compose stack, on 18080:
-npx playwright test --config playwright.compose.config.ts
+npx playwright test --config config/testing/playwright.compose.config.ts
 ```
 
 Normal browser tests require free 3000/5173; they never reuse active owner servers.
@@ -129,7 +129,7 @@ Owner-authorized local real-provider checks (never CI; consume shared daily caps
 
 ```sh
 node --experimental-strip-types scripts/check-ai-expansion-live.ts
-npx playwright test --config playwright.expansion.config.ts
+npx playwright test --config config/testing/playwright.expansion.config.ts
 ```
 
 Both require the real Gemini Docker demo and create/delete synthetic accounts.
@@ -177,7 +177,7 @@ APP_ORIGIN overrides it. Never set a wildcard Origin to support previews.
 
 ```sh
 docker compose --env-file /dev/null -p sochat-phase8-check -f compose.release-test.yaml up --build --wait
-npx playwright test --config playwright.release.config.ts
+npx playwright test --config config/testing/playwright.release.config.ts
 # Remove ONLY this disposable rehearsal stack, including its synthetic volumes:
 docker compose --env-file /dev/null -p sochat-phase8-check -f compose.release-test.yaml down --volumes --remove-orphans
 ```
@@ -195,7 +195,7 @@ The real app keeps its default ten-registration window; do not raise production
 limits to make tests pass. For the disposable `sochat-ci` stack on localhost:18080:
 
 ```sh
-SOCHAT_COMPOSE_FIXTURE=sochat-ci npx playwright test --config playwright.compose.config.ts
+SOCHAT_COMPOSE_FIXTURE=sochat-ci npx playwright test --config config/testing/playwright.compose.config.ts
 ```
 
 Before each actor, a runner-only fixture clears anonymous rate counters in that

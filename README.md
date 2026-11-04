@@ -11,8 +11,7 @@ Ghi thu chi bằng tin nhắn tiếng Việt, kiểm tra trước khi lưu và x
 - Nhập “trưa ăn phở 50k”: quy tắc và Gemini đề xuất khoản ghi, bạn kiểm tra/sửa rồi xác nhận.
 - Tìm, lọc, sửa và xóa giao dịch; báo cáo tháng/năm, ngân sách và quỹ mục tiêu.
 - Hỏi thu chi và so sánh hai tháng, có giao dịch để kiểm chứng.
-- Xuất CSV, xóa tài khoản và đổi mật khẩu kèm thu hồi phiên đăng nhập.
-- Xác minh email và khôi phục mật khẩu đã có code; cần [cấu hình nhà cung cấp](docs/release/AUTH_SETUP.md) trước khi bật.
+- Xuất CSV, xóa tài khoản.
 - Tìm theo ý nghĩa là tùy chọn, mặc định tắt và cần đồng ý gửi ghi chú đến Gemini.
 
 ![Giao diện](docs/screenshots/chat-desktop-chromium.png)
@@ -68,4 +67,20 @@ React + Vite, Express + TypeScript, PostgreSQL 18, Gemini; triển khai Web/API 
 Không OCR, liên kết ngân hàng, nhiều tiền tệ hoặc tư vấn tài chính AI.
 Dự án được phát triển với hỗ trợ AI; quyết định kỹ thuật và kết quả kiểm tra được lưu trong repository.
 
-[Lịch sử tài liệu và các phase](docs/release/README_HISTORY.md). Giấy phép [MIT](LICENSE).
+[Lịch sử tài liệu và các phase](docs/archive/README_HISTORY.md). Giấy phép [MIT](LICENSE).
+
+## Repository layout
+
+| Directory                 | Purpose                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| `apps/`, `packages/`      | Application code and shared parser                                 |
+| `config/testing/`, `e2e/` | Test configuration and browser journeys                            |
+| `db/`                     | Migrations, seed and database tools                                |
+| `docker/`                 | Container build and smoke checks                                   |
+| `scripts/`                | Development and operations utilities                               |
+| `docs/`                   | [Documentation index](docs/README.md), evidence and release guides |
+| `eval/`                   | Extraction evaluation tooling and recorded datasets/results        |
+| `.local/`                 | Ignored private files and backups; not deployment input            |
+
+`npm run clean` removes generated build/test outputs while preserving local
+credentials, dependencies, recorded evidence and private backups.

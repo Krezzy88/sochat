@@ -199,3 +199,20 @@ transaction sum match; the archive is mode 0600. Source database was not modifie
 No source/target URLs, credentials, ledger rows or monetary totals are published.
 Three focused utility tests and lint passed. Ongoing retention and test-target
 cleanup remain operator responsibilities; this is not a disaster-recovery SLA.
+
+## Owner-directed auth rollback and responsive revision — 2026-11-04
+
+Supersedes earlier email activation requirements: restore password registration,
+login/logout and existing sessions only. Email verification/recovery and password
+change endpoints/UI are removed. Existing DB schema/account rows are not dropped.
+New responsive stylesheet targets auth viewport fit, compact mobile branding,
+accessible controls, fluid filters and bounded page/table layouts. Normal-size
+login is verified at 1366x768, 1280x720, 390x844, 320x568 and 667x375. Scrolling
+remains available with enlarged content or a software keyboard; controls are never
+clipped to force a viewport height. Full browser regression remains required.
+
+Rollback/responsive verification: 255 unit tests, 102 PostgreSQL integration tests
+(with original coverage thresholds), 54 full Chromium browser cases and 12 focused
+WebKit cases passed. Lint/typecheck/build passed. Screenshots were inspected at
+laptop and small-phone sizes; approved README screenshots were preserved.
+Changes remain local until publication and deployment are explicitly completed.
