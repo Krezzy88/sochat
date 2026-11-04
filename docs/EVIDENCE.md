@@ -3130,3 +3130,46 @@ lint/typecheck/secret guard passed. The helper also tolerates the decorative toa
 checkmark while matching the specific save message. Docker demo is healthy with
 existing data preserved. Native OS calendar chrome was not separately automated
 on Safari/Firefox; browser-native appearance can differ.
+
+## 2026-11-04 — Business-rule audit completion
+
+See BUSINESS_AUDIT.md for the complete rule matrix, corrected findings and explicit
+remaining limits. Owner confirmed future-dated goal contributions count immediately;
+this policy is recorded in the charter and shown beside contribution entry.
+
+Corrections: snapshot-consistent monthly/yearly totals/breakdowns; atomic, owner-
+scoped contribution idempotency with retained client replay payload; separated income
+and expense confirmation totals; actual committed embedding counts; current-owned
+row reads after provider work; whole-token lexical matching. Strengthened extraction
+safety: unitless/invalid monetary ambiguities retain unresolved rule fields, explicit
+invalid dates stay blank, model amounts absent from the message are cleared, and a
+single money mention cannot prefill multiple model transactions. Cache reads pass
+through the same guards. Reproduced guard failures before fixing them (500000/50000
+incorrectly prefilled instead of null, and duplicate model money reuse).
+
+Validation on synthetic data only: final unit coverage suite 215 passed; PostgreSQL/
+RLS integration suite 89 passed; browser suite 28 desktop/mobile journeys passed.
+Unit coverage: lines 80.13%, statements 79.51%, branches 78.61%, functions 77.22%.
+Integration coverage: lines 90.92%, statements 90.60%, branches 84.91%, functions
+93.75%; gates unchanged. Concurrency
+fixtures modify data from a second connection between report reads, replay two
+simultaneous contribution requests, and edit/delete rows during embedding work.
+Browser drops a committed contribution response, locks its pending draft and retries
+with the same UUID; contribution remains 30000 and ledger remains unchanged.
+
+The initial snapshot regression's final verification queried a nonexistent single-
+transaction GET route; corrected to the supported list route. A simultaneous unit
+coverage cleanup removed integration's temporary report directory; integration
+coverage was recollected sequentially after unit completion. Neither was treated
+as business verification success until the final reruns passed.
+
+No new real Gemini call, held-out run or owner ledger inspection was performed.
+No schema migration was needed. Existing demo data is preserved. Contribution API
+now requires a UUID replay key; reload an old web tab to load the matching client.
+Goal creation metadata is still non-idempotent, pending client intent is memory-only,
+concurrent same-account forms remain last-write-wins, and streamed CSV is not a
+point-in-time snapshot. These limits are explicit in BUSINESS_AUDIT.md; this audit
+is not an unconditional production-readiness or real-user AI accuracy claim.
+
+Audited source commit: `6d98e3fc0e5162ec0eabbf1d63da87dbcd4a02ff`. Machine-readable validation summary:
+measurements/business-audit.json. Local demo was rebuilt healthy with this source.
