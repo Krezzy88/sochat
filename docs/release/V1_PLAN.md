@@ -174,3 +174,14 @@ Two additional desktop/mobile question-view checks passed using mocked transport
 these verify presentation, while the separate three real Gemini checks verify
 synthetic provider wiring. Lint/typecheck/build passed. Local implementation is
 complete within the documented bounded scope; external activation is still open.
+
+## PR #14 CI follow-up
+
+Published candidate 1697bd6 failed CI run 41836202281 at the existing integration
+function-coverage gate (91.02% vs required 93%), despite all tests passing. Trivy
+passed. Added two meaningful HTTP journeys: recovery with equal response bodies for
+known/unknown email, CSRF rejection, old/new login and cross-session revocation;
+and one-use verification that updates only the token owner's security state.
+All 108 integration tests now pass locally with unchanged thresholds: statements
+91.24%, branches 83.74%, functions 94.44%, lines 91.89%. No production code or
+coverage threshold was altered to make the gate pass. A new CI run is required.
