@@ -128,32 +128,6 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         ).rows[0] ?? fail(500, 'Không tạo được tài khoản.')
       );
     },
-    async passwordHash(user: string) {
-      return (
-        (
-          await pool.query<{ password_hash: string }>(
-            'SELECT password_hash FROM users WHERE id=$1',
-            [user],
-          )
-        ).rows[0]?.password_hash ??
-        fail(401, 'Phiên đăng nhập không còn hợp lệ.')
-      );
-    },
-    async changePassword(user: string, previous: string, next: string) {
-      return atomic(async (client) => {
-        const updated = await client.query(
-          'UPDATE users SET password_hash=$3 WHERE id=$1 AND password_hash=$2 RETURNING id',
-          [user, previous, next],
-        );
-        if (!updated.rowCount)
-          fail(409, 'Mật khẩu đã thay đổi. Hãy đăng nhập lại.');
-        await client.query('DELETE FROM sessions WHERE user_id=$1', [user]);
-        await client.query(
-          "DELETE FROM account_tokens WHERE user_id=$1 AND purpose='reset'",
-          [user],
-        );
-      });
-    },
     async deleteUser(user: string) {
       await pool.query('DELETE FROM users WHERE id=$1', [user]);
     },

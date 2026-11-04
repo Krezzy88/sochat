@@ -214,3 +214,12 @@ khoản chi lớn nhất/ngân sách do SQL tính, tài khoản email/mật kh�
 Việc chuyển dữ liệu production vẫn cần cấu hình nhà cung cấp email, backup/restore
 hosted và duyệt triển khai. Chưa được thay kết quả local bằng chứng hosted.
 Thử với sinh viên, video và thu thập dữ liệu nhiều người dùng do chủ dự án phụ trách.
+
+
+### Điều chỉnh authentication và responsive — 04/11/2026
+
+Chủ dự án yêu cầu quay về authentication trước mở rộng: đăng ký/đăng nhập/đăng xuất
+email–mật khẩu, validation và session cũ; bỏ email xác minh/khôi phục và đổi mật khẩu
+mới thêm. Không rollback dữ liệu/database phá hủy. Ưu tiên login vừa viewport ở
+kích thước thông dụng, responsive toàn ứng dụng và vẫn truy cập được khi zoom hoặc
+mở bàn phím. Các yêu cầu kích hoạt email ở lịch sử phía trên không còn là gate.

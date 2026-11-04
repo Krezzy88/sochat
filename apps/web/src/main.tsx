@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import './style.css';
+import './responsive.css';
 import { FeedbackProvider } from './Feedback.tsx';
 createRoot(document.getElementById('root')!).render(
   <FeedbackProvider>

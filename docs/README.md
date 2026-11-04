@@ -6,7 +6,7 @@ Start with the repository README for setup and product scope.
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Architecture and behavior     | [API](API.md), [Web](WEB.md), [Parser](PARSER.md), [Extraction](EXTRACTION.md)                                                                                |
 | Security and privacy          | [Privacy](PRIVACY.md), [Threat model](THREAT_MODEL.md)                                                                                                        |
-| Operations                    | [Deployment](DEPLOYMENT.md), [Runbook](RUNBOOK.md), [Account email](release/AUTH_SETUP.md)                                                                    |
+| Operations                    | [Deployment](DEPLOYMENT.md), [Runbook](RUNBOOK.md), [Authentication](release/AUTH_SETUP.md)                                                                   |
 | Release status and validation | [1.0 plan](release/V1_PLAN.md), [Evidence](EVIDENCE.md), [User testing](USER_TESTING.md)                                                                      |
 | Historical context            | [Decisions](DECISIONS.md), [Business audit](BUSINESS_AUDIT.md), [Evidence archive](archive/EVIDENCE_HISTORY.md), [Previous README](archive/README_HISTORY.md) |
 

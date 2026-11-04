@@ -1,0 +1,237 @@
+/* Viewport-aware layout. Content may scroll at high zoom or with a keyboard;
+   never hide an authentication field or action to force a fixed height. */
+.auth {
+  min-height: 100svh;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.auth-story {
+  min-width: 0;
+  min-height: 100svh;
+  padding: 88px clamp(24px, 4vw, 64px) 40px;
+  justify-content: center;
+}
+.auth-story .brand {
+  top: 24px;
+  left: clamp(24px, 4vw, 64px);
+}
+.auth-story > .mascot-scene {
+  width: 120px;
+  margin: 0 0 8px auto;
+  flex: none;
+}
+.auth-story > .eyebrow {
+  margin: 0 0 8px;
+  max-width: none;
+}
+.auth-story h1 {
+  font-size: clamp(32px, 3.6vw, 52px);
+  line-height: 1.12;
+  margin: 0 0 16px;
+  letter-spacing: -1.5px;
+}
+.auth-story > p {
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+}
+.auth-story .sample-chat {
+  margin: 20px 0 16px;
+}
+.auth-story .bubble {
+  margin-top: 10px;
+  padding: 12px;
+}
+.auth-story .sample-reply {
+  padding: 12px;
+}
+.auth-story .story-foot {
+  margin: 0;
+}
+.auth-form {
+  min-width: 0;
+  min-height: 100svh;
+  padding: 24px clamp(24px, 4vw, 64px);
+}
+.auth-form .form-wrap {
+  width: 100%;
+  max-width: 400px;
+}
+.auth-form h2 {
+  font-size: clamp(25px, 2.4vw, 34px);
+  line-height: 1.2;
+  margin: 12px 0;
+}
+.auth-form .muted {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.auth-form form {
+  display: grid;
+  gap: 12px;
+}
+.auth-form label {
+  font-size: 14px;
+  gap: 6px;
+}
+.auth-form input {
+  min-height: 46px;
+  padding: 10px 14px;
+  font-size: 16px;
+}
+.auth-form button.primary {
+  min-height: 46px;
+  padding: 10px 16px;
+  margin: 0;
+}
+.auth-form .password-toggle {
+  min-height: 32px;
+  padding: 4px 0;
+  justify-self: end;
+}
+.auth-form .auth-rules {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+}
+.auth-form .auth-switch {
+  margin: 18px 0;
+}
+.auth-form .privacy-note {
+  padding-top: 16px;
+  margin: 0;
+  line-height: 1.5;
+}
+.workspace,
+.main-content,
+.panel,
+.table-scroll,
+.form-grid,
+.report-grid,
+.stats-grid {
+  min-width: 0;
+}
+.main-content {
+  padding-inline: clamp(16px, 3vw, 40px);
+}
+.filters {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+}
+.filters button {
+  grid-column: auto;
+}
+.filters :is(input, select, button) {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+}
+.panel :is(input, select, textarea) {
+  max-width: 100%;
+}
+.page-header {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.page-header > * {
+  min-width: 0;
+}
+.table-scroll {
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+}
+@media (max-height: 760px) {
+  .auth-story > .mascot-scene {
+    width: 86px;
+  }
+  .auth-story .sample-chat {
+    margin: 12px 0;
+  }
+  .auth-form {
+    padding-block: 16px;
+  }
+  .auth-form h2 {
+    margin: 8px 0;
+  }
+  .auth-form .muted {
+    margin-bottom: 12px;
+  }
+  .auth-form form {
+    gap: 8px;
+  }
+  .auth-form .auth-switch {
+    margin: 12px 0;
+  }
+  .auth-form .privacy-note {
+    padding-top: 10px;
+    font-size: 11px;
+  }
+}
+@media (max-width: 900px) {
+  .auth {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .auth-story {
+    min-height: 0;
+    padding: 16px 24px;
+  }
+  .auth-story > :not(.brand) {
+    display: none;
+  }
+  .auth-story .brand {
+    position: static;
+    font-size: 25px;
+  }
+  .auth-form {
+    min-height: 0;
+    padding: 20px 24px;
+  }
+  .auth-form .eyebrow {
+    font-size: 10px;
+  }
+  .auth-form .privacy-note {
+    border: 0;
+  }
+  .auth[data-mode='register'] .privacy-note {
+    display: none;
+  }
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .auth-form {
+    padding: 16px 20px;
+  }
+  .auth-form .muted {
+    font-size: 14px;
+  }
+  .auth-story {
+    padding: 12px 20px;
+  }
+}
+@media (max-height: 600px) and (min-width: 901px) {
+  .auth-story .sample-chat,
+  .auth-story > .mascot-scene {
+    display: none;
+  }
+}
+@media (max-height: 480px) and (max-width: 900px) {
+  .auth-story {
+    display: none;
+  }
+  .auth {
+    grid-template-rows: 1fr;
+  }
+  .auth-form {
+    padding-block: 12px;
+  }
+  .auth-form .eyebrow,
+  .auth-form .muted,
+  .auth-form .privacy-note {
+    display: none;
+  }
+}

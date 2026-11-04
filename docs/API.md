@@ -128,22 +128,3 @@ Future-dated contributions count immediately by explicit owner policy.
 Each month/year report uses one read-only REPEATABLE READ transaction so totals and
 breakdowns describe the same snapshot. Separate report requests may naturally
 observe different commits. CSV export retains its documented streaming semantics.
-
-### Change password
-
-Authenticated `POST /api/auth/password` requires the normal CSRF token and JSON
-`current_password`, `new_password`. New passwords contain 12–128 characters and
-must differ from the current password. Success returns 204 and revokes all stored
-sessions including the current one; the client must return to login. Wrong current
-password returns 400, concurrent password replacement returns 409, and repeated
-attempts are rate limited. This endpoint does not provide emailed recovery.
-
-### Account email
-
-`GET /api/auth/options` advertises configured email capability.
-`POST /api/auth/forgot-password` accepts `{email}`; its uniform 204 is not proof of
-recipient existence or successful delivery. `POST /api/auth/reset-password`
-accepts `{token,password}`. `POST /api/me/verification-email` requests verification
-for the signed-in account; `POST /api/auth/verify-email` accepts `{token}`.
-All POSTs require CSRF. `GET /api/me/security` returns only the current user's
-`email_verified` flag. See [provider setup](release/AUTH_SETUP.md).

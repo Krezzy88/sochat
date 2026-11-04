@@ -54,13 +54,14 @@ async function go(page: Page, name: string) {
     page.getByRole('heading', { name, exact: true, level: 1 }),
   ).toBeVisible();
 }
-test.beforeEach(async ({ page }, info) => {
+test.beforeEach(async ({ page, browserName }, info) => {
   resetSyntheticComposeLimiter(info.project.use.baseURL);
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+  if (browserName === 'chromium')
+    await page.coverage.startJSCoverage({ resetOnNavigation: false });
   await register(page);
 });
-test.afterEach(async ({ page }, info) => {
-  await collectCoverage(page, info);
+test.afterEach(async ({ page, browserName }, info) => {
+  if (browserName === 'chromium') await collectCoverage(page, info);
   // Cleanup only this synthetic actor. Never print or persist cookies/CSRF.
   await page
     .evaluate(async () => {
@@ -830,9 +831,7 @@ test('non-JSON upstream startup response shows a friendly retry message', async 
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
-test('literal note search can be cleared without AI and password change returns to login', async ({
-  page,
-}) => {
+test('literal note search can be cleared without AI', async ({ page }) => {
   await parse(page);
   await save(page);
   await go(page, 'Giao dịch');
@@ -845,54 +844,6 @@ test('literal note search can be cleared without AI and password change returns 
   await expect(page.getByRole('button', { name: /^Sửa / })).toHaveCount(0);
   await page.getByRole('button', { name: 'Bỏ bộ lọc', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Sửa / })).toHaveCount(1);
-  const email = await page.evaluate(
-    async () => (await (await fetch('/api/me')).json()).user.email as string,
-  );
-  await go(page, 'Cài đặt');
-  await page
-    .getByLabel('Mật khẩu hiện tại', { exact: true })
-    .fill('Synthetic-browser-password-2026');
-  await page
-    .getByLabel('Mật khẩu mới', { exact: true })
-    .fill('Updated-browser-password-2026');
-  await page
-    .getByLabel('Xác nhận mật khẩu mới', { exact: true })
-    .fill('Updated-browser-password-2026');
-  await page.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Đăng nhập', exact: true }),
-  ).toBeVisible();
-  await page.getByLabel('Email', { exact: true }).fill(email);
-  await page
-    .getByLabel('Mật khẩu', { exact: true })
-    .fill('Updated-browser-password-2026');
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Cài đặt', exact: true, level: 1 }),
-  ).toBeVisible();
-});
-
-test('expired account links show a clear error without changing the account', async ({
-  page,
-}) => {
-  await page.goto('/#account-reset=' + 'a'.repeat(64));
-  await expect(
-    page.getByRole('heading', { name: 'Đặt lại mật khẩu', exact: true }),
-  ).toBeVisible();
-  await expect(page).toHaveURL(/#account-reset$/);
-  await page
-    .getByLabel('Mật khẩu mới', { exact: true })
-    .fill('Synthetic-reset-password-2026');
-  await page
-    .getByLabel('Xác nhận mật khẩu mới', { exact: true })
-    .fill('Synthetic-reset-password-2026');
-  await page
-    .getByRole('button', { name: 'Lưu mật khẩu mới', exact: true })
-    .click();
-  await expect(page.getByRole('alert')).toContainText(
-    'Liên kết đã dùng, hết hạn hoặc không hợp lệ',
-  );
-  expect((await page.request.get('/api/me')).status()).toBe(200);
 });
 
 test('semantic preparation requires fresh confirmation and cancel sends no notes (mocked transport)', async ({
@@ -992,4 +943,25 @@ test('question views render largest expenses and budget usage (mocked transport)
   await expect(
     page.getByRole('heading', { name: 'Tối đa 5 khoản chi lớn nhất' }),
   ).toHaveCount(0);
+});
+
+test('all main pages stay within narrow phone, tablet and laptop widths', async ({
+  page,
+}) => {
+  for (const width of [320, 768, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    for (const name of [
+      'Giao dịch',
+      'Tổng quan',
+      'Ngân sách',
+      'Quỹ mục tiêu',
+      'Cài đặt',
+    ]) {
+      await go(page, name);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+        `${name} at ${width}px`,
+      ).toBeLessThanOrEqual(width + 1);
+    }
+  }
 });
