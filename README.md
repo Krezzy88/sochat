@@ -103,8 +103,7 @@ The implementation follows [the charter](docs/agent/PROJECT_CHARTER.md),
 tested. [Architecture decisions](docs/DECISIONS.md) record the initial choices;
 [the backlog](docs/BACKLOG.md) records deferred questions. Each phase stops at its gate.
 
-License: **not selected**. `UNLICENSED` reserves rights until the owner decides;
-MIT is a suggestion, not an approved license.
+License: **MIT**, selected by the owner in [LICENSE](LICENSE).
 
 ## Database
 
@@ -238,7 +237,7 @@ or measured. Full plans, samples and environment are retained in EVIDENCE.
 ## Next steps and known limits
 
 Choose the demo host, establish TLS/proxy/backups/log retention, supply real secrets
-and use synthetic demo data before publication. Owner chooses the license and final
+and use synthetic demo data before publication. Owner confirms the final
 name, gathers/labels at least 200 examples including 50 held out, runs held-out only
 when explicitly requested, tests with five students and supplies actual findings.
 No deployment, user interview or held-out result is invented.

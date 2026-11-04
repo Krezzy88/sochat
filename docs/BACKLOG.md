@@ -3,7 +3,7 @@
 ## Open owner decisions
 
 - Confirm the final product/repository name (working names: SổChat / `sochat`).
-- Choose the license (MIT suggested; currently `UNLICENSED`).
+- License selection resolved: owner added MIT on main (commit 71cd17f); metadata aligned.
 - Choose the Gemini model or delegate selection; verify current official support
   in Phase 3. Keep `GEMINI_MODEL` blank until then.
 - Choose demo hosting before deployment; use synthetic demo data only.

@@ -170,3 +170,9 @@ ledger migration, public key disclosure or automatic merge is authorized. Before
 public release confirm the concrete candidate/destination accounts; owner enters
 provider secrets privately and confirms Gemini project Free Tier. Held-out and
 student results remain real-evidence gates; preparation alone does not complete them.
+
+## 18. Owner-selected license synchronized — 2026-11-04
+
+Owner added MIT LICENSE on main in commit 71cd17f4271e816f7b56e622ff7705d630009498.
+Phase 8 imports that exact file and aligns root package/lock/README metadata. This
+is synchronization of the owner's existing decision, not an agent-selected license.
