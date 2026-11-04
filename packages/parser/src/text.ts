@@ -30,11 +30,16 @@ export function maskNoise(text: string): string {
 
 export function splitSegments(
   original: string,
+  ownerProfile = false,
 ): { text: string; folded: string }[] {
   const folded = fold(original);
   const result: { text: string; folded: string }[] = [];
   let previous = 0;
-  for (const match of folded.matchAll(/;|\n|\+|,(?!\d)|(?<!\d),|\s+va\s+/g)) {
+  for (const match of folded.matchAll(
+    ownerProfile
+      ? /;|\n|\+|,(?!\d)|(?<!\d),|\s+va\s+|\s+roi\s+|\s+(?=phi (?:ship|van chuyen|giao hang)\b)/g
+      : /;|\n|\+|,(?!\d)|(?<!\d),|\s+va\s+/g,
+  )) {
     const text = original.slice(previous, match.index).trim();
     if (text) result.push({ text, folded: fold(text) });
     previous = match.index + match[0].length;

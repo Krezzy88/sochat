@@ -8,6 +8,7 @@ import {
 } from '../../../../packages/parser/src/index.ts';
 import type {
   Classification,
+  MoneyProfile,
   ParsedItem,
 } from '../../../../packages/parser/src/index.ts';
 import { LlmResult } from './schema.ts';
@@ -48,6 +49,7 @@ export function cacheKey(
   message: string,
   today: string,
   model: string,
+  profile: MoneyProfile = 'standard',
 ): string {
   return createHash('sha256')
     .update(
@@ -56,6 +58,7 @@ export function cacheKey(
         today,
         PROMPT_VERSION,
         model,
+        profile,
       ]),
     )
     .digest('hex');
@@ -63,21 +66,36 @@ export function cacheKey(
 export function guardAmounts(
   message: string,
   items: LlmOutput['items'],
+  profile: MoneyProfile = 'standard',
 ): ProposalItem[] {
-  const present = new Set(
-    extractAmounts(fold(message))
-      .map((a) => a.value)
-      .filter((v) => v !== null),
-  );
+  const mentions = extractAmounts(fold(message), profile)
+    .map((a) => a.value)
+    .filter((v): v is number => v !== null);
+  const remaining = new Map<number, number>();
+  for (const amount of mentions)
+    remaining.set(amount, (remaining.get(amount) ?? 0) + 1);
+  const present = new Set(mentions);
   return items.map((item) => {
     const flags: string[] = [];
-    if (!present.has(item.amount_vnd)) flags.push('llm_amount_not_in_message');
+    const available =
+      item.amount_vnd === null ? 0 : (remaining.get(item.amount_vnd) ?? 0);
+    if (item.occurred_on === null) flags.push('llm_missing_date');
+    if (item.amount_vnd === null) flags.push('llm_missing_amount');
+    if (item.amount_vnd === null) {
+      /* Unresolved money stays empty. */
+    } else if (!present.has(item.amount_vnd))
+      flags.push('llm_amount_not_in_message');
+    else if (available === 0) flags.push('llm_amount_reused');
+    if (item.amount_vnd !== null)
+      remaining.set(item.amount_vnd, Math.max(0, available - 1));
     if (item.confidence < 0.8) flags.push('low_confidence');
-    if (item.amount_vnd < 1000) flags.push('tiny_amount');
+    if (item.amount_vnd !== null && item.amount_vnd < 1000)
+      flags.push('tiny_amount');
     // Never trust model-authored notes as free-form instructions or explanations.
     return {
       ...item,
       ...({ type: item.type, category: item.category } as Classification),
+      amount_vnd: available > 0 ? item.amount_vnd : null,
       note: message.normalize('NFC').slice(0, 120),
       flags,
       needs_confirmation: true,
@@ -85,6 +103,7 @@ export function guardAmounts(
   });
 }
 export interface ExtractorOptions {
+  moneyProfile?: MoneyProfile;
   timeoutMs?: number;
   quotaNow?: () => string;
   random?: () => number;
@@ -92,6 +111,12 @@ export interface ExtractorOptions {
   log?: (event: CallLog) => void;
 }
 export class HybridExtractor {
+  get moneyProfile(): MoneyProfile {
+    return this.options.moneyProfile ?? 'standard';
+  }
+  get providerName(): 'gemini' | 'fake' {
+    return this.provider.model === 'fake-v1' ? 'fake' : 'gemini';
+  }
   private readonly provider: ExtractionProvider;
   private readonly store: ExtractionStore;
   private readonly caps: Caps;
@@ -119,7 +144,7 @@ export class HybridExtractor {
     user: string,
     mode: 'hybrid' | 'llm' = 'hybrid',
   ): Promise<ExtractionResult> {
-    const rules = parseMessage(message, now);
+    const rules = parseMessage(message, now, this.options.moneyProfile);
     const base: ExtractionResult = {
       ...rules,
       items:
@@ -151,26 +176,84 @@ export class HybridExtractor {
         'Chưa thể xác định chắc chắn khoản tiền. Bạn kiểm tra hoặc nhập rõ số tiền và ngày nhé?',
       ],
     });
-    const key = cacheKey(message, today, this.provider.model);
+    const key = cacheKey(
+      message,
+      today,
+      this.provider.model,
+      this.options.moneyProfile,
+    );
     const validated = (
       value: unknown,
       path: 'llm' | 'cache',
     ): ExtractionResult | null => {
       const parsed = LlmResult.safeParse(value);
       if (!parsed.success) return null;
-      const items =
-        mode === 'hybrid' && rules.reasons.includes('multiple_amounts')
-          ? base.items
-          : parsed.data.items.length
-            ? guardAmounts(message, parsed.data.items)
-            : base.items;
-      // Rules-derived safety ambiguities cannot be erased by a model's confidence.
+      const modelItems = guardAmounts(
+        message,
+        parsed.data.items,
+        this.options.moneyProfile,
+      );
+      const resolvedSplit =
+        this.moneyProfile === 'owner-confirmed-v2' &&
+        mode === 'hybrid' &&
+        rules.reasons.length === 1 &&
+        rules.reasons[0] === 'multiple_amounts' &&
+        !/\b(giam|con|gia|cu|moi|thay|hoac|hay|tong|chia|moi|share)\b/.test(
+          fold(message),
+        ) &&
+        modelItems.length > base.items.length &&
+        modelItems.length ===
+          extractAmounts(fold(message), this.moneyProfile).length &&
+        modelItems.every(
+          (i) => i.flags.length === 0 && i.amount_vnd !== null,
+        ) &&
+        !parsed.data.needs_clarification;
+      const partialSplit =
+        mode === 'hybrid' &&
+        rules.reasons.length === 1 &&
+        rules.reasons[0] === 'bare_small_number' &&
+        modelItems.length > base.items.length &&
+        modelItems.every((i) => i.amount_vnd === null);
+      const candidates =
+        partialSplit || resolvedSplit
+          ? modelItems
+          : mode === 'hybrid' &&
+              rules.reasons.some((r) =>
+                [
+                  'multiple_amounts',
+                  'bare_small_number',
+                  'negative_amount',
+                  'zero_amount',
+                  'malformed_amount',
+                  'amount_out_of_range',
+                ].includes(r),
+              )
+            ? base.items.map((i) => ({
+                ...i,
+                flags: [
+                  ...new Set([
+                    ...i.flags,
+                    ...modelItems.flatMap((m) => m.flags),
+                  ]),
+                ],
+              }))
+            : modelItems.length
+              ? modelItems
+              : base.items;
+      const items = rules.reasons.includes('invalid_date')
+        ? candidates.map((i) => ({ ...i, occurred_on: null }))
+        : candidates;
+      // Only grounded owner-approved purchase segmentation resolves multiple_amounts.
+      // Other safety ambiguities cannot be erased by model confidence.
       const unresolved =
-        rules.needs_clarification ||
+        (rules.needs_clarification && !resolvedSplit) ||
         items.some((i) => i.flags.length > 0) ||
         parsed.data.needs_clarification;
       const reasons = [
-        ...new Set([...rules.reasons, ...items.flatMap((i) => i.flags)]),
+        ...new Set([
+          ...(resolvedSplit ? [] : rules.reasons),
+          ...items.flatMap((i) => i.flags),
+        ]),
       ];
       return {
         ...base,

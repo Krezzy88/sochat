@@ -1,4 +1,12 @@
-import { readFileSync } from 'node:fs';
+import {
+  readFileSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
@@ -7,7 +15,15 @@ import pg from 'pg';
 import request from 'supertest';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { randomUUID } from 'node:crypto';
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
+import {
+  beforeAll,
+  afterAll,
+  beforeEach,
+  describe,
+  it,
+  expect,
+  vi,
+} from 'vitest';
 import { createApp } from '../http/app.ts';
 import { HybridExtractor } from '../extraction/hybrid.ts';
 import { FakeProvider } from '../extraction/provider.ts';
@@ -42,6 +58,13 @@ beforeAll(async () => {
     max: 10,
   });
   await migrate(pool);
+  await pool.query(
+    readFileSync(
+      new URL('../../../../db/enable-rls.sql', import.meta.url),
+      'utf8',
+    ),
+  );
+  vi.stubEnv('ENABLE_RLS', 'true');
   runtime = await createApp({
     pool,
     origin,
@@ -63,6 +86,7 @@ beforeAll(async () => {
     ),
     limits: { login: 2, parse: 2, register: 100, authIp: 100 },
   });
+  vi.unstubAllEnvs();
 });
 afterAll(async () => {
   await runtime?.close();
@@ -98,6 +122,29 @@ function call(
   path: string,
   body?: object | string,
 ) {
+  // Fresh fixtures start at version 1; tests for later/stale revisions supply explicit tokens.
+  if (body && typeof body === 'object') {
+    if (method === 'post' && path === '/api/goals')
+      body = { idempotency_key: randomUUID(), ...body };
+    if (method === 'patch' && /^\/api\/(transactions|goals)\//.test(path))
+      body = { version: '1', ...body };
+    if (method === 'put' && path.startsWith('/api/budgets?')) {
+      const data = body as { items: Record<string, unknown>[] };
+      body = {
+        ...data,
+        items: data.items.map((item) => ({ version: '0', ...item })),
+      };
+    }
+  }
+  if (
+    method === 'delete' &&
+    /^\/api\/(transactions|goals|budgets)\//.test(path) &&
+    !path.includes('version=')
+  )
+    path +=
+      (path.includes('?') ? '&' : '?') +
+      'version=' +
+      (path.startsWith('/api/budgets/') ? '1:1' : '1');
   let test = actor.agent[method](path)
     .set('Origin', origin)
     .set('X-CSRF-Token', actor.token);
@@ -346,7 +393,9 @@ describe('proposal, confirmation and idempotency', () => {
       note: 'edited',
     }).expect(200);
     expect(updated.body.amount_vnd).toBe('12345');
-    await call(a, 'delete', '/api/transactions/' + id).expect(204);
+    await call(a, 'delete', '/api/transactions/' + id + '?version=2').expect(
+      204,
+    );
     await call(a, 'delete', '/api/transactions/' + id).expect(404);
   });
 });
@@ -360,7 +409,11 @@ describe('two-user endpoint isolation', () => {
     [
       'post',
       '/api/goals/ID/contributions',
-      { amount_vnd: '1', contributed_on: '2026-11-03' },
+      {
+        idempotency_key: randomUUID(),
+        amount_vnd: '1',
+        contributed_on: '2026-11-03',
+      },
     ],
   ] as const)(
     'returns 404 for B attempting %s %s on A data',
@@ -465,6 +518,7 @@ describe('reports, budgets, goals, export and account deletion', () => {
     await call(a, 'post', '/api/goals/' + g.id + '/contributions', {
       amount_vnd: '1',
       contributed_on: '2026-11-03',
+      idempotency_key: randomUUID(),
     }).expect(201);
     const partial = await call(a, 'get', '/api/goals/' + g.id).expect(200);
     expect(partial.body.remaining_vnd).toBe('99999');
@@ -473,7 +527,7 @@ describe('reports, budgets, goals, export and account deletion', () => {
       deadline: '2026-11-01',
     }).expect(200);
     expect(past.body.suggested_daily_saving_vnd).toBeNull();
-    await call(a, 'delete', '/api/goals/' + g.id).expect(204);
+    await call(a, 'delete', '/api/goals/' + g.id + '?version=2').expect(204);
     expect(
       (
         await pool.query(
@@ -489,6 +543,11 @@ describe('reports, budgets, goals, export and account deletion', () => {
     ]);
     const exported = await call(a, 'get', '/api/me/export').expect(200);
     expect(exported.type).toBe('text/csv');
+    expect(
+      exported.text.startsWith(
+        '\uFEFFid,type,amount_vnd,category,note,occurred_on\r\n',
+      ),
+    ).toBe(true);
     expect(exported.text).toContain('50000');
     expect(exported.text).toContain("'=HYPERLINK");
     expect(exported.headers['content-disposition']).toContain('attachment');
@@ -499,6 +558,7 @@ describe('reports, budgets, goals, export and account deletion', () => {
     await call(a, 'post', '/api/goals/' + g.id + '/contributions', {
       amount_vnd: '1',
       contributed_on: '2026-11-03',
+      idempotency_key: randomUUID(),
     }).expect(201);
     await call(a, 'put', '/api/budgets?month=2026-11', {
       items: [{ category: 'an_uong', limit_vnd: '1' }],
@@ -623,4 +683,612 @@ it('streams all owned export rows across the 500-row page boundary', async () =>
   const exported = await call(a, 'get', '/api/me/export').expect(200);
   expect(exported.text).toContain('synthetic-export-601');
   expect(exported.text.split('\r\n').filter(Boolean)).toHaveLength(602);
+});
+
+it('never invokes the live assistant in a fake app and rejects supplied account identity', async () => {
+  await call(a, 'post', '/api/assistant/query', {
+    message: 'Tháng này ăn uống bao nhiêu?',
+    user_id: b.id,
+  }).expect(400);
+  await call(a, 'post', '/api/assistant/query', {
+    message: 'Tháng này ăn uống bao nhiêu?',
+  }).expect(503);
+  expect((await call(a, 'get', '/api/transactions')).body.items).toHaveLength(
+    0,
+  );
+});
+
+it('executes only typed read filters, isolates users, and never sends ledger rows to Gemini', async () => {
+  const original = runtime;
+  const replies: unknown[] = [
+    { month: '2026-11', category: 'an_uong', needs_clarification: false },
+    { month: '2026-11', category: 'an_uong', needs_clarification: false },
+    { month: '2026-11', category: null, needs_clarification: true },
+    { month: '2026-99', category: null, needs_clarification: false },
+  ];
+  const bodies: string[] = [];
+  const transport = vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async (_url, options) => {
+      bodies.push(String(options?.body));
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            { content: { parts: [{ text: JSON.stringify(replies.shift()) }] } },
+          ],
+        }),
+      );
+    });
+  vi.stubEnv('LLM_PROVIDER', 'gemini');
+  vi.stubEnv('GEMINI_MODEL', 'gemini-synthetic');
+  vi.stubEnv('GEMINI_API_KEY', 'synthetic-not-real');
+  vi.stubEnv('CI', '');
+  try {
+    runtime = await createApp({
+      pool,
+      origin,
+      sessionSecret: 'synthetic-query-test-'.repeat(3),
+      now,
+      extractor: {
+        providerName: 'gemini',
+        parseHybrid: async () => {
+          throw new Error('Not used');
+        },
+      },
+    });
+    const first = await actor(),
+      second = await actor();
+    await save(first, [{ ...transaction, note: 'private-fixture-first' }]);
+    await save(second, [
+      { ...transaction, amount_vnd: '900000', note: 'private-fixture-second' },
+    ]);
+    const one = await call(first, 'post', '/api/assistant/query', {
+      message: 'Tháng 11 ăn uống bao nhiêu?',
+    }).expect(200);
+    expect(one.body.expense_vnd).toBe('50000');
+    const two = await call(second, 'post', '/api/assistant/query', {
+      message: 'Tháng 11 ăn uống bao nhiêu?',
+    }).expect(200);
+    expect(two.body.expense_vnd).toBe('900000');
+    expect(
+      (
+        await call(first, 'post', '/api/assistant/query', {
+          message: 'So sánh nhiều tháng',
+        }).expect(200)
+      ).body.needs_clarification,
+    ).toBe(true);
+    await call(first, 'post', '/api/assistant/query', {
+      message: 'Tháng này',
+    }).expect(503);
+    vi.stubEnv('CI', 'true');
+    await call(first, 'post', '/api/assistant/query', {
+      message: 'Tháng này',
+    }).expect(503);
+    expect(bodies).toHaveLength(4);
+    expect(bodies.join('')).not.toMatch(
+      /private-fixture|@example\.test|password_hash|SELECT/,
+    );
+    expect(
+      (await call(first, 'get', '/api/transactions')).body.items,
+    ).toHaveLength(1);
+  } finally {
+    if (runtime !== original) await runtime.close();
+    runtime = original;
+    transport.mockRestore();
+    vi.unstubAllEnvs();
+  }
+});
+
+it('AI consent defaults off, is owner isolated, and disabling clears only derived owner data', async () => {
+  expect(
+    (await a.agent.get('/api/me/ai-preferences').expect(200)).body,
+  ).toEqual({ semantic_enabled: false });
+  await a.agent
+    .put('/api/me/ai-preferences')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', a.token)
+    .send({ semantic_enabled: true })
+    .expect(200);
+  expect((await b.agent.get('/api/me/ai-preferences')).body).toEqual({
+    semantic_enabled: false,
+  });
+  const category = (
+    await pool.query(
+      "SELECT id FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    )
+  ).rows[0].id;
+  const txns = await pool.query(
+    "INSERT INTO transactions(user_id,category_id,type,amount_vnd,occurred_on,note) VALUES($1,$3,'expense',1,'2026-11-03','alpha'),($2,$3,'expense',2,'2026-11-03','beta') RETURNING id,user_id",
+    [a.id, b.id, category],
+  );
+  for (const t of txns.rows)
+    await pool.query(
+      'INSERT INTO transaction_embeddings(user_id,transaction_id,model,note_hash,embedding) VALUES($1,$2,$3,$4,$5)',
+      [t.user_id, t.id, 'test', 'hash', Array(768).fill(0.1)],
+    );
+  await a.agent
+    .put('/api/me/ai-preferences')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', a.token)
+    .send({ semantic_enabled: false })
+    .expect(200);
+  expect(
+    (await pool.query('SELECT user_id FROM transaction_embeddings')).rows,
+  ).toEqual([{ user_id: b.id }]);
+  const tb = txns.rows.find((t) => t.user_id === b.id)!;
+  await pool.query("UPDATE transactions SET note='changed' WHERE id=$1", [
+    tb.id,
+  ]);
+  expect(
+    (await pool.query('SELECT count(*) FROM transaction_embeddings')).rows[0]
+      .count,
+  ).toBe('0');
+  expect(
+    (await pool.query('SELECT count(*) FROM transactions')).rows[0].count,
+  ).toBe('2');
+});
+
+it('updates and deletes only the owned budget in the selected month, preserving transactions', async () => {
+  for (const actor of [a, b])
+    await call(actor, 'put', '/api/budgets?month=2026-11', {
+      items: [{ category: 'an_uong', limit_vnd: '100000' }],
+    }).expect(200);
+  await call(a, 'put', '/api/budgets?month=2026-12', {
+    items: [{ category: 'an_uong', limit_vnd: '200000' }],
+  }).expect(200);
+  await save(a);
+  const initial = (await call(a, 'get', '/api/budgets?month=2026-11')).body
+    .items[0];
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [
+      { category: 'an_uong', limit_vnd: '150000', version: initial.version },
+    ],
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets?month=2026-11')).body.items[0]
+      .limit_vnd,
+  ).toBe('150000');
+  const current = (await call(a, 'get', '/api/budgets?month=2026-11')).body
+    .items[0];
+  await call(
+    a,
+    'delete',
+    '/api/budgets/an_uong?month=2026-11&version=' + current.version,
+  ).expect(204);
+  expect(
+    (await call(a, 'get', '/api/budgets?month=2026-11')).body.items,
+  ).toEqual([]);
+  expect(
+    (await call(b, 'get', '/api/budgets?month=2026-11')).body.items[0]
+      .limit_vnd,
+  ).toBe('100000');
+  expect(
+    (await call(a, 'get', '/api/budgets?month=2026-12')).body.items[0]
+      .limit_vnd,
+  ).toBe('200000');
+  expect((await call(a, 'get', '/api/transactions')).body.items).toHaveLength(
+    1,
+  );
+  await call(a, 'delete', '/api/budgets/an_uong?month=2026-11').expect(404);
+  await call(a, 'delete', '/api/budgets/an_uong?month=invalid').expect(400);
+  await a.agent
+    .delete('/api/budgets/an_uong?month=2026-12')
+    .set('Origin', origin)
+    .expect(403);
+});
+
+it('contribution retries are idempotent, owner scoped and reject changed payloads', async () => {
+  const g = (await goal(a)).body,
+    other = (await goal(b)).body,
+    key = randomUUID();
+  const data = {
+    amount_vnd: '30000',
+    contributed_on: '2026-11-03',
+    note: 'retry fixture',
+    idempotency_key: key,
+  };
+  const [one, two] = await Promise.all([
+    call(a, 'post', `/api/goals/${g.id}/contributions`, data),
+    call(a, 'post', `/api/goals/${g.id}/contributions`, data),
+  ]);
+  expect(one.status).toBe(201);
+  expect(two.status).toBe(201);
+  expect(one.body).toEqual(two.body);
+  expect(
+    (await call(a, 'get', `/api/goals/${g.id}`)).body.contributed_vnd,
+  ).toBe('30000');
+  await call(a, 'post', `/api/goals/${g.id}/contributions`, {
+    ...data,
+    amount_vnd: '40000',
+  }).expect(409);
+  await call(b, 'post', `/api/goals/${other.id}/contributions`, data).expect(
+    201,
+  );
+  expect((await call(a, 'get', '/api/transactions')).body.items).toEqual([]);
+  const failedKey = randomUUID();
+  await call(a, 'post', `/api/goals/${other.id}/contributions`, {
+    ...data,
+    idempotency_key: failedKey,
+  }).expect(404);
+  expect(
+    (
+      await pool.query(
+        'SELECT count(*) FROM batch_requests WHERE user_id=$1 AND key=$2',
+        [a.id, failedKey],
+      )
+    ).rows[0].count,
+  ).toBe('0');
+  await call(a, 'post', `/api/goals/${g.id}/contributions`, {
+    ...data,
+    idempotency_key: failedKey,
+  }).expect(201);
+});
+
+import { apiRepository } from '../http/repository.ts';
+import { tenantPool, withTenant } from './tenant.ts';
+it.each(['month', 'year'] as const)(
+  'keeps %s totals and breakdowns on one snapshot during a concurrent edit',
+  async (kind) => {
+    const txn = (await save(a)).body.items[0];
+    let edited = false;
+    const wrapped = new Proxy(tenantPool(pool, true), {
+      get(target, key) {
+        if (key === 'connect')
+          return async () => {
+            const client = await target.connect();
+            return new Proxy(client, {
+              get(c, k) {
+                if (k === 'query')
+                  return async (text: string, values?: unknown[]) => {
+                    const result = await c.query(text, values);
+                    if (
+                      !edited &&
+                      text.startsWith('SELECT type,sum(amount_vnd)')
+                    ) {
+                      edited = true;
+                      await pool.query(
+                        'UPDATE transactions SET amount_vnd=900000 WHERE id=$1 AND user_id=$2',
+                        [txn.id, a.id],
+                      );
+                    }
+                    return result;
+                  };
+                const value = Reflect.get(c, k);
+                return typeof value === 'function' ? value.bind(c) : value;
+              },
+            });
+          };
+        const value = Reflect.get(target, key);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const repo = apiRepository(wrapped, 'synthetic-snapshot-secret');
+    await withTenant(a.id, async () => {
+      if (kind === 'month') {
+        const report = await repo.month(a.id, '2026-11-01', '2026-12-01');
+        expect(report.totals.expense_vnd).toBe('50000');
+        expect(report.by_category[0].total_vnd).toBe('50000');
+        expect(report.daily[0].total_vnd).toBe('50000');
+        expect(report.top_notes[0].total_vnd).toBe('50000');
+      } else {
+        const report = await repo.year(a.id, '2026-01-01', '2027-01-01');
+        expect(report.totals.expense_vnd).toBe('50000');
+        expect(report.months[0].total_vnd).toBe('50000');
+      }
+    });
+    expect(edited).toBe(true);
+    expect(
+      (await call(a, 'get', '/api/transactions')).body.items.find(
+        (item: { id: string }) => item.id === txn.id,
+      )?.amount_vnd,
+    ).toBe('900000');
+  },
+);
+
+it('recalculates reports and budgets after changing transaction type, amount and month', async () => {
+  const id = (await save(a)).body.items[0].id;
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [{ category: 'an_uong', limit_vnd: '62500' }],
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets/status?month=2026-11')).body.items[0]
+      .status,
+  ).toBe('warning');
+  await call(a, 'patch', `/api/transactions/${id}`, {
+    amount_vnd: '62500',
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets/status?month=2026-11')).body.items[0]
+      .status,
+  ).toBe('exceeded');
+  await call(a, 'patch', `/api/transactions/${id}`, {
+    occurred_on: '2026-12-01',
+    version: '2',
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets/status?month=2026-11')).body.items[0]
+      .spent_vnd,
+  ).toBe('0');
+  await call(a, 'patch', `/api/transactions/${id}`, {
+    version: '3',
+    type: 'income',
+    category: 'luong',
+    amount_vnd: '100000',
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/reports/month?month=2026-12')).body.totals,
+  ).toEqual({ income_vnd: '100000', expense_vnd: '0', net_vnd: '100000' });
+  await call(a, 'delete', `/api/transactions/${id}?version=4`).expect(204);
+  expect(
+    (await call(a, 'get', '/api/reports/year?year=2026')).body.totals,
+  ).toEqual({ income_vnd: '0', expense_vnd: '0', net_vnd: '0' });
+});
+
+it('counts future contributions immediately, caps progress and handles deadline boundaries', async () => {
+  const g = (
+    await call(a, 'post', '/api/goals', {
+      name: 'Boundary goal',
+      target_vnd: '100',
+      deadline: '2026-11-06',
+    }).expect(201)
+  ).body;
+  expect(g.suggested_daily_saving_vnd).toBe('34');
+  await call(a, 'post', `/api/goals/${g.id}/contributions`, {
+    idempotency_key: randomUUID(),
+    amount_vnd: '30',
+    contributed_on: '2026-12-01',
+  }).expect(201);
+  const progress = (await call(a, 'get', `/api/goals/${g.id}`)).body;
+  expect(progress.contributed_vnd).toBe('30');
+  expect(progress.remaining_vnd).toBe('70');
+  expect(progress.progress_basis_points).toBe(3000);
+  expect(progress.suggested_daily_saving_vnd).toBe('24');
+  const funded = (
+    await call(a, 'patch', `/api/goals/${g.id}`, {
+      target_vnd: '20',
+      deadline: '2026-11-01',
+    })
+  ).body;
+  expect(funded.remaining_vnd).toBe('0');
+  expect(funded.progress_basis_points).toBe(10000);
+  expect(funded.suggested_daily_saving_vnd).toBe('0');
+  const due = (
+    await call(a, 'post', '/api/goals', {
+      name: 'Due today',
+      target_vnd: '100',
+      deadline: '2026-11-03',
+    })
+  ).body;
+  expect(due.days_left).toBe(0);
+  expect(due.suggested_daily_saving_vnd).toBeNull();
+  expect((await call(a, 'get', '/api/transactions')).body.items).toHaveLength(
+    0,
+  );
+});
+
+it('goal creation retries return one goal and changed payloads conflict', async () => {
+  const data = {
+    idempotency_key: randomUUID(),
+    name: 'Retry-safe creation',
+    target_vnd: '100000',
+    deadline: '2027-12-31',
+  };
+  const [one, two] = await Promise.all([
+    call(a, 'post', '/api/goals', data),
+    call(a, 'post', '/api/goals', data),
+  ]);
+  expect(one.status).toBe(201);
+  expect(two.status).toBe(201);
+  expect(one.body.id).toBe(two.body.id);
+  expect((await call(a, 'get', '/api/goals')).body.items).toHaveLength(1);
+  await call(a, 'post', '/api/goals', {
+    ...data,
+    name: 'Changed intent',
+  }).expect(409);
+  await call(b, 'post', '/api/goals', data).expect(201);
+});
+it('stale transaction and goal edits/deletes cannot overwrite newer data', async () => {
+  const t = (await save(a)).body.items[0];
+  const updated = (
+    await call(a, 'patch', `/api/transactions/${t.id}`, {
+      version: t.version,
+      note: 'Newer saved note',
+    }).expect(200)
+  ).body;
+  expect(updated.version).not.toBe(t.version);
+  await call(a, 'patch', `/api/transactions/${t.id}`, {
+    version: t.version,
+    amount_vnd: '999',
+  }).expect(409);
+  await call(
+    a,
+    'delete',
+    `/api/transactions/${t.id}?version=${t.version}`,
+  ).expect(409);
+  expect((await call(a, 'get', '/api/transactions')).body.items[0].note).toBe(
+    'Newer saved note',
+  );
+  const g = (await goal(a)).body;
+  const newGoal = (
+    await call(a, 'patch', `/api/goals/${g.id}`, {
+      version: g.version,
+      name: 'New goal name',
+    }).expect(200)
+  ).body;
+  await call(a, 'patch', `/api/goals/${g.id}`, {
+    version: g.version,
+    target_vnd: '1',
+  }).expect(409);
+  await call(a, 'delete', `/api/goals/${g.id}?version=${g.version}`).expect(
+    409,
+  );
+  await call(
+    a,
+    'delete',
+    `/api/goals/${g.id}?version=${newGoal.version}`,
+  ).expect(204);
+});
+it('budget revisions also reject stale tokens after delete and recreation', async () => {
+  const create = () =>
+    call(a, 'put', '/api/budgets?month=2026-11', {
+      items: [{ category: 'an_uong', limit_vnd: '100000', version: '0' }],
+    });
+  const original = (await create().expect(200)).body.items[0];
+  const next = (
+    await call(a, 'put', '/api/budgets?month=2026-11', {
+      items: [
+        { category: 'an_uong', limit_vnd: '200000', version: original.version },
+      ],
+    }).expect(200)
+  ).body.items[0];
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [{ category: 'an_uong', limit_vnd: '3', version: original.version }],
+  }).expect(409);
+  await call(
+    a,
+    'delete',
+    `/api/budgets/an_uong?month=2026-11&version=${original.version}`,
+  ).expect(409);
+  await call(
+    a,
+    'delete',
+    `/api/budgets/an_uong?month=2026-11&version=${next.version}`,
+  ).expect(204);
+  const replacement = (await create().expect(200)).body.items[0];
+  expect(replacement.version).not.toBe(original.version);
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [{ category: 'an_uong', limit_vnd: '3', version: original.version }],
+  }).expect(409);
+});
+it('CSV snapshot retains original rows across pages during concurrent writes', async () => {
+  await pool.query(
+    "INSERT INTO transactions(user_id,type,amount_vnd,category_id,note,occurred_on) SELECT $1,'expense'::txn_type,1000,c.id,'snapshot-'||g,DATE '2026-11-02' FROM generate_series(1,501)g CROSS JOIN categories c WHERE c.key='an_uong' AND c.user_id IS NULL",
+    [a.id],
+  );
+  await withTenant(a.id, () =>
+    apiRepository(
+      tenantPool(pool, true),
+      'synthetic-export-secret',
+    ).exportSnapshot(a.id, async (page) => {
+      const first = await page('0');
+      expect(first).toHaveLength(500);
+      await pool.query(
+        "UPDATE transactions SET note='changed after export start' WHERE user_id=$1 AND note='snapshot-501'",
+        [a.id],
+      );
+      await pool.query(
+        "INSERT INTO transactions(user_id,type,amount_vnd,category_id,note,occurred_on) SELECT $1,'expense'::txn_type,1,id,'late row',DATE '2026-11-02' FROM categories WHERE key='an_uong' AND user_id IS NULL",
+        [a.id],
+      );
+      const second = await page(first.at(-1)!.id);
+      expect(second).toHaveLength(1);
+      expect(second[0]!.note).toBe('snapshot-501');
+      expect(await page(second[0]!.id)).toEqual([]);
+    }),
+  );
+});
+
+it('goal creation recovery status is owner scoped and survives goal deletion', async () => {
+  const key = randomUUID();
+  expect(
+    (await call(a, 'get', `/api/goals/creation-status/${key}`).expect(200)).body
+      .state,
+  ).toBe('unknown');
+  const g = (
+    await call(a, 'post', '/api/goals', {
+      idempotency_key: key,
+      name: 'Recovery fixture',
+      target_vnd: '100000',
+      deadline: '2027-12-31',
+    }).expect(201)
+  ).body;
+  expect(
+    (await call(a, 'get', `/api/goals/creation-status/${key}`).expect(200))
+      .body,
+  ).toEqual({ state: 'saved', goal_id: g.id });
+  expect(
+    (await call(b, 'get', `/api/goals/creation-status/${key}`).expect(200)).body
+      .state,
+  ).toBe('unknown');
+  await call(a, 'delete', `/api/goals/${g.id}?version=${g.version}`).expect(
+    204,
+  );
+  expect(
+    (await call(a, 'get', `/api/goals/creation-status/${key}`).expect(200)).body
+      .state,
+  ).toBe('deleted');
+  await call(a, 'get', '/api/goals/creation-status/not-a-uuid').expect(400);
+});
+
+it('releases the snapshot transaction when export consumer fails', async () => {
+  await withTenant(a.id, async () => {
+    const repo = apiRepository(
+      tenantPool(pool, true),
+      'synthetic-export-secret',
+    );
+    await expect(
+      repo.exportSnapshot(a.id, async (page) => {
+        await page('0');
+        throw Error('simulated disconnect');
+      }),
+    ).rejects.toThrow('simulated disconnect');
+    expect((await repo.exportRows(a.id, '0')).length).toBe(0);
+  });
+});
+
+it('serves the production dashboard and assets through the same HTTPS origin without masking API errors', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'sochat-web-'));
+  mkdirSync(join(root, 'assets'));
+  writeFileSync(
+    join(root, 'index.html'),
+    '<!doctype html><title>Synthetic dashboard</title>',
+  );
+  writeFileSync(join(root, 'assets', 'app-hash.js'), '/* synthetic bundle */');
+  writeFileSync(join(root, '.secret'), 'private marker');
+  const prod = await createApp({
+    pool,
+    origin: 'https://sochat.example.test',
+    sessionSecret: 'production-test-secret-'.repeat(3),
+    production: true,
+    trustProxyHops: 1,
+    webRoot: root,
+    extractor: new HybridExtractor(
+      new FakeProvider([]),
+      new MemoryExtractionStore(),
+      { perUser: 1, global: 1 },
+    ),
+  });
+  try {
+    await request(prod.app).get('/').expect(400);
+    const index = await request(prod.app)
+      .get('/')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(200);
+    expect(index.text).toContain('Synthetic dashboard');
+    expect(index.headers['content-security-policy']).toContain(
+      "default-src 'self'",
+    );
+    expect(index.headers['cache-control']).toBe('no-store');
+    const asset = await request(prod.app)
+      .get('/assets/app-hash.js')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(200);
+    expect(asset.headers['cache-control']).toContain('immutable');
+    await request(prod.app)
+      .get('/api/unknown')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(404);
+    await request(prod.app)
+      .get('/.secret')
+      .set('X-Forwarded-Proto', 'https')
+      .expect(404);
+    await request(prod.app)
+      .get('/')
+      .set('X-Forwarded-Proto', 'https')
+      .set('Origin', 'https://foreign.example.test')
+      .expect(403);
+  } finally {
+    await prod.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });

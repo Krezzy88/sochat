@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import process from 'node:process';
 import pg from 'pg';
+import { moneyProfile } from '../packages/parser/src/index.ts';
 import { HybridExtractor } from '../apps/api/src/extraction/hybrid.ts';
 import type {
   ExtractionResult,
@@ -35,6 +36,7 @@ export async function runExtractionEvaluation(
     throw new Error('Provider evaluation requires llm or hybrid.');
   if (options.provider === 'gemini' && process.env.CI)
     throw new Error('Real Gemini evaluation is prohibited in CI.');
+  const profile = moneyProfile(process.env.MONEY_PROFILE);
   const raw = readFileSync(options.cases, 'utf8');
   const cases = loadCases(raw, options.split);
   let pool: pg.Pool | undefined;
@@ -76,7 +78,7 @@ export async function runExtractionEvaluation(
         perUser: Number(process.env.LLM_DAILY_CAP_PER_USER ?? 50),
         global: Number(process.env.LLM_DAILY_CAP_GLOBAL ?? 500),
       },
-      { log: (event) => logs.push(event) },
+      { moneyProfile: profile, log: (event) => logs.push(event) },
     );
     const predictions: ExtractionResult[] = [];
     const latencies: number[] = [];
@@ -138,6 +140,7 @@ export async function runExtractionEvaluation(
           : null;
     const common = {
       generated_at: new Date().toISOString(),
+      money_profile: profile,
       split: options.split,
       dataset_sha256: createHash('sha256').update(raw).digest('hex'),
       source_commit: commit,

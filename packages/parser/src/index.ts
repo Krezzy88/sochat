@@ -1,10 +1,17 @@
+import type { MoneyProfile } from './amounts.ts';
 import { bareNumbers, extractAmounts } from './amounts.ts';
 import { classify } from './classify.ts';
 import { localToday, resolveDate } from './dates.ts';
 import { fold, splitSegments } from './text.ts';
 import type { ParsedItem, ParseReason, ParseResult } from './types.ts';
 
-export { bareNumbers, extractAmounts, MAX_AMOUNT_VND } from './amounts.ts';
+export type { MoneyProfile } from './amounts.ts';
+export {
+  bareNumbers,
+  extractAmounts,
+  moneyProfile,
+  MAX_AMOUNT_VND,
+} from './amounts.ts';
 export { classify } from './classify.ts';
 export { isCalendarDate, localToday, resolveDate } from './dates.ts';
 export { fold } from './text.ts';
@@ -54,7 +61,11 @@ function result(items: ParsedItem[], reasons: ParseReason[]): ParseResult {
 }
 
 /** Pure proposal only: never persists data or calls an external provider. */
-export function parseMessage(message: string, nowIso: string): ParseResult {
+export function parseMessage(
+  message: string,
+  nowIso: string,
+  profile: MoneyProfile = 'standard',
+): ParseResult {
   // At most two UTF-16 code units per code point. Short-circuit huge inputs
   // before allocating the bounded code-point array, and count before NFC.
   if (message.length > 1000 || Array.from(message).length > 500) {
@@ -62,27 +73,35 @@ export function parseMessage(message: string, nowIso: string): ParseResult {
   }
   if (!localToday(nowIso)) return result([], ['invalid_now']);
   const original = message.normalize('NFC');
-  const messageDate = resolveDate(fold(original), nowIso);
+  const words = (text: string) =>
+    profile === 'standard'
+      ? text
+      : text
+          .replace(/\bhqua\b/g, 'hom qua')
+          .replace(/\bcf\b/g, 'ca phe')
+          .replace(/\bdx\b/g, 'do xang')
+          .replace(/\bdt\b/g, 'dien thoai');
+  const messageDate = resolveDate(words(fold(original)), nowIso);
   const items: ParsedItem[] = [];
   const reasons: ParseReason[] = [];
   let carry = '';
 
-  for (const segment of splitSegments(original)) {
-    const amounts = extractAmounts(segment.folded);
-    const bare = bareNumbers(segment.folded);
+  for (const segment of splitSegments(original, profile !== 'standard')) {
+    const amounts = extractAmounts(segment.folded, profile);
+    const bare = bareNumbers(segment.folded, profile);
     if (amounts.length === 0 && bare.length === 0) {
       carry = `${carry} ${segment.text}`.trim();
       continue;
     }
     const note = `${carry} ${segment.text}`.trim();
-    const category = classify(fold(note));
-    const segmentDate = resolveDate(segment.folded, nowIso);
+    const category = classify(words(fold(note)), profile !== 'standard');
+    const segmentDate = resolveDate(words(segment.folded), nowIso);
     const date = segmentDate.explicit ? segmentDate : messageDate;
     const flags: ParseReason[] = [
       ...date.flags,
       ...amounts.flatMap((amount) => amount.flags),
     ];
-    if (amounts.length === 0) flags.push('bare_small_number');
+    if (bare.length > 0) flags.push('bare_small_number');
     if (amounts.length > 1) flags.push('multiple_amounts');
     items.push({
       ...category,

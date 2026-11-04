@@ -11,14 +11,17 @@ export interface Category {
 }
 export interface Transaction {
   id: string;
+  version: string;
   type: 'income' | 'expense';
   category: string;
   amount_vnd: string;
   note: string;
   occurred_on: string;
 }
-export type Draft = Omit<Transaction, 'id'>;
+export type Draft = Omit<Transaction, 'id' | 'version'>;
 export interface Proposal {
+  provider: 'gemini' | 'fake';
+  path: 'rules' | 'llm' | 'cache';
   items: (Omit<Draft, 'amount_vnd' | 'occurred_on'> & {
     amount_vnd: number | null;
     occurred_on: string | null;
@@ -52,6 +55,7 @@ export interface YearReport {
   notice: string;
 }
 export interface Budget {
+  version: string;
   category: string;
   limit_vnd: string;
   spent_vnd: string;
@@ -60,6 +64,7 @@ export interface Budget {
 }
 export interface Goal {
   id: string;
+  version: string;
   name: string;
   target_vnd: string;
   deadline: string;
@@ -108,7 +113,15 @@ export async function request<T>(
     );
   }
   if (response.status === 204) return undefined as T;
-  const data = (await response.json()) as T & { csrf_token?: string };
+  let data: T & { csrf_token?: string };
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError(
+      503,
+      'Máy chủ chưa sẵn sàng. Vui lòng chờ một chút rồi thử lại.',
+    );
+  }
   if (data.csrf_token) csrf = data.csrf_token;
   return data;
 }
@@ -122,8 +135,10 @@ export async function downloadCsv() {
   const link = document.createElement('a');
   link.href = url;
   link.download = 'sochat-giao-dich.csv';
+  document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export const money = (value: string | bigint | number) =>
   new Intl.NumberFormat('vi-VN', {

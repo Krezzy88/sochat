@@ -1,3 +1,4 @@
+import { MonthPicker, YearSelect } from '../DateControls.tsx';
 import { useState } from 'react';
 import {
   Bar,
@@ -68,38 +69,32 @@ export default function Dashboard() {
           <p>Hiểu những khoản đã qua, nhẹ đầu cho ngày tới.</p>
         </div>
         <div className="period-controls">
-          <label className="sr-only" htmlFor="period">
+          <label className="period-kind" htmlFor="period">
             Kỳ báo cáo
+            <select
+              id="period"
+              aria-label="Kỳ báo cáo"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as 'month' | 'year')}
+            >
+              <option value="month">Theo tháng</option>
+              <option value="year">Theo năm</option>
+            </select>
           </label>
-          <select
-            id="period"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as 'month' | 'year')}
-          >
-            <option value="month">Theo tháng</option>
-            <option value="year">Theo năm</option>
-          </select>
           {period === 'month' ? (
             <label>
               Tháng
-              <input
-                aria-label="Tháng báo cáo"
-                type="month"
-                required
+              <MonthPicker
+                label="Tháng báo cáo"
                 value={month}
-                onChange={(e) => {
-                  if (e.target.value) setMonth(e.target.value);
-                }}
+                onChange={setMonth}
               />
             </label>
           ) : (
             <label>
               Năm
-              <input
+              <YearSelect
                 aria-label="Năm báo cáo"
-                type="number"
-                min="1"
-                max="9998"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
               />

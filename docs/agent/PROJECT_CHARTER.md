@@ -105,3 +105,83 @@ Nếu bị trễ: cắt Phase 5 phần quỹ mục tiêu trước, không cắt 
 | Bài đo 1 triệu dòng (sandbox) | quét toàn bảng 77–87 ms → btree 0,3–1,4 ms → covering index 0,1–0,25 ms; rollup năm 0,11 ms | **Số tuyệt đối phụ thuộc máy.** Ý nghĩa: ở quy mô này covering index đã đủ nhanh, rollup có thể không đáng độ phức tạp |
 | Schema zod cho kết quả LLM, guard số tiền | từ chối đúng các đầu vào xấu; guard chặn số ảo và injection mẫu | chưa kiểm tra ngày lịch hợp lệ (regex chỉ kiểm định dạng) |
 | API, web, CI, LLM thật | **chưa kiểm tra** | là việc của các phase |
+
+## 13. Owner-approved pre-deploy UX refinement — 2026-11-03
+
+Owner requests playful 2D/meme accents with plain accessible task language, grouped
+VND entry, confirmation/password visibility/rules within existing auth scope, and
+honest rules/Gemini/cache provenance. Email verification/reset remains out of scope.
+Owner explicitly authorizes the agent to run real Gemini API tests locally using
+synthetic data and existing local credentials. CI remains isolated/deterministic;
+no key is published, no real-call score is inferred from fake results. Deployment
+is still separately gated. No financial advice/calculations delegated to the LLM.
+
+## 14. Owner-approved AI expansion — 2026-11-03
+
+Implement docs/AI_EXPANSION.md incrementally. Owner grants operational access and
+real local model testing; ask before high-risk disclosure, bulk mutation or public
+deployment. Read-only question interpretation extends extraction to typed query
+filters, while all SQL/calculation/authorization remain server-owned. Additional
+stages are explicitly planned and must not be represented as already implemented.
+
+## 15. Owner-confirmed contribution timing — 2026-11-03
+
+Goal contributions count immediately toward progress, including contributions with
+future dates. This is an explicit recorded contribution, not a scheduled transfer.
+Contributions remain independent of income/expense ledger entries. Owner selected
+“Giữ cộng ngay như hiện tại” during the business-rule audit. Monetary mutations must
+remain exact, human-confirmed, owner scoped, and safe to retry after lost responses.
+
+## 16. Owner-approved real development evaluation and money glossary — 2026-11-04
+
+Owner authorizes the agent to send the 50 voluntarily supplied phrases in
+`eval/inbox/owner-20261103.jsonl` to real Gemini for development evaluation/tuning.
+Owner approved the private 50-case label review; cành is explicitly 100000 VND.
+Labels and raw outputs remain ignored under `.local/owner-dev`, not in the public
+repository. This is development data, never a held-out or representative-user claim.
+CI still uses isolated scripted providers and never real Gemini credentials.
+
+The explicit `owner-confirmed-v1` deployment profile interprets lít/loét/xị/cành as
+100000 VND and chục as 10000 VND, including approved fractional suffixes. Standard
+profile retains ambiguous slang. Quantities are not money and unitless numbers
+still require clarification; the owner-confirmed cf/đx/hqua/đt abbreviations are
+normalized for interpretation. All arithmetic remains exact code/SQL. User
+confirmation remains required. No OCR, bank integration, advice or deployment is
+authorized by this follow-up.
+
+### Follow-up policy change (same day, explicit owner instruction)
+
+Owner subsequently changed the bare monetary-number rule: “1 là 1.000,
+10=10.000, 100=100.000 ... cứ như thế”. The new `owner-confirmed-v2` deployment
+profile therefore scales bare monetary integers 1–999 by 1000. Explicit units take
+precedence, four-digit/grouped dong values retain literal VND, and dates/times/
+quantities are excluded. Unknown or conflicting interpretations still ask; every
+proposal still requires editable human confirmation. The web shows the convention.
+Earlier v1 labels/runs remain preserved privately. V2 labels are policy-derived
+revisions of the approved dev set and cannot be compared as an unchanged gold set.
+
+## 17. Phase 8 hosting preference — 2026-11-04
+
+Owner explicitly requests Phase 8, prioritizes free demo hosting and chooses
+“Render Web/API + Neon database; ưu tiên 0đ để giữ demo lâu dài”. React and API
+share one Render service/origin; a fresh Neon Free PG18 database holds only synthetic
+demo data. Vercel is unnecessary for this chosen topology. No paid plan, local owner
+ledger migration, public key disclosure or automatic merge is authorized. Before
+public release confirm the concrete candidate/destination accounts; owner enters
+provider secrets privately and confirms Gemini project Free Tier. Held-out and
+student results remain real-evidence gates; preparation alone does not complete them.
+
+## 18. Owner-selected license synchronized — 2026-11-04
+
+Owner added MIT LICENSE on main in commit 71cd17f4271e816f7b56e622ff7705d630009498.
+Phase 8 imports that exact file and aligns root package/lock/README metadata. This
+is synchronization of the owner's existing decision, not an agent-selected license.
+
+## 19. Owner-approved Paid Tier 1 hosted testing — 2026-11-04
+
+Owner confirmed the deployed Gemini key is Paid Tier 1 and explicitly requested
+continuing real tests: “cứ test đi ... quan trọng là dự án hoàn thành đúng như kế
+hoạch”. Bounded synthetic hosted extraction/query/revision/consented-search tests
+are authorized; the prior free-only test block is lifted. No billing setting,
+quota increase, owner-ledger disclosure, paid hosting upgrade or general model
+accuracy claim is authorized by this decision. Human/held-out gates remain real.

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useFeedback } from '../Feedback.tsx';
+import AiPreferences from './AiPreferences.tsx';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { downloadCsv, errorText, request } from '../api.ts';
 import type { User } from '../api.ts';
@@ -12,8 +14,15 @@ export default function Settings({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const setNotice = useFeedback().success;
   const [confirm, setConfirm] = useState(false);
+  const deleteDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!confirm) return;
+    const origin = document.activeElement as HTMLElement | null;
+    deleteDialog.current?.showModal();
+    return () => origin?.focus();
+  }, [confirm]);
   async function download() {
     setBusy(true);
     setError('');
@@ -31,6 +40,7 @@ export default function Settings({
     setError('');
     try {
       await request('/auth/logout', 'POST');
+      setNotice('Đã đăng xuất.');
       onDeleted();
     } catch (e) {
       setError(errorText(e));
@@ -44,6 +54,7 @@ export default function Settings({
     setError('');
     try {
       await request('/me', 'DELETE');
+      setNotice('Đã xóa tài khoản.');
       onDeleted();
     } catch (e) {
       setError(errorText(e));
@@ -60,13 +71,9 @@ export default function Settings({
           <p>Dữ liệu của bạn. Quyền quyết định của bạn.</p>
         </div>
       </header>
-      {error && <Alert>{error}</Alert>}
-      {notice && (
-        <p className="success" role="status">
-          {notice}
-        </p>
-      )}
+      {error && !confirm && <Alert>{error}</Alert>}
       <div className="settings-stack">
+        <AiPreferences />
         <section className="panel settings-card">
           <h2>Tài khoản</h2>
           <dl>
@@ -132,31 +139,44 @@ export default function Settings({
             cần.
           </p>
           {confirm ? (
-            <form onSubmit={remove}>
-              <label>
-                Nhập XÓA để xác nhận
-                <input
-                  name="confirmation"
-                  required
-                  pattern="XÓA"
-                  autoComplete="off"
-                  placeholder="XÓA"
-                />
-              </label>
-              <div className="actions">
-                <button className="danger-button" disabled={busy}>
-                  Xóa vĩnh viễn
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => setConfirm(false)}
-                >
-                  Giữ tài khoản
-                </button>
-              </div>
-            </form>
+            <dialog
+              ref={deleteDialog}
+              className="panel confirm-dialog"
+              aria-labelledby="delete-account-title"
+              onCancel={(e) => {
+                if (busy) e.preventDefault();
+                else setConfirm(false);
+              }}
+            >
+              <h3 id="delete-account-title">Xác nhận xóa tài khoản</h3>
+              <p>Dữ liệu và phiên đăng nhập sẽ bị xóa. Không thể hoàn tác.</p>
+              {error && <Alert>{error}</Alert>}
+              <form onSubmit={remove}>
+                <label>
+                  Nhập XÓA để xác nhận
+                  <input
+                    name="confirmation"
+                    required
+                    pattern="XÓA"
+                    autoComplete="off"
+                    placeholder="XÓA"
+                  />
+                </label>
+                <div className="actions">
+                  <button className="danger-button" disabled={busy}>
+                    Xóa vĩnh viễn
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => setConfirm(false)}
+                  >
+                    Giữ tài khoản
+                  </button>
+                </div>
+              </form>
+            </dialog>
           ) : (
             <button
               className="danger-button"

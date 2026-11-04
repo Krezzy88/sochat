@@ -2568,3 +2568,844 @@ npm run test:coverage also exited 0: 202 passed; configured unit-scope line cove
 runtime guard/parser/extraction/eval, not HTTP/React or combined application coverage.
 Browser ranges in the alternate-port run were 304750/665050 (45.82%), including
 bundled dependencies, not TypeScript lines. No coverage threshold added in Phase 6.
+
+## 2026-11-03 — Phase 7 containers, CI gates and documentation
+
+Owner requested go phase 7. Implementation commit
+5321802a48f16ae88254697a74dac7024d4c49e2 on feat/phase-7. Native environment:
+Darwin arm64, Node 22.23.4/npm 10.9.4; Docker Engine 29.9.2, Compose v5.6.1.
+The owner independently merged Phase 6 PR #7; read-only GitHub inspection and
+fetch confirmed origin/main's files match the local Phase 6 base. No merge here.
+
+### Container implementation and exercised startup
+
+Added multi-stage non-root API/web Dockerfiles and an isolated PostgreSQL 18.6
+Compose service. Official node:22.23.4-bookworm-slim was pulled and its digest
+verified as sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da;
+both Dockerfiles pin that digest. Node image npm is 10.9.9, within the declared npm
+10 range; native/CI pin remains 10.9.4. Build uses npm ci, runtime omits dev deps.
+No .env, local node_modules or evaluation results enter the Docker build context.
+
+API accepts HOST from trusted environment (native default remains loopback); image
+sets 0.0.0.0 internally. Startup applies migrations through the existing runner.
+Web serves built React and proxies /api to a fixed internal host, preserving cookie
+headers. Healthchecks gate startup; only the web port is published to 127.0.0.1.
+Known synthetic credentials and fake extraction are deliberately local-demo-only;
+HTTP API development cookie mode is explicit. This is not a public TLS deployment.
+
+Commands executed:
+
+```sh
+docker compose --env-file /dev/null -p sochat-phase7-check config --quiet
+SOCHAT_WEB_PORT=18080 docker compose --env-file /dev/null -p sochat-phase7-check up --build --wait
+npx playwright test --config playwright.compose.config.ts
+node docker/smoke.mjs
+docker compose --env-file /dev/null -p sochat-phase7-check exec -T api id -u
+docker compose --env-file /dev/null -p sochat-phase7-check exec -T web id -u
+docker compose --env-file /dev/null -p sochat-phase7-check down --volumes --remove-orphans
+```
+
+All restored-state commands exited 0. All three services became healthy; UID was
+1000 for both applications. **7 Compose Chromium journeys passed** in 13.8 seconds:
+full account/parse/edit-confirm/report/goal/CSV/delete flow, ambiguity, lost-response
+retry, transaction/budget changes, session/keyboard/login, report retry/year table,
+21-row cursor/filter and goal edit/delete. The native owner database and servers
+were untouched. Only this temporary project's synthetic volume/network were removed.
+This proves the Compose browser path, not production deployment/security/load.
+
+### Gates and measured coverage
+
+npm run lint, npm run typecheck, npm run test:coverage and tracked-file secret check
+passed. Unit: **202 passed**, 8 files. npm run test:integration -- --coverage:
+**50 passed**, 3 files, PostgreSQL 18.6. No new application feature was added.
+
+| Scope                     | Lines           | Statements      | Branches        | Functions       |
+| ------------------------- | --------------- | --------------- | --------------- | --------------- |
+| Unit measured             | 79.83 (471/590) | 79.19 (510/644) | 78.50 (409/521) | 77.08 (74/96)   |
+| Unit enforced gate        | 76              | 76              | 75              | 74              |
+| Integration measured      | 91.82 (393/428) | 91.06 (418/459) | 81.96 (250/305) | 96.24 (128/133) |
+| Integration enforced gate | 88              | 88              | 78              | 93              |
+
+Each gate is floor(retained baseline metric) minus 3. Unit baseline is Phase 6;
+integration baseline is the earlier 50-case suite and was remeasured here unchanged.
+Unit excludes React/HTTP/container proxy and includes parser/extraction/eval/runtime
+guard; integration includes db/http and excludes tests. Entry points outside these
+configured sets are not counted. Browser V8 ranges are separate, not merged line
+coverage. Full exclusions/calibration are documented in RUNBOOK.md.
+
+Rules and FakeProvider dev commands both exited 0, 65/65 exact seed cases. Retained
+in eval/results/phase7-fake with source e4dbdca and dirty=true recorded honestly.
+Previously retained rules-dev reports were restored, not silently overwritten.
+Synthetic seeds share an author with reference rules; these are not real-user or
+Gemini performance results. No real Gemini call or held-out run; held-out remains 0.
+
+### Mutation checks, restored
+
+Changed the web proxy's internal API port from 3000 to 3001, rebuilt only this
+project's web container and ran node docker/smoke.mjs. It failed with
+`502 !== 200` at "web proxies API successfully". Restored source in finally, rebuilt
+web and reran smoke: passed. Thus the retained CI smoke detects broken container
+routing and checks that the session cookie survives the proxy.
+
+Separately raised unit line threshold to 100 temporarily: all 202 tests passed but
+command exited 1 with "Coverage for lines (79.83%) does not meet global threshold
+(100%)". Restored calibrated 76 gate; full coverage command passed. This is coverage
+gate evidence, distinct from the production proxy fault above.
+
+### Trivy, artifacts and README traceability
+
+Verified official registry image aquasec/trivy:0.75.0 at digest
+sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa.
+Ran its filesystem vuln,secret,misconfig scanners with HIGH,CRITICAL and exit-code 1
+on a temporary source-only copy built from non-ignored repository files. The owner's
+ignored .env was never copied/mounted. Exit 0: package-lock and both Dockerfiles had
+zero reported findings at those severities. Scanner default suppresses dev package
+vulnerabilities; npm audit separately covers development dependencies. No base-image
+OS vulnerability scan is claimed from this filesystem result. Definitions are
+current at execution, not a permanent security guarantee.
+
+CI now runs unit/integration coverage gates, audit/secret checks, OpenAPI drift,
+rules/fake eval, 14 native desktop/mobile journeys, Compose build/start/smoke and
+7 container journeys. An independent Trivy job scans checked-out source. Upload
+artifact version v7.0.2 was verified against the official tag and pinned to
+cf430e030ddbb5b0abf93d22962f4752f3646cd9; reports retain 14 days, even on failure.
+Checkout/setup-node retain their verified full SHA pins. No unpinned scanner setup
+action, automatic merge, real-model/held-out command or public deployment is added.
+
+README traceability review: feature list maps to app pages/API and browser tests;
+architecture/pipeline diagrams map to web proxy, API/repository/extraction code;
+owner hybrid table maps to the retained post-fix owner report; benchmark table is
+copied from the retained 99-sample owner benchmark with its selective warm-cache
+caveat. Privacy links map to docs/PRIVACY.md and THREAT_MODEL.md. Coverage commands/
+thresholds map to configurations and measured counts above. Screenshots remain the
+owner-approved Phase 5 artifacts; temporary Compose screenshots were removed.
+Future ideas and owner tasks remain explicitly unimplemented.
+
+At this local evidence commit, hosted Phase 7 CI/publication is NOT VERIFIED yet;
+that acceptance condition requires pushing the reviewable feature branch and
+observing the run. Phase 8 remains owner-gated: no host, demo link, user-test quotes,
+held-out score or production backup/TLS guarantee was invented.
+
+### Hosted Phase 7 verification accepted
+
+Owner explicitly approved pushing feat/phase-7 and creating its draft PR. Push
+succeeded and [draft PR #12](https://github.com/Krezzy88/sochat/pull/12) was created
+against main; no merge or deployment. The earlier local-only CI limitation above
+is resolved for source 9c0b8c117c12b530fe6cdd41a46a8d7d59a736aa.
+
+[CI run 41596322856](https://github.com/Krezzy88/sochat/actions/runs/41596322856)
+completed with conclusion success. Both jobs succeeded: Checks, coverage, browser
+and Compose (job 125784414829), and Trivy filesystem scan (125784415162). Fetched
+job logs confirm 202 unit, 50 integration, 14 native Chromium journeys (34.5 s),
+Compose healthchecks/smoke and 7 container Chromium journeys (14.0 s). Unit and
+integration line coverage remained 79.83% and 91.82%; all calibrated gates passed.
+Audit, bounded secret check, lint/types, OpenAPI drift and rules/fake evaluations
+passed. Compose cleanup succeeded. No real Gemini or held-out command ran.
+
+Verified artifact verification-reports, ID 13212880459, 7608 bytes, digest
+sha256:8002f7357addeaf148a8244f66f2c1fc43a543ec46e5345ff7d1fa373b6972f4,
+not expired when inspected; retention expires 2026-11-17. Workflow uploads evaluation
+reports, coverage and test-results under its declared paths. No authenticated
+Lighthouse report, .env or real credential was part of the configured artifact.
+
+This subsequent documentation-only commit records the referenced source's actual
+run; it does not retroactively attribute that run to an unobserved future SHA.
+Phase 7 implementation/local container and hosted CI acceptance are complete for
+that source. PR remains draft, main unchanged, and Phase 8 awaits explicit owner go.
+
+## 2026-11-03 — Pre-deploy playful UX and authorized real Gemini verification
+
+Owner explicitly requested immediate implementation of the agreed UX improvements
+and authorized actual local Gemini calls. Auth scope was narrowed by the owner to
+clear validation/rules, password visibility and confirmation, retaining existing
+sessions; no verification/reset-email feature. Scope/authorization is appended to
+PROJECT_CHARTER.md. Source: 7612a60893624ae5c1926794016b1345b1183ffb on
+feat/playful-ux-gemini. No public deployment or branch push was performed here.
+
+### Delivered behavior
+
+Code-native animated notebook mascot/stickers, stronger 2D outlines, larger labels,
+plain Vietnamese task copy, responsive navigation and reduced-motion handling.
+Grouped VND inputs are shared across confirmation, transaction editing, budgets,
+goals/contributions; display 3.500.000 but submit integer strings, with positive/
+maximum validation and digit-relative caret preservation. No float money math.
+Auth adds confirmation, visibility, 12–128 guidance, Vietnamese validation, trimmed
+identity fields and useful duplicate/throttle errors; confirmation is omitted from
+the API payload. Hashing/session/CSRF/isolation rules remain unchanged.
+
+Authenticated GET /api/chat/status exposes only provider kind. Parse proposals now
+include provider alongside rules/llm/cache path. UI distinguishes configured Gemini,
+rules-only processing, actual model fallback, reused results and unsuccessful AI
+fallback. No UI label pretends a rules-only result was generated by Gemini.
+OpenAPI artifact regenerated; no schema migration or new financial feature.
+
+### Actual live model checks — separate from fake unit fixtures
+
+Used the existing ignored .env key/model; never printed, embedded or committed the
+key. Local LLM_PROVIDER changed to gemini. Model metadata preflight succeeded for
+**gemini-3.5-flash-lite**. scripts/check-gemini-live.ts is explicit local-only and
+prohibits CI; two synthetic inputs, at most three physical attempts within that
+smoke's in-memory caps. Observed artifact: measurements/gemini-live-ux.json.
+
+| Synthetic input          | Actual path | Attempts | Result                              |
+| ------------------------ | ----------- | -------- | ----------------------------------- |
+| mua mô hình lắp ráp 275k | rules       | 0        | 275000, no clarification            |
+| ăn phở 35                | llm         | 1        | null amount, clarification retained |
+
+The real attempt reported 153 input/39 output tokens, total 192. This confirms
+connectivity/ambiguity handling, not representative accuracy or a new evaluation
+score. Existing dev/held-out datasets were not changed; held-out runs remain 0.
+There were additional authorized browser fallback calls below; three is the cap
+of this standalone smoke, not a claim about total calls across all verification.
+No billing estimate without prices, free-tier assumption or provider speed claim.
+
+### Real container/browser verification
+
+Added opt-in compose.gemini.yaml (API-only key/model, 10/user and 30/global daily
+caps). Base Compose remains a credential-free deterministic demo/CI fixture. It is
+not the provider used for the real browser results below. Started a separate
+sochat-live-ux project on 18081, then applied the final override to existing
+sochat-demo at http://localhost:8080. Its database volume/accounts were preserved;
+no real user's rows were inspected or deleted. Only own synthetic test/audit users
+were removed. The temporary 18081 project's synthetic volume/network were removed;
+the delivered 8080 real-provider app remains running for owner review.
+
+Commands (key contents never printed):
+
+```sh
+node --env-file=.env --experimental-strip-types scripts/check-gemini-live.ts
+SOCHAT_WEB_PORT=18081 docker compose --env-file .env -p sochat-live-ux -f compose.yaml -f compose.gemini.yaml up --build --wait
+npx playwright test --config playwright.live.config.ts
+SOCHAT_TEST_URL=http://localhost:18081 npx playwright test --config playwright.compose.config.ts
+docker compose --env-file .env -p sochat-demo -f compose.yaml -f compose.gemini.yaml up --build --wait
+SOCHAT_TEST_URL=http://localhost:8080 npx playwright test --config playwright.compose.config.ts
+npm run test:gemini:ui
+```
+
+Both seven-journey regression runs passed (15.4 s each) against actual Gemini-backed
+APIs, including real ambiguous-input fallback, confirmation retry, budget/goal/
+transaction/report/CSV/session/deletion. Rules-first clear cases correctly avoid
+model calls. Test accounts were synthetic. The final targeted live smoke passed
+1/1 (3.9 s), asserting provider=gemini, path=llm and attempts>0 on
+"đóng phí workshop làm gốm 185k"; zero ledger rows before confirmation; grouped paste,
+middle-caret edit, persisted amount "185000", 390px no body overflow and disabled
+animation under reduced motion. Auth mismatch and visibility controls were checked.
+Retained measurements/gemini-live-ui.json reports the final real attempt: 160 input,
+116 output, 276 total tokens. It contains no credentials or user identity.
+
+The first targeted browser run failed because Home on macOS did not place the caret
+at the input beginning as assumed by the test. Replaced that OS-specific assumption
+with explicit DOM caret positioning followed by a real key insertion; the repeated
+smoke passed. Failed-run model calls are not represented as free or fake. This was
+a test portability correction, not evidence of an unobserved input-code fix.
+
+### Static, unit and database checks
+
+npm run lint, npm run typecheck, npm run api:openapi and production container builds
+passed. npm run test:coverage: **202 passed**, 8 files, measured unit-scope lines
+79.69% (471/591), statements 79.06%, branches 78.20%, functions 76.28%; retained
+Phase 7 gates passed. npm run test:integration -- --coverage: **50 passed**, 3 files;
+lines 91.62% (394/430), statements 90.88%, branches 81.22%, functions 95.52%.
+These suites use deterministic fixtures, not real-model output, and are not falsely
+counted as Gemini tests. Their scopes exclude React/container proxy from line
+coverage as previously documented. No dependency version changes or weakened gates.
+Tracked-file secret check passed after staging all new files.
+
+### Measured UX follow-up
+
+Lighthouse ran against authenticated synthetic accounts in the actual container
+app; it did not trigger extraction/provider generation. Kept prior Phase 5 reports.
+First new mobile simulated-throttling run (measurements/lighthouse-ux.json): Chat
+86 performance/100 accessibility, Dashboard 88/100; CLS 0.233/0.240. Reserved async
+status space and hid the loading footer until content is ready, then measured again:
+
+| Final local page | Performance | Accessibility | LCP   | TBT   | CLS |
+| ---------------- | ----------- | ------------- | ----- | ----- | --- |
+| Chat             | 98          | 100           | 2.5 s | 0 ms  | 0   |
+| Dashboard        | 100         | 100           | 0.8 s | 40 ms | 0   |
+
+Artifact: measurements/lighthouse-ux-final.json; Lighthouse 13.6.0, mobile simulated
+throttling, production Vite bundle served by the container. These are single local
+runs, not hosted percentiles, manual WCAG certification, a controlled performance
+study or proof of ease of use for every age. No model latency/billing is inferred.
+
+Actual desktop/mobile Chat and registration screenshots were captured/visually
+inspected in docs/screenshots/ux. They are new review candidates; prior approved
+README screenshots were not automatically replaced. No raster generation/external
+tracking assets or fonts were added. Reduced-motion and overflow assertions passed.
+See UX_REFINEMENT.md for current commands, contract and remaining human/browser
+validation. This branch's hosted CI, Safari/Firefox, screen readers, broad-age human
+usability and public deployment remain NOT VERIFIED. No new public push/PR/merge.
+
+## 2026-11-03 — Approved staged AI expansion, first read-only slice
+
+Owner grants operational access and asks to approve high-risk actions first. Chosen
+stages are recorded in AI_EXPANSION.md and charter: read-only ledger questions,
+then conversational draft revision, short voice input, measured semantic retrieval,
+and separately reviewed telemetry/RLS. Only the first monthly-query slice ships
+here; the other stages are not represented as implemented. Source:
+3944406991afe928df4e9d3621758be745f22a52 on feat/playful-ux-gemini.
+
+Added POST /api/assistant/query with existing auth/CSRF/strict message validation,
+5/user/minute rate limit and shared daily quota reservation (10/user, 30/global).
+Only a Gemini-configured app may call it; CI is prohibited. An 8-second, single-
+attempt request sends question/current Vietnam date and a fixed structured-output
+schema, never user identity, ledger rows or aggregates. Validated month/category
+filters select existing parameterized owner-scoped report queries. Code/SQL calculate
+integer totals and generate the answer/evidence URL; no AI SQL, monetary calculation,
+financial advice or ledger mutation. Unsupported/multi-month requests are instructed
+to clarify. Actual semantic intent accuracy remains unbenchmarked; UI displays the
+interpreted filters so users can verify what was queried.
+
+Chat includes Hỏi cuốn sổ, exact VND results and paginated matching transactions as
+evidence. This slice supports one month/optional one category; comparative reports,
+voice and arbitrary tool execution are not yet supported. API contract regenerated.
+No DB migration, new dependency, historical-data transfer or public deployment.
+
+Commands: npm run lint, npm run typecheck, npm run api:openapi, npm test all passed.
+Unit: 9 files, **203 passed**. Added schema tests rejecting invalid dates/categories,
+SQL and identity fields. npm run test:integration -- --coverage: **52 passed**,
+3 files. New HTTP tests prove fake apps cannot invoke live inference, client account
+IDs are rejected, two users get 50000 and 900000 independently, clarification/invalid
+model filters/CI blocking work, outbound payloads omit private fixture notes/email,
+and queries leave the ledger unchanged. Gemini transport is scripted in these
+integration tests, not misrepresented as a real-model check.
+
+Integration coverage: lines 91.00% (425/467), statements 90.03% (452/502), branches
+81.43% (272/334), functions 94.40% (135/143); existing gates passed unchanged. Added
+explicit *.test.ts exclusion to the integration coverage configuration when the
+first colocated HTTP unit test would otherwise have been counted as unexecuted
+production code. No production files were excluded to inflate a score. Unit suite
+coverage was not remeasured for this slice.
+
+Real-provider command:
+
+```sh
+npx playwright test --config playwright.query.config.ts
+```
+
+Actual Gemini-backed 8080 app with temporary synthetic user/rows. Latest run:
+**1 passed**, 2.7 seconds. "Tháng 11 năm 2026 chi ăn uống bao nhiêu?" produced
+month=2026-11/category=an_uong. SQL returned expense_vnd="50000", excluded a 90000
+transport row, and the evidence table showed only the matching lunch. Ledger stayed
+at two rows; finally removed this synthetic account via its authenticated API.
+Artifact: measurements/assistant-query-live.json. It is a connectivity/one-example
+flow check, not representative accuracy, provider latency benchmark or billing.
+No held-out data was accessed, no real user's transactions were inspected or erased.
+
+Rebuilt sochat-demo with the existing real Gemini override at localhost:8080; its
+volume/accounts were preserved. New model calls use the already authorized local
+credentials, never committed or printed. Hosted CI for this new source, retrieval
+quality, other browsers and human usability remain NOT VERIFIED. No new public
+push, merge, paid infrastructure or bulk mutation. Future high-risk changes need
+owner review as requested.
+
+## 2026-11-03 — Completed local AI/UX expansion, voice removed by owner
+
+Source commits: `2ce021e0946c893608938748eac146f7fc6e63dc` and
+`7cd3d94` (strict retrieval output contracts). Branch: feat/playful-ux-gemini.
+This is pre-deploy work, not Phase 8 deployment or a new hosted CI result.
+Owner explicitly authorized real local Gemini checks, default-off consent for
+semantic notes, and RLS only on the Docker demo after a protected backup. Owner
+subsequently removed voice from scope: audio controls/endpoint/permission are gone;
+007_remove_voice drops its unused column without editing applied migration 006.
+
+Implemented: one composer/history for expense proposals, one-month read questions
+and unsaved draft corrections; manual intent override; accurate extraction/edit
+provenance; exact code delta arithmetic; explicit idempotent save; evidence links.
+Chat history/drafts are page memory; navigation/reload loss is explained. Optional
+semantic search has explicit consent and 20-note indexing, 768-dimensional Gemini
+embeddings, owner-first bounded exact cosine/keyword ranking, note invalidation,
+account/transaction cascades and derived-data deletion on consent revocation.
+Portable PostgreSQL arrays are deliberate; pgvector ANN remains deferred until
+measured scale/recall need. No model SQL, model arithmetic or autonomous ledger writes.
+
+Final local verification (Node 22.23.4/npm 10.9.4):
+
+| Check                                       | Observed result                                                                                      |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| npm run lint / npm run typecheck            | Passed                                                                                               |
+| npm run test:coverage                       | 213 tests; lines 79.69%, statements 79.06%, branches 78.20%, functions 76.28%                        |
+| npm run test:integration -- --coverage      | 81 tests; lines 90.76%, statements 90.43%, branches 83.33%, functions 93.54%                         |
+| npm run e2e                                 | 18 desktop/mobile journeys passed; includes clearly labeled mocked-transport client state regression |
+| default isolated Compose + docker/smoke.mjs | Healthy and smoke passed, no real provider key                                                       |
+| playwright.compose.config.ts                | 9 desktop container journeys passed                                                                  |
+| OpenAPI generation/retained equality        | Passed generated schema validator and integration equality                                           |
+| npm audit --audit-level=high                | No high/critical; 21 moderate development dependency advisories remain                               |
+| tracked-file secret-pattern guard           | Passed; bounded patterns, not a full secret audit                                                    |
+
+Coverage gates were not lowered and scopes were not pruned. Integration includes
+new tenant, revision and semantic modules. Unit coverage scope remains runtime,
+parser/extraction/eval; telemetry exporter has a separate allowlist unit test but
+is not included in those historical coverage percentages. Browser V8 character
+ranges include dependencies and are not TypeScript line coverage. Mutation check:
+changed bigint delta addition to subtraction; revision unit test failed, mutation
+was restored. New RLS test also fails closed for client queries outside BEGIN and
+destroys a released connection with an open transaction before pool reuse.
+
+Real model evidence: measurements/ai-expansion-live.json verified explicit delta
+50000 + 20000 = 70000 with no ledger write and eight-note indexing. Four synthetic
+retrieval queries measured keyword-substring top-1 1/4 vs hybrid 3/4; one query
+incorrectly ranked tuition above medicine. These tiny author-designed fixtures are
+not representative, held-out, confidence estimates or proof of general accuracy.
+The real-provider browser continuation passed consent/index/search/revocation with
+zero page errors; its report explicitly shows that the question/edit portion was
+skipped to conserve quota. Earlier browser attempts reached successful real question,
+revision and confirmation assertions before unrelated UI/device checks failed.
+The final no-voice build was not rerun through a complete real-provider question/edit
+journey: shared daily 30-call cap was reached and was not reset/increased. The exact
+API calculation and final client state each have separate real/deterministic evidence.
+Historical speech results are labeled pre-removal and are not current feature claims.
+CI still uses deterministic provider/transport fixtures and does not call live Gemini.
+
+RLS: a 0600 SQL backup was created outside Git before migrating/enabling policies.
+Restoration into a temporary database in the same local cluster succeeded (13 public
+tables), then that temporary DB was removed. Ten private tables plus users/categories
+have owner policies; the demo runs with the explicit hardening override. Tests cover
+missing owner predicates, forbidden foreign-owner writes, error rollback, concurrent
+one-connection reuse, and the primary full API fixture under RLS. Native PostgreSQL
+was unchanged. Privileged auth/session bootstrap is documented; RLS is not protection
+against arbitrary backend/admin compromise. No real owner ledger rows were inspected.
+
+OpenTelemetry: real Node SDK and local trace/metric exporters are enabled. Actual
+handler spans were observed with fixed route, method, status and duration. Exporter
+redaction test excludes private attributes; automatic HTTP/SQL instrumentation,
+resource discovery and external collector are disabled. Scope excludes pre-handler
+middleware rejection spans; this is not full distributed tracing across a deployment.
+
+Final no-voice mobile-simulated Lighthouse observation against the authenticated
+Docker-served production Vite build: Chat performance 97/accessibility 100;
+Dashboard performance 100/accessibility 100. A prohibited aria-label on a generic
+conversation div was found and corrected with log semantics before this measurement.
+Artifact: measurements/lighthouse-ai-expansion.json. Two local runs, not hosted
+performance or manual accessibility certification. Later label/output-contract
+changes do not alter the measured initial-page layout; no new performance claim
+beyond this observation is made.
+
+New final screenshots are review candidates under screenshots/ux. Existing owner-
+approved README screenshots were restored and remain unchanged. The isolated
+sochat-predeploy test stack/volume was removed; sochat-demo remains healthy at
+http://localhost:8080 with existing data and sessions preserved. Source and evidence
+are local only: no new public push, merge, deployment, paid infrastructure, user
+study or held-out run. See measurements/ai-expansion-verification.json for the
+machine-readable check summary. Phase 8 still needs its owner deployment decision,
+real student sessions and the separately authorized final held-out evaluation.
+
+## 2026-11-03 — Daily-entry UI simplification
+
+Removed repeated chat greetings, large illustration, duplicate panel heading and
+hidden sidebar markup. Kept a short example and one composer. Provider diagnostics
+and manual intent selection now live in a collapsed disclosure; semantic search is
+collapsed above the transaction list. No calculation, parser, persistence or consent
+policy changed. Mobile composer uses a 16px input font and compact spacing. Added
+browser checks for first-screen input/Send visibility and disclosure behavior;
+final results are recorded below. This is a concrete usability iteration, not a
+claim of user-validated optimal UX. No additional live Gemini calls were made.
+
+Final checks: lint/typecheck passed; 20 desktop/mobile browser journeys passed,
+including input/Send in the initial viewport and collapsed advanced controls.
+Docker demo rebuilt healthy at localhost:8080 with preserved data. Earlier
+Lighthouse scores were not remeasured for this layout iteration. New chat images
+are review candidates under screenshots/ux/streamlined-*.
+
+## 2026-11-03 — Owner preferred pre-unification chat
+
+Restored the expense/confirmation layout and separate Hỏi cuốn sổ form from
+67d46f7. Retained current money/auth/consent/RLS/backend safeguards. Draft revision
+has a separate optional form, with save/edit blocked while a revision is in flight.
+No new real Gemini calls; prior unified/streamlined screenshots are historical
+review candidates, not the current layout. Final browser results recorded below.
+
+Restoration checks: lint, typecheck and bounded secret guard passed; 18 desktop/mobile
+browser journeys passed, including a separate question preserving the pending draft
+and a draft revision saved as exactly 70000. Mocked transport in this client regression
+is explicitly labeled; no new live provider call was made. Local Docker is healthy.
+Current screenshot candidates: screenshots/ux/restored-chat-*.
+
+## 2026-11-03 — Transaction editor, CSV and UI review
+
+Owner reported edit clicks appeared inert and provided a CSV plus UI screenshots.
+The editor was rendered above the transaction table without scroll/focus management;
+clicks below that area did not visibly bring it into view. Replaced it with a native
+modal dialog, bounded to the viewport, keyboard focus/return and Escape cancellation.
+Save errors now render inside the dialog; inputs lock while saving. Goal editing
+also brings the existing form into view and focuses its first input.
+
+The supplied private CSV was valid UTF-8 with comma quoting/CRLF but lacked a BOM.
+Added UTF-8 BOM to server exports, retaining headers, integer VND, ISO dates,
+streaming/ownership filters and formula-injection protection. Created a private
+0600 BOM-corrected copy outside Git for the owner; no private CSV rows were committed.
+Verified BOM bytes from the actual Docker endpoint with a deleted-after-test
+synthetic account. Actual Excel/Numbers UI import was not tested; locale-dependent
+comma import can still require explicit selection.
+
+Styled previously bare semantic-search buttons, added spacing below filters and
+above report sections, aligned report period controls with visible labels, and
+prevented requests for incomplete years while typing. The browser download now
+attaches/removes its link and delays object URL cleanup.
+
+Validation: lint/typecheck and 81 PostgreSQL integration tests passed with unchanged
+coverage gates (90.76% lines). Complete desktop/mobile suite: 20 passed. Additional
+modal error/retry regression run after the final in-dialog alert fix: see command
+`npm run e2e -- --grep 'editing a scrolled'` (2 desktop/mobile checks). Earlier
+browser tests caught a period-label accessibility selector issue and a too-specific
+label selector in the new modal test; both corrected. New synthetic screenshots:
+screenshots/ux/edit-dialog-desktop.png and edit-dialog-mobile.png. No new real Gemini
+calls, no new hosted CI, no claim that all possible UI defects are exhausted.
+
+## 2026-11-03 — Unified action feedback and balanced report controls
+
+Introduced an application-wide feedback provider. Successful saves/edits/deletes,
+CSV download preparation, auth actions and AI preference updates use themed toasts;
+query/search results, clarification and validation remain contextual data rather
+than disappearing notifications. Toasts cap at three, auto-dismiss after seven
+seconds, pause on hover or keyboard focus and have explicit dismiss controls.
+They persist across page transitions and announce via polite status semantics.
+
+Replaced native browser confirmations for transaction/goal deletion with styled
+native dialog popups. Cancel receives initial focus, Escape cancels, focus returns
+to the initiating control; no request occurs on cancellation. Enabling semantic AI
+requires a themed consent popup with privacy text. Account deletion uses a themed
+modal while retaining the typed XÓA requirement and displaying errors inside it.
+
+Report period/month/year controls now use two equal grid columns with identical
+52px control height, typography, borders and label baseline, including mobile.
+Measured browser geometry checks require equal widths/heights/top positions within
+one pixel. Local demo rebuilt healthy; no backend/database/calculation change and
+no new real Gemini call.
+
+Checks: lint/typecheck passed; 20 existing desktop/mobile browser journeys passed,
+plus two focused desktop/mobile journeys for toast dismissal, Escape cancellation,
+unchanged ledger on cancel, consent denial and equal report control geometry.
+New real-app synthetic screenshots are review candidates in screenshots/ux:
+action-toast-desktop, confirmation-desktop and period-controls-desktop/mobile.
+No new hosted CI or human usability certification is claimed.
+
+## 2026-11-03 — Complete monthly budget management
+
+Owner reported missing budget edit/delete actions and an unusable time picker.
+Added explicit per-card Sửa hạn mức/Xóa actions. Edit pre-fills and focuses the
+existing limit, retains category/month identity, and offers save/cancel. Form
+submission locks controls while pending; success uses the shared toast and errors
+stay in their action context. Confirmed deletion removes only the authenticated
+owner's category/month limit, never ledger transactions or another month/user.
+
+Monthly budgets now have explicit Vietnamese month selection and a year input
+(applies on blur or Enter), plus an explanation that limits cover the full month.
+This does not introduce daily or arbitrary date-range budgets. Switching periods
+while editing requires the shared confirmation popup before discarding the draft.
+No schema migration or new Gemini call was needed. Added parameterized repository
+DELETE and authenticated, CSRF-protected, validated API route; OpenAPI regenerated.
+
+Validation: lint/typecheck passed. Full desktop/mobile suite: 24 passed. API/PostgreSQL
+suite with RLS: 82 passed, coverage 90.83% lines / 90.50% statements / 83.40% branches /
+93.61% functions, existing gates unchanged. Tests verify update, delete cancellation,
+selected-month deletion, another-month retention, transaction preservation and other
+owner isolation. The focused budget browser regression additionally checks canceled
+period changes retain unsaved limits and typed years apply via Enter. Docker demo
+rebuilt healthy with existing data preserved; no hosted CI/deployment claim.
+
+## 2026-11-03 — Popup-based date selection
+
+Owner approved the browser-native calendar shown in their screenshot. All existing
+day inputs (chat confirmation, transaction filters/editor, goal deadline/contribution)
+now use a shared CalendarInput that requests the native picker on click. Browsers
+without showPicker retain the native input's normal calendar/keyboard behavior;
+calendar visuals depend on OS/browser. Date values, required validation and payloads
+remain native ISO calendar dates.
+
+Monthly reports use a compact themed popup with month/year choices, explicit Apply
+and Cancel/Escape, and focus return. Year-only reports and budget years use dropdowns,
+so no year-format typing is necessary. Budget month selection and unsaved-edit
+confirmation are preserved. Year choices cover the current year +/-100 and include
+an existing selected year outside that window; backend date limits did not change.
+
+The first full run passed 25/26 browser checks; the failure exposed a test-helper
+race: text in a question result containing “đã lưu” was mistaken for save completion.
+The helper now waits for the actual batch POST response and a specific save toast.
+Final rerun results recorded below. No new Gemini calls or database migrations.
+
+Final date-selection verification: 26 desktop/mobile Chromium journeys passed;
+lint/typecheck/secret guard passed. The helper also tolerates the decorative toast
+checkmark while matching the specific save message. Docker demo is healthy with
+existing data preserved. Native OS calendar chrome was not separately automated
+on Safari/Firefox; browser-native appearance can differ.
+
+## 2026-11-04 — Business-rule audit completion
+
+See BUSINESS_AUDIT.md for the complete rule matrix, corrected findings and explicit
+remaining limits. Owner confirmed future-dated goal contributions count immediately;
+this policy is recorded in the charter and shown beside contribution entry.
+
+Corrections: snapshot-consistent monthly/yearly totals/breakdowns; atomic, owner-
+scoped contribution idempotency with retained client replay payload; separated income
+and expense confirmation totals; actual committed embedding counts; current-owned
+row reads after provider work; whole-token lexical matching. Strengthened extraction
+safety: unitless/invalid monetary ambiguities retain unresolved rule fields, explicit
+invalid dates stay blank, model amounts absent from the message are cleared, and a
+single money mention cannot prefill multiple model transactions. Cache reads pass
+through the same guards. Reproduced guard failures before fixing them (500000/50000
+incorrectly prefilled instead of null, and duplicate model money reuse).
+
+Validation on synthetic data only: final unit coverage suite 215 passed; PostgreSQL/
+RLS integration suite 89 passed; browser suite 28 desktop/mobile journeys passed.
+Unit coverage: lines 80.13%, statements 79.51%, branches 78.61%, functions 77.22%.
+Integration coverage: lines 90.92%, statements 90.60%, branches 84.91%, functions
+93.75%; gates unchanged. Concurrency
+fixtures modify data from a second connection between report reads, replay two
+simultaneous contribution requests, and edit/delete rows during embedding work.
+Browser drops a committed contribution response, locks its pending draft and retries
+with the same UUID; contribution remains 30000 and ledger remains unchanged.
+
+The initial snapshot regression's final verification queried a nonexistent single-
+transaction GET route; corrected to the supported list route. A simultaneous unit
+coverage cleanup removed integration's temporary report directory; integration
+coverage was recollected sequentially after unit completion. Neither was treated
+as business verification success until the final reruns passed.
+
+No new real Gemini call, held-out run or owner ledger inspection was performed.
+No schema migration was needed. Existing demo data is preserved. Contribution API
+now requires a UUID replay key; reload an old web tab to load the matching client.
+Goal creation metadata is still non-idempotent, pending client intent is memory-only,
+concurrent same-account forms remain last-write-wins, and streamed CSV is not a
+point-in-time snapshot. These limits are explicit in BUSINESS_AUDIT.md; this audit
+is not an unconditional production-readiness or real-user AI accuracy claim.
+
+Audited source commit: `6d98e3fc0e5162ec0eabbf1d63da87dbcd4a02ff`. Machine-readable validation summary:
+measurements/business-audit.json. Local demo was rebuilt healthy with this source.
+
+## 2026-11-04 — Production-hardening follow-up and owner dev evaluation
+
+Code commit: `55513465c7831e1dfeb86e29bc1ade1a02a5100d`. The final dev probe
+recorded a dirty tree containing only `compose.gemini.yaml` (the matching explicit
+v2 deployment profile); parser/provider/API code matched that commit. Aggregate
+record: measurements/production-hardening.json. Raw owner labels/predictions remain
+private under ignored `.local/owner-dev` with owner-only permissions.
+
+Closed the audit's three concrete implementation gaps: atomic owner-scoped goal
+creation UUID replay with payload conflicts and a reload recovery receipt; required
+optimistic versions on transaction/goal mutations and opaque budget id:version
+checks including delete/recreate; a single read-only repeatable-read snapshot for
+all CSV pages. Export response and individual queries have 30-second bounds. An
+interrupted consumer rolls back/releases its snapshot. Old web clients must reload.
+Goal reload recovery stores only a UUID, not the financial draft, in sessionStorage.
+Transaction/contribution in-page retry payloads remain memory-only; no offline
+outbox is claimed.
+
+Final local checks: `npm run test:coverage` **246 passed**; `npm run
+test:integration -- --coverage` **95 passed** against isolated PostgreSQL 18/RLS;
+`npm run e2e` **34 passed** across desktop/mobile Chromium; `npm run
+test:gemini:ui` **1 passed** against the upgraded Docker demo and real Gemini.
+Unit coverage: lines 80.96%, statements 80.31%, branches 80.98%, functions 78.89%.
+Integration: lines 91.38%, statements 90.86%, branches 84.95%, functions 93.75%.
+Existing thresholds are unchanged. Lint/typecheck/OpenAPI generation/secret guard
+and `git diff --check` passed. `npm audit --omit=dev --json`: **0 advisories**
+observed at this run; this does not include development dependencies or promise
+future advisory status. Browser JS-range measurement includes dependencies and is
+not source/test branch coverage; retain its measured value without quality claims.
+
+New regressions cover concurrent UUID creates, changed payloads, owner isolation,
+recovery after deletion/reload, stale updates/deletes across all three entities,
+budget ABA, 500-row export pagination during concurrent edit/insert, and snapshot
+cleanup after consumer failure. Browser drops committed responses, retries, reloads
+and opens two same-account tabs. Mutation proof: deliberately omitted money profile
+from the extraction cache key; the profile-isolation regression failed (1 failed,
+49 skipped), restored the code and reran the focused check (1 passed). Final full
+unit suite passed after all changes. No mutation remains.
+
+### Real owner development data (never held out)
+
+Owner explicitly approved sending the 50 supplied phrases to Gemini and approved
+the private labels, with cành=100000 VND. Under the previous missing-unit-asks
+policy, the stored baseline scored **22/50 exact**, and the improved v1 profile
+scored **49/50 exact**. The remaining mismatch was a label assigning 25000 to
+“cf sáng 25” despite that policy. The owner then explicitly revised the convention:
+bare monetary 1=1000, 10=10000, 100=100000. V2 implements this for 1–999, excluding
+quantities/calendar/time and preserving literal four-digit/grouped VND values.
+Twelve formerly unresolved labels were revised under that owner policy. Prior
+labels/results are retained; do not portray v1→v2 as an unchanged-gold comparison.
+
+Final real hybrid probe, `--tag verified-v2`, model `gemini-3.5-flash-lite`, injected
+Vietnam date 2026-11-03: **50/50 exact cases; 55/55 each amount/category/date/type**.
+**48 rules paths, 2 real Gemini generation attempts**; 814 input + 454 output =
+1268 observed tokens, 3687 ms whole-run elapsed. These are hybrid results, not
+50 independent LLM predictions. This same dev set informed tuning. V2 contains no
+positive clarification labels; precision/recall are **n/a**, not 100%. Ambiguity
+safety is covered separately by deterministic adversarial/unit tests. No billing
+estimate without supplied current prices, representative-user claim or held-out
+result is made. All intermediate local probes retained separate run names.
+
+Live Docker smoke used a disposable synthetic account and real fallback (1 attempt,
+492 observed tokens). It verified shorthand, version increments/stale 409, goal
+replay/recovery, CSV, no automatic save, auth/money controls and responsive/reduced-
+motion behavior, then deleted the account. screenshots/ux contains the new synthetic
+captures; owner-approved README screenshots were preserved.
+
+Before migration 008, created a private mode-0600 Docker `pg_dump -Fc` archive and
+parsed the complete archive with `pg_restore -f /dev/null`. This is structural
+verification, not a new restore rehearsal. Compose rebuilt healthy with existing
+volume retained; migration metadata, Gemini v2 profile and RLS=true were checked
+without inspecting owner ledger rows. Native PostgreSQL remained unchanged. No
+public push, hosted CI, deployment, final held-out run or student interviews were
+performed. Host TLS/secrets/backups/load, representative AI/user validation and
+native spreadsheet/non-Chromium behavior remain Phase 8 work.
+
+## 2026-11-04 — Phase 8 local deployment preparation
+
+Code candidate: `0bc02c95a14bf5674c5c8448c024395c878116ba` on `codex/phase-8`.
+Owner selected **Render Free combined Web/API + Neon Free PostgreSQL 18** after
+considering Vercel and single-platform expiry limits. No Vercel config remains.
+Machine-readable record: measurements/phase8-preparation.json. This prepares Phase 8;
+it does not establish a live demo URL, hosted CI, user-study or held-out result.
+
+Added a non-root combined image, optional static serving within the HTTPS/origin
+middleware, immutable hashed-asset caching, provider PORT healthcheck and Render's
+documented external-origin fallback when RENDER=true. Blueprint is free-only,
+manual deployment, generated session secret, fresh Neon URL/key entered privately;
+no managed database or paid fallback. Managed-host RLS remains an explicit separate
+admin opt-in (false in the initial cloud profile); existing Docker RLS is unchanged.
+The current privileged FORCE RLS script must not be applied blindly to a managed
+non-superuser account. API ownership checks remain tested regardless of RLS.
+
+Privacy: Docker context excludes ignored `.local`/env data and the owner inbox.
+No local owner/demo ledger is a seed source. Non-JSON upstream startup replies now
+produce a friendly retry message. No paid plan, public resource, secret upload or
+real Gemini generation was performed during this preparation. Free model pricing
+was checked in Google's documentation; the existing key's actual project tier was
+not inspected or assumed. Provider limits, cold starts and hosted acceptance are
+recorded in DEPLOYMENT.md.
+
+Local checks actually run: lint/typecheck/OpenAPI drift/secret-pattern checks passed;
+**248 unit tests**, **96 PostgreSQL integration tests**, **36 desktop/mobile browser
+journeys**, **2 local production-mode HTTPS browser journeys** passed. Unit coverage:
+lines 80.87%, statements 80.22%, branches 80.88%, functions 78.89%. Integration:
+lines 91.57%, statements 91.03%, branches 85.08%, functions 94.25%. Gates unchanged.
+Standard-profile rules and scripted hybrid seed dev CLI reports also passed in
+/private/tmp; those scripted results are not real Gemini performance.
+
+The HTTPS rehearsal uses ephemeral local self-signed TLS termination, isolated
+PostgreSQL 18 and a NOSUPERUSER/NOBYPASSRLS DB owner. Final run derives the exact
+origin from simulated Render metadata, serves React+API through the combined image,
+checks browser Secure/HttpOnly/SameSite cookies across reload, shorthand, confirmed
+versioned writes, stale 409, owned CSV and test-account deletion on desktop/mobile.
+It is not a public Render certificate, Neon TLS or hosted latency measurement.
+
+A real synthetic backup/restore rehearsal dumped the disposable DB with `pg_dump
+-Fc` to a mode-0600 archive, restored into a separate DB using `--no-owner --no-acl`,
+and verified one fixture transaction totaling exactly 35123 VND. No native or owner
+DB was touched. After final browser checks the isolated rehearsal containers/volumes
+were removed; the original sochat-demo's three containers remained healthy.
+Hosted restore/retention is still an owner deployment check, not inferred from this.
+
+Current full npm audit: **0 high/critical, 21 moderate**; the high/critical CI gate
+passes, but no claim of zero advisories across all dependencies. Digest-pinned
+Trivy 0.75.0 on a git archive of the exact code candidate returned **0 HIGH/CRITICAL
+vulnerabilities, secrets and misconfigurations** in its filesystem scope (exit 0).
+This excludes ignored credentials/private evaluation data and is not an image OS
+scan, penetration test or hosted security certification. Render Blueprint passed
+structural validation against https://render.com/schema/render.yaml.json with the
+already installed Ajv 2020 implementation; optional format assertions disabled.
+This is not a Render provisioning/API acceptance result.
+
+Evaluation harness now applies/records MONEY_PROFILE consistently in rules and
+hybrid CLI runs, preventing an accidental standard-versus-v2 policy mismatch in a
+future held-out run. Regression uses one synthetic dev case only; mutation removed
+the hybrid profile forwarding and failed as expected (1 failed, 1 passed, 2 skipped),
+then restoration passed both profile checks (2 passed, 2 skipped). No mutation remains.
+An initial retry browser regression targeted “Thử lại” instead of the actual “Thử
+tải lại”; corrected the selector, then the full 36-journey suite passed. Typecheck
+caught optional-property typing at the new server hook; fixed before acceptance.
+
+Prepared USER_TESTING.md, private-session template, untouched held-out protocol and
+a <=2-minute real UI recording script. There are **0 student sessions, 0 held-out
+runs, no quotes and no recorded video** from this phase. Original tuned owner 50-case
+dev set is never relabeled as held-out. Production-mode browser checks use synthetic
+scripted provider behavior, not fake model-accuracy claims.
+
+Read-only GitHub inspection found only the older open Phase 7 draft PR #12 and no
+PR-triggered run for the preceding pre-deploy evidence commit; this does not prove
+latest hosted CI. New candidate publication/CI and public deployment await the
+owner's concrete approval/account access. Main was not merged and no draft PR was
+closed. Phase 8 remains IN PROGRESS until actual hosted/user/held-out evidence exists.
+
+### Phase 8 publication and CI fixture correction
+
+Owner explicitly approved pushing codex/phase-8 and creating draft PR #13:
+https://github.com/Krezzy88/sochat/pull/13. No merge or cloud deployment. The first
+run https://github.com/Krezzy88/sochat/actions/runs/41773965546 was superseded/
+cancelled when the branch synchronized the owner's already-published MIT LICENSE
+from main commit 71cd17f. README/package metadata now reflects that owner decision.
+
+Run https://github.com/Krezzy88/sochat/actions/runs/41774132561 on a0bb3bd passed
+Trivy, lint/type/unit, integration, dev evaluation and the desktop/mobile suite,
+but FAILED the expanded Compose browser stage: ten initial actors passed, then
+all eight later registrations failed. The production default limits registration
+to ten per IP/window; the expanded suite intentionally creates eighteen actors
+behind one proxy IP. Do not describe this run as successful or raise app limits.
+
+Correction is runner-only: explicit SOCHAT_COMPOSE_FIXTURE=sochat-ci resets anonymous
+rate counters before each synthetic actor. Fixed localhost:18080, project name and
+Docker label checks prevent targeting the owner demo/hosted app. No product flag,
+API reset endpoint, quota increase or ledger-row deletion was added. Without opt-in
+no Docker/DB operation occurs. Four guard regressions reject unintended targets.
+
+Follow-up local verification: **252 unit tests**, lint/typecheck and the complete
+**18 Compose browser journeys** passed; unit coverage/gates unchanged. Existing
+monetary/RLS integration and production throttle checks remain intact. Rehearsal
+used only a disposable sochat-ci stack; generated screenshots were kept privately,
+not substituted for owner-approved README images. Hosted rerun is pending for this
+fix; public HTTPS/Neon/Gemini Free Tier/held-out/student gates are still unverified.
+
+### Phase 8 hosted CI and public deployment verification — 2026-11-04
+
+Hosted CI finally PASSED both jobs for 7586e2d84ee0954980f11a18f363bcd24a1230af:
+https://github.com/Krezzy88/sochat/actions/runs/41783820913. This includes the fixed
+18-actor Compose fixture and two production-mode HTTPS checks; earlier failed/
+cancelled attempts remain documented above. Draft PR #13 stays open, not merged.
+The owner deployed https://sochat.onrender.com and explicitly confirmed its Live
+commit is the same 7586e2d. CI source and deployed source therefore match.
+
+Owner-provided Render log shows successful migrations, API start on port 10000 and
+Live status. Independent HTTPS GET /healthz returned 200 with status=ok; root returned
+200 with TLS verification successful. A public browser smoke used one disposable
+synthetic actor: registration, Secure/HttpOnly/SameSite=Lax session across reload,
+rules-only “phở 35” => 35000, no persistence before confirmation, actual UI edit to
+45000, version increment/stale 409, SQL net=-45000, goal UUID replay, owned no-store
+CSV and 390px layout all passed. Its account deletion/401 cleanup was verified.
+Report: measurements/hosted-http-smoke.json. This run made zero model attempts.
+
+The owner then confirmed the key is Paid Tier 1 and explicitly allowed real paid
+hosted testing. No billing setting or daily quota was changed, and no Free Tier or
+zero-cost API claim is made. The existing three real-provider browser cases ran
+against the public URL, with retries=0 in the test runner and only synthetic data:
+
+- Extraction/auth/money/confirmation/version/goal replay/CSV/mobile/reduced-motion
+  smoke passed. Actual extraction path=llm, attempts=1, 405 input + 87 output =
+  492 observed tokens, needs_clarification=false; human-confirmed amount 185000.
+- Read-only question smoke interpreted November 2026 + food, SQL returned exactly
+  50000, evidence excluded the 90000 transport row, and the two saved rows remained
+  unchanged. The model never received authority to generate SQL or ledger totals.
+- Expansion smoke excluded unsaved drafts from query totals, interpreted a +20000
+  draft correction, code produced exactly 70000, exercised explicit semantic opt-in,
+  real indexing/search, revocation UI and mobile layout; no page errors observed.
+
+All **3 passed in 28.4 seconds**. Each case used a fresh synthetic actor and invoked
+account cleanup in finally; the expansion case asserts deletion status 204. No
+owner ledger or key was read/sent. Semantic search had one indexed synthetic note:
+this is feature plumbing/consent verification, not representative ranking quality.
+The question and revision outputs are also author-designed smoke cases, not a new
+held-out evaluation. Only extraction exposed token usage; do not infer a whole-suite
+billing total. Reports: hosted-gemini-ui.json, hosted-query.json,
+hosted-expansion-ui.json in measurements/. Raw browser captures were kept privately;
+historical local measurements and owner-approved README screenshots were restored.
+
+Remaining gates are honest: no new untouched held-out set/run, no five-student
+observations/quotes, no recorded demo video and no restore from the actual hosted
+Neon database. Local synthetic restore success is not substituted for hosted
+recovery. See USER_TESTING.md and release/HELDOUT_PROTOCOL.md for owner participation.
+Deployment/smoke verification is complete; Phase 8 overall remains IN PROGRESS.
+
+Private `.local` owner data and one-off verification artifacts are now excluded
+from ESLint/Prettier consistently with git/Docker ignores. This does not exclude
+production code or change measured coverage scopes/gates. Final lint/typecheck and
+tracked-file secret checks passed before recording hosted evidence.

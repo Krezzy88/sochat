@@ -1,3 +1,4 @@
+import { moneyProfile } from '../../../../packages/parser/src/index.ts';
 import { writeOperationalLog } from './log.ts';
 import type pg from 'pg';
 import process from 'node:process';
@@ -9,6 +10,7 @@ export async function createExtractor(
   pool: pg.Pool,
   env: Record<string, string | undefined> = process.env,
 ): Promise<HybridExtractor> {
+  const profile = moneyProfile(env.MONEY_PROFILE);
   const kind = env.LLM_PROVIDER ?? 'fake';
   if (kind !== 'fake' && kind !== 'gemini')
     throw new Error('LLM_PROVIDER must be fake or gemini.');
@@ -36,6 +38,7 @@ export async function createExtractor(
       global: Number(env.LLM_DAILY_CAP_GLOBAL ?? 500),
     },
     {
+      moneyProfile: profile,
       log: (event) => {
         writeOperationalLog(event);
       },

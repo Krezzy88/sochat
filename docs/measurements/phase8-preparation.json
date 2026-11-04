@@ -1,0 +1,123 @@
+{
+  "generated_at_utc": "2026-11-04T04:28:16.194940+00:00",
+  "status": "PUBLIC DEMO DEPLOYED AND HOSTED SMOKE PASSED; human validation pending",
+  "base_commit": "ddf4083debe0d81483a6973a9b5decb3ececca48",
+  "branch": "codex/phase-8",
+  "topology": "Render Free combined React/Node API + fresh Neon Free PostgreSQL 18",
+  "hosted_resources_created": true,
+  "paid_plans_enabled": false,
+  "owner_data_uploaded": false,
+  "native_postgresql_modified": false,
+  "existing_docker_demo_modified": false,
+  "real_gemini_calls_this_phase": null,
+  "hosted_gemini_free_tier_confirmed": false,
+  "heldout_runs_this_phase": 0,
+  "student_sessions_completed": 0,
+  "video_recorded": false,
+  "unit_tests_passed": 248,
+  "integration_tests_passed": 96,
+  "desktop_mobile_journeys_passed": 36,
+  "https_rehearsal_tests_passed": 2,
+  "unit_coverage": {
+    "lines": 80.87,
+    "statements": 80.22,
+    "branches": 80.88,
+    "functions": 78.89
+  },
+  "integration_coverage": {
+    "lines": 91.57,
+    "statements": 91.03,
+    "branches": 85.08,
+    "functions": 94.25
+  },
+  "coverage_gates_unchanged": true,
+  "dependency_advisories_full_install": {
+    "info": 0,
+    "low": 0,
+    "moderate": 21,
+    "high": 0,
+    "critical": 0,
+    "total": 21
+  },
+  "render_schema_url": "https://render.com/schema/render.yaml.json",
+  "render_schema_sha256": "8a3fb8da6b4f55fe686fbefa790e011d3dd7895f013f355953c572a21ab6494a",
+  "render_blueprint_schema_validation_passed": true,
+  "local_tls": "ephemeral self-signed termination; not hosted certificate validation",
+  "database_role": "disposable non-superuser/NOBYPASSRLS database owner; hosted RLS not enabled",
+  "backup_restore_rehearsal": {
+    "synthetic_only": true,
+    "archive_mode": "0600",
+    "restored_into_separate_database": true,
+    "verified_transaction_count": 1,
+    "verified_amount_vnd": "35123",
+    "hosted_restore_verified": false
+  },
+  "source_scan": {
+    "tool": "Trivy 0.75.0 digest-pinned CI image",
+    "scope": "git archive of code commit; filesystem vulnerabilities/secrets/misconfigurations only",
+    "high_critical_vulnerabilities": 0,
+    "high_critical_secrets": 0,
+    "high_critical_misconfigurations": 0,
+    "exit_code": 0
+  },
+  "hosted_ci": {
+    "sha": "7586e2d84ee0954980f11a18f363bcd24a1230af",
+    "run_url": "https://github.com/Krezzy88/sochat/actions/runs/41783820913",
+    "conclusion": "success",
+    "jobs": ["Checks, coverage, browser and Compose", "Trivy filesystem scan"]
+  },
+  "pending": [
+    "Hosted backup/restore rehearsal not performed",
+    "Untouched heldout >=50 cases with independent approved labels",
+    "Five consenting student sessions",
+    "Actual <=2-minute demo recording"
+  ],
+  "final_render_origin_rehearsed": true,
+  "code_commit": "0bc02c95a14bf5674c5c8448c024395c878116ba",
+  "render_schema_validation_format_checks": "JSON Schema structural validation; format assertions disabled; provider provisioning not attempted",
+  "local_rehearsal_stack_removed": true,
+  "publication": {
+    "pr": "https://github.com/Krezzy88/sochat/pull/13",
+    "draft": true,
+    "owner_authorized": true,
+    "main_merged": false
+  },
+  "hosted_ci_attempts": [
+    {
+      "sha": "e2fcb009326d9382256759bd2e16b5f6fc008d93",
+      "run_url": "https://github.com/Krezzy88/sochat/actions/runs/41773965546",
+      "conclusion": "cancelled",
+      "reason": "Superseded by owner MIT license synchronization"
+    },
+    {
+      "sha": "a0bb3bd4ecafec8eda7a35d52731f5f0f89a4b20",
+      "run_url": "https://github.com/Krezzy88/sochat/actions/runs/41774132561",
+      "conclusion": "failure",
+      "reason": "Expanded Compose fixture hit unchanged anonymous registration throttle after ten actors"
+    }
+  ],
+  "followup_verification": {
+    "unit_tests_passed": 252,
+    "compose_browser_journeys_passed": 18,
+    "test_fixture_only": "explicit sochat-ci opt-in, exact localhost:18080 and Compose label guard; clears anonymous test counters only",
+    "production_registration_limit_changed": false,
+    "lint_typecheck_passed": true
+  },
+  "deployed_url": "https://sochat.onrender.com",
+  "deployed_commit_sha": "7586e2d84ee0954980f11a18f363bcd24a1230af",
+  "deployed_commit_confirmed_by_owner": true,
+  "hosted_ai_browser_cases_passed": 3,
+  "hosted_core_extraction_usage": {
+    "attempts": 1,
+    "input_tokens": 405,
+    "output_tokens": 87,
+    "total_tokens": 492,
+    "other_feature_usage": "Not exposed in public responses; no billing total inferred"
+  },
+  "billing_decision": "Free-only condition superseded by explicit owner Paid Tier 1 test authorization",
+  "hosted_resources_provisioned_by": "Owner",
+  "paid_plans_enabled_caveat": "Agent enabled no new billing plan; owner authorized existing billable Gemini key",
+  "real_hosted_generation_tested": true,
+  "real_hosted_embeddings_tested": true,
+  "hosted_backup_restore_verified": false
+}

@@ -1,0 +1,36 @@
+{
+  "finished_date_client": "2026-11-04",
+  "generated_at_utc": "2026-11-04T02:57:15.038492+00:00",
+  "source_commit": "6d98e3fc0e5162ec0eabbf1d63da87dbcd4a02ff",
+  "scope": "Bounded business-rule audit with synthetic data; not unconditional production or AI accuracy certification",
+  "unit_tests_passed": 215,
+  "integration_tests_passed": 89,
+  "desktop_mobile_journeys_passed": 28,
+  "unit_coverage": {
+    "lines": 80.13,
+    "statements": 79.51,
+    "branches": 78.61,
+    "functions": 77.22
+  },
+  "integration_coverage": {
+    "lines": 90.92,
+    "statements": 90.6,
+    "branches": 84.91,
+    "functions": 93.75
+  },
+  "lint_typecheck_passed": true,
+  "coverage_gates_unchanged": true,
+  "owner_rule_future_contributions": "count immediately",
+  "live_gemini_calls_in_audit": 0,
+  "owner_ledger_inspected": false,
+  "native_postgresql_modified": false,
+  "new_schema_migrations": 0,
+  "local_demo_rebuilt_healthy": true,
+  "known_limits": [
+    "Goal creation metadata is not idempotent",
+    "Uncertain web retry intent is memory-only",
+    "Same-account concurrent full-form edits use last-write-wins",
+    "CSV streaming is not a point-in-time snapshot",
+    "Representative/heldout AI quality and hosted CI not newly verified"
+  ]
+}

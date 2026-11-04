@@ -1,0 +1,128 @@
+{
+  "generated_at_utc": "2026-11-04T03:47:25.565188+00:00",
+  "scope": "Owner-requested production hardening; local verification, not hosted production certification",
+  "source_commit": "55513465c7831e1dfeb86e29bc1ade1a02a5100d",
+  "evaluation_working_tree_dirty": true,
+  "evaluation_dirty_paths": ["compose.gemini.yaml"],
+  "unit_tests_passed": 246,
+  "postgresql_rls_integration_tests_passed": 95,
+  "desktop_mobile_journeys_passed": 34,
+  "real_gemini_demo_smokes_passed": 1,
+  "unit_coverage": {
+    "lines": 80.96,
+    "statements": 80.31,
+    "branches": 80.98,
+    "functions": 78.89
+  },
+  "integration_coverage": {
+    "lines": 91.38,
+    "statements": 90.86,
+    "branches": 84.95,
+    "functions": 93.75
+  },
+  "coverage_gates_unchanged": true,
+  "production_dependency_advisories": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "private_backup_before_migration": true,
+  "backup_archive_structurally_validated": true,
+  "backup_restore_rehearsal_this_run": false,
+  "native_postgresql_modified": false,
+  "docker_demo_migration": "008_record_versions.sql",
+  "docker_runtime_profile": "owner-confirmed-v2",
+  "docker_runtime_rls": true,
+  "owner_ledger_inspected": false,
+  "mutations": {
+    "goal_uuid_replay": "atomic, owner scoped, payload checked",
+    "stale_edits": "409, no overwrite",
+    "budget_aba": "opaque id:version",
+    "csv": "one repeatable-read snapshot, stream and per-query 30s bounds"
+  },
+  "ai_dev": {
+    "model": "gemini-3.5-flash-lite",
+    "kind": "Owner-approved development/tuning set; NOT representative/heldout",
+    "input_sha256": "6a886601b1485fe3dceb44dc70c0e2492901ac83fc5abdd9474f1085ad7a05ae",
+    "labels_sha256": "0113235fdd130b3f0cc96e156e8df5a8b09a351c35cc35dc97f86c02341fb835",
+    "profile": "owner-confirmed-v2",
+    "injected_time": "2026-11-03T12:00:00+07:00",
+    "cases": 50,
+    "exact_case": {
+      "correct": 50,
+      "total": 50,
+      "accuracy": 1
+    },
+    "fields": {
+      "amount_vnd": {
+        "correct": 55,
+        "total": 55,
+        "accuracy": 1
+      },
+      "category": {
+        "correct": 55,
+        "total": 55,
+        "accuracy": 1
+      },
+      "occurred_on": {
+        "correct": 55,
+        "total": 55,
+        "accuracy": 1
+      },
+      "type": {
+        "correct": 55,
+        "total": 55,
+        "accuracy": 1
+      }
+    },
+    "clarification": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "true_negative": 50,
+      "precision": null,
+      "recall": null
+    },
+    "attempts": 2,
+    "paths": {
+      "rules": 48,
+      "llm": 2
+    },
+    "usage": {
+      "input_tokens": 814,
+      "output_tokens": 454,
+      "total_tokens": 1268
+    },
+    "elapsed_ms": 3687,
+    "price_estimate_usd": null,
+    "historical_v1_before": {
+      "correct": 22,
+      "total": 50,
+      "accuracy": 0.44
+    },
+    "historical_v1_after": {
+      "correct": 49,
+      "total": 50,
+      "accuracy": 0.98
+    },
+    "cross_policy_comparison_valid": false,
+    "raw_outputs_public": false,
+    "heldout_runs": 0,
+    "caveat": "Same 50 owner dev phrases used for tuning. V2 changed missing-unit labels; no clarification positives remain, so clarification precision/recall are n/a. Not representative accuracy."
+  },
+  "not_verified": [
+    "Hosted CI for this update",
+    "Public deployment/TLS/secrets/host backups and load",
+    "Final heldout >=50 cases",
+    "Five student sessions",
+    "Native Excel/Numbers import and non-Chromium device behavior"
+  ],
+  "remaining_limits": [
+    "Transaction/contribution pending payloads remain page memory; no durable offline outbox",
+    "Very slow exports terminate; retry required",
+    "Model semantics/ranking not guaranteed outside tuned development set"
+  ]
+}

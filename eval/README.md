@@ -66,3 +66,13 @@ unreadable dummy held-out row; they do not evaluate a held-out dataset.
 Provider reports include measured local p50/p95 and observed-token cost estimates.
 Fake results are not Gemini measurements; real evaluation is owner-run. No
 real-world accuracy claim is made.
+
+## Deployment money profile
+
+Both rules and provider CLI evaluations honor MONEY_PROFILE and record it in JSON
+and Markdown. The hosted demo candidate uses owner-confirmed-v2; the original seed
+set is standard-profile dev. Do not compare scores across different money policies
+as if labels were unchanged. The final untouched held-out procedure, explicit
+owner authorization, dedicated evaluation DB and run-count discipline are described
+in [HELDOUT_PROTOCOL.md](../docs/release/HELDOUT_PROTOCOL.md). No held-out evaluation
+has been performed by preparing this phase.

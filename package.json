@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -32,7 +32,9 @@
     "web:preview": "npm run preview --workspace @sochat/web",
     "e2e": "node --experimental-strip-types e2e/run.ts",
     "e2e:serve": "node --experimental-strip-types e2e/server.ts",
-    "web:audit": "node --experimental-strip-types e2e/audit.ts"
+    "web:audit": "node --experimental-strip-types e2e/audit.ts",
+    "check:gemini:live": "node --env-file=.env --experimental-strip-types scripts/check-gemini-live.ts",
+    "test:gemini:ui": "playwright test --config playwright.live.config.ts"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "13.1.0",

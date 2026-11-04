@@ -1,0 +1,16 @@
+.git
+node_modules
+**/node_modules
+**/dist
+.env
+.env.*
+coverage
+test-results
+playwright-report
+eval/results
+docs/screenshots
+**/*.test.*
+**/*.integration.ts
+
+.local
+eval/inbox

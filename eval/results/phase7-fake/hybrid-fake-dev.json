@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-11-03T07:19:05.643Z",
+  "split": "dev",
+  "dataset_sha256": "525fbdfaac8e80d3470aa43203f41c01fe2eee829d638e12df401a11a8122839",
+  "source_commit": "e4dbdcad0d922bf68b72ab9e65d9cc04d3950e18",
+  "working_tree_dirty": true,
+  "seed_set_caveat": "The 65 synthetic seed cases and reference rules share an author; scores are not representative of real users. Unlabeled owner inbox is excluded. FakeProvider always asks for clarification; fake metrics are not Gemini performance.",
+  "cases": 65,
+  "exact_case": {
+    "correct": 65,
+    "total": 65,
+    "accuracy": 1
+  },
+  "fields": {
+    "amount_vnd": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "category": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "occurred_on": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    },
+    "type": {
+      "correct": 70,
+      "total": 70,
+      "accuracy": 1
+    }
+  },
+  "clarification": {
+    "true_positive": 5,
+    "false_positive": 0,
+    "false_negative": 0,
+    "true_negative": 60,
+    "precision": 1,
+    "recall": 1
+  },
+  "failures": [],
+  "config": "hybrid",
+  "provider": "fake",
+  "model": "fake-v1",
+  "prompt_version": "extract-v1",
+  "operational": {
+    "messages": 65,
+    "provider_attempts": 5,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0
+    },
+    "no_provider_attempt_share": 0.9230769230769231,
+    "rules_only_share": 0.9230769230769231,
+    "latency_ms": {
+      "p50": 0.03320899999999938,
+      "p95": 0.4248330000000067
+    },
+    "observed_token_estimate_usd_per_100_messages": 0,
+    "attempts_with_unknown_usage": 0,
+    "pricing_caveat": "Owner-supplied USD/token rates; observed-token estimate only, not billing. Missing prices yield null. Failed HTTP calls can have unknown billable usage. Fake has no API cost."
+  }
+}

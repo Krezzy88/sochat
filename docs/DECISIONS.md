@@ -199,3 +199,41 @@ Lighthouse on authenticated synthetic Chat/Dashboard, retaining selected metrics
 only, because full reports can contain Cookie headers. Measured V8 browser ranges
 include bundled libraries and are separate from TypeScript line/branch coverage.
 No hosted CI, deployment or manual accessibility certification is implied.
+
+## ADR-014: Owner-approved conversational AI with exact code operations
+
+Date: 2026-11-03. Status: implemented locally before Phase 8.
+
+Use a shared composer/transcript for expense proposals, bounded monthly questions
+and draft corrections. Model output is a strict filter/edit plan, never executable
+SQL, ledger totals or an autonomous action. Existing draft amounts/notes/dates stay
+out of revision prompts; explicit deltas are amount-guarded and applied with bigint.
+Saving remains human-confirmed/idempotent. Conversation is page memory, not durable
+chat storage. Manual intent selection resolves heuristic routing mistakes.
+
+Semantic retrieval requires default-off explicit consent and an indexing action.
+Use Gemini Embedding 2 at 768 dimensions with numeric/email/URL/key minimization,
+fixed daily caps and deletion/invalidation of derived data. Eight notes/four queries
+showed hybrid top-1 3/4 vs token-substring baseline 1/4, including a known failure;
+this justifies an optional bounded experiment, not an accuracy claim. Use portable
+PostgreSQL arrays and exact owner-first cosine/lexical ranking for at most 1,000
+notes; defer pgvector ANN until scale/recall measurements warrant the extension.
+Voice was explored, then removed at the owner's request before deployment.
+
+## ADR-015: Explicit local RLS and operational-only OpenTelemetry
+
+Date: 2026-11-03. Status: implemented and separately opted into Docker demo.
+
+Keep native PostgreSQL setup unchanged. Install tenant policies through a separate
+administrator script only after backup. Authenticated handlers use a restricted
+NOLOGIN/NOBYPASSRLS role and transaction-local owner context. Client queries outside
+an explicit transaction fail closed; releasing an open transaction destroys that
+connection. Test missing predicates, forbidden writes, rollback and max-one pool
+reuse; also run the complete primary API fixture with RLS. Privileged session/auth
+bootstrap remains intentionally separate and parameterized.
+
+Use the real OpenTelemetry SDK with manual handler spans/counters/durations, fixed
+route templates only and no request bodies, SQL, owner IDs, raw errors or automatic
+resource discovery. Default exporters stay local; no hosted collector or automatic
+HTTP/SQL instrumentation. This measures registered handler work rather than every
+pre-handler middleware rejection. External telemetry needs explicit privacy review.

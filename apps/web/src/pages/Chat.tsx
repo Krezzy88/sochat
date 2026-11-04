@@ -1,9 +1,22 @@
+import { CalendarInput } from '../DateControls.tsx';
+import { useFeedback } from '../Feedback.tsx';
+import DraftRevision from './DraftRevision.tsx';
+import { QueryPanel } from './QueryPanel.tsx';
+import { Mascot } from '../Mascot.tsx';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, errorText, money, request } from '../api.ts';
 import type { Category, Draft, Proposal } from '../api.ts';
-import { Alert, Icon } from '../ui.tsx';
+import { Alert, Icon, MoneyInput, useLoad } from '../ui.tsx';
 export function Chat({ categories }: { categories: Category[] }) {
+  const engine = useLoad(
+    () =>
+      request<{
+        provider: 'gemini' | 'fake';
+        money_profile: 'standard' | 'owner-confirmed-v1' | 'owner-confirmed-v2';
+      }>('/chat/status'),
+    [],
+  );
   const [message, setMessage] = useState('');
   const [source, setSource] = useState('');
   const [proposal, setProposal] = useState<Proposal>();
@@ -12,7 +25,7 @@ export function Chat({ categories }: { categories: Category[] }) {
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const setSuccess = useFeedback().success;
   const pending = useRef<
     { idempotency_key: string; items: Draft[] } | undefined
   >(undefined);
@@ -66,7 +79,9 @@ export function Chat({ categories }: { categories: Category[] }) {
     setLocked(true);
     try {
       await request('/transactions/batch', 'POST', pending.current);
-      setSuccess(`Đã lưu ${pending.current.items.length} khoản vào sổ.`);
+      setSuccess(
+        `Đã lưu ${pending.current.items.length} khoản vào sổ. Não được nghỉ một chút rồi!`,
+      );
       setProposal(undefined);
       setDrafts([]);
       setMessage('');
@@ -93,12 +108,35 @@ export function Chat({ categories }: { categories: Category[] }) {
         <div>
           <span className="eyebrow">MỖI NGÀY MỘT CHÚT</span>
           <h1>Hôm nay bạn chi gì?</h1>
+          <button
+            className="text-button"
+            onClick={() =>
+              document.getElementById('ask-ledger')?.scrollIntoView()
+            }
+          >
+            Hỏi về giao dịch đã lưu ↓
+          </button>
           <p>Cứ kể tự nhiên. SổChat giúp bạn ghi lại.</p>
         </div>
         <span className="header-stamp">
           <Icon name="chat" size={30} />
         </span>
       </header>
+      <div className="engine-status" role="status">
+        <strong>
+          {engine.data?.provider === 'gemini'
+            ? '✦ Gemini thật đã bật'
+            : engine.loading
+              ? 'Đang kiểm tra bộ phân tích…'
+              : engine.error
+                ? 'Không kiểm tra được kết nối bộ phân tích'
+                : 'Bản kiểm thử · Không gọi Gemini'}
+        </strong>
+        <span>
+          Tự nhận diện câu rõ ràng → Gemini hỗ trợ khi cần → bạn xác nhận trước
+          khi lưu.
+        </span>
+      </div>
       <div className="chat-layout">
         <section className="chat-panel panel">
           <div className="panel-heading">
@@ -125,6 +163,7 @@ export function Chat({ categories }: { categories: Category[] }) {
             </div>
             {!proposal && (
               <div className="chat-prompt">
+                <Mascot />
                 <span className="prompt-illustration">
                   <Icon name="list" size={42} />
                   <span>✦</span>
@@ -137,20 +176,33 @@ export function Chat({ categories }: { categories: Category[] }) {
                 </p>
               </div>
             )}
-            {success && (
-              <div className="success" role="status">
-                <Icon name="check" />
-                {success}
-                <a href="#transactions">Xem giao dịch →</a>
-              </div>
-            )}
             {proposal && (
               <div ref={card} tabIndex={-1} className="proposal">
                 <p className="source-message">{source}</p>
                 <div className="confirm-heading">
                   <h3>Kiểm tra trước khi lưu</h3>
+                  <span className="route-label">
+                    {proposal.path === 'rules'
+                      ? proposal.reasons.some((r) => r.startsWith('llm_'))
+                        ? 'AI chưa xử lý được · bạn kiểm tra lại'
+                        : 'Bản gốc được tự nhận diện'
+                      : proposal.path === 'cache'
+                        ? 'Dùng kết quả lần trước · không gọi lại AI'
+                        : proposal.provider === 'gemini'
+                          ? 'Gemini đã hỗ trợ bóc tách'
+                          : 'Phản hồi mô phỏng kiểm thử'}
+                  </span>
                   <span className="count-pill">{drafts.length} khoản</span>
                 </div>
+                <DraftRevision
+                  items={drafts}
+                  onBusy={setBusy}
+                  disabled={saving || locked}
+                  onChange={(items) => {
+                    setDrafts(items);
+                    pending.current = undefined;
+                  }}
+                />
                 {proposal.needs_clarification && (
                   <div className="clarification" role="status">
                     <strong>Có chỗ cần bạn làm rõ</strong>
@@ -166,7 +218,7 @@ export function Chat({ categories }: { categories: Category[] }) {
                 {drafts.length ? (
                   <form onSubmit={save}>
                     <fieldset
-                      disabled={saving || locked}
+                      disabled={saving || locked || busy}
                       className="draft-list"
                     >
                       {drafts.map((item, index) => {
@@ -216,33 +268,18 @@ export function Chat({ categories }: { categories: Category[] }) {
                                     ))}
                                 </select>
                               </label>
-                              <label
-                                className={
-                                  !item.amount_vnd ? 'field-warning' : ''
-                                }
-                              >
-                                Số tiền (đ)
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="100000000000"
-                                  step="1"
-                                  inputMode="numeric"
-                                  required
-                                  value={item.amount_vnd}
-                                  onChange={(e) =>
-                                    edit(index, 'amount_vnd', e.target.value)
-                                  }
-                                  placeholder="Nhập số tiền chính xác"
-                                />
-                              </label>
+                              <MoneyInput
+                                value={item.amount_vnd}
+                                onChange={(v) => edit(index, 'amount_vnd', v)}
+                              />
+
                               <label
                                 className={
                                   !item.occurred_on ? 'field-warning' : ''
                                 }
                               >
                                 Ngày giao dịch
-                                <input
+                                <CalendarInput
                                   type="date"
                                   required
                                   value={item.occurred_on}
@@ -267,21 +304,29 @@ export function Chat({ categories }: { categories: Category[] }) {
                       })}
                     </fieldset>
                     <div className="confirmation-total">
-                      <span>Tổng các khoản đang xác nhận</span>
-                      <strong>
-                        {money(
-                          drafts.reduce(
-                            (sum, item) =>
-                              sum +
-                              (/^[1-9]\d*$/.test(item.amount_vnd)
-                                ? BigInt(item.amount_vnd)
-                                : 0n),
-                            0n,
-                          ),
-                        )}
-                      </strong>
+                      {(['expense', 'income'] as const).map((type) => (
+                        <div key={type}>
+                          <span>
+                            {type === 'expense' ? 'Tổng chi' : 'Tổng thu'}
+                          </span>
+                          <strong>
+                            {money(
+                              drafts
+                                .filter((i) => i.type === type)
+                                .reduce(
+                                  (sum, i) =>
+                                    sum +
+                                    (/^[1-9]\d*$/.test(i.amount_vnd)
+                                      ? BigInt(i.amount_vnd)
+                                      : 0n),
+                                  0n,
+                                ),
+                            )}
+                          </strong>
+                        </div>
+                      ))}
                     </div>
-                    <button className="primary full" disabled={saving}>
+                    <button className="primary full" disabled={saving || busy}>
                       {saving
                         ? 'Đang lưu…'
                         : locked
@@ -293,6 +338,7 @@ export function Chat({ categories }: { categories: Category[] }) {
                       <button
                         type="button"
                         className="text-button full discard"
+                        disabled={busy}
                         onClick={() => {
                           setProposal(undefined);
                           setDrafts([]);
@@ -350,6 +396,18 @@ export function Chat({ categories }: { categories: Category[] }) {
               <div>
                 <strong>Có số, có đơn vị</strong>
                 <p>50k, 1tr2, 2 triệu rưỡi.</p>
+                {engine.data && engine.data.money_profile !== 'standard' && (
+                  <details>
+                    <summary>Quy ước tiếng lóng</summary>
+                    <p>
+                      Lít, loét, xị, cành = 100.000đ; chục = 10.000đ.{' '}
+                      {engine.data.money_profile === 'owner-confirmed-v2'
+                        ? 'Số tiền từ 1–999 thiếu đơn vị được hiểu là nghìn đồng (35 = 35.000đ); ngày, giờ và số lượng không quy đổi.'
+                        : 'Số thiếu đơn vị vẫn cần hỏi lại.'}{' '}
+                      Bạn luôn kiểm tra trước khi lưu.
+                    </p>
+                  </details>
+                )}
               </div>
             </div>
             <div className="tip-row">
@@ -386,6 +444,7 @@ export function Chat({ categories }: { categories: Category[] }) {
           </p>
         </aside>
       </div>
+      <QueryPanel categories={categories} />
     </>
   );
 }

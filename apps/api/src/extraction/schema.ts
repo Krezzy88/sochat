@@ -5,9 +5,12 @@ import {
   isCalendarDate,
 } from '../../../../packages/parser/src/index.ts';
 const fields = {
-  amount_vnd: z.number().int().min(1).max(100_000_000_000),
+  amount_vnd: z.number().int().min(1).max(100_000_000_000).nullable(),
   note: z.string().max(120),
-  occurred_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  occurred_on: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
   confidence: z.number().min(0).max(1),
 };
 const WireItem = z.strictObject({
@@ -30,14 +33,18 @@ export const LlmResult = WireResult.superRefine((value, ctx) => {
         message: 'Category/type mismatch',
         path: ['items', index, 'category'],
       });
-    if (!isCalendarDate(item.occurred_on))
+    if (item.occurred_on !== null && !isCalendarDate(item.occurred_on))
       ctx.addIssue({
         code: 'custom',
         message: 'Invalid calendar date',
         path: ['items', index, 'occurred_on'],
       });
   }
-  if (!value.needs_clarification && value.items.length === 0)
+  if (
+    !value.needs_clarification &&
+    (value.items.length === 0 ||
+      value.items.some((i) => i.amount_vnd === null || i.occurred_on === null))
+  )
     ctx.addIssue({
       code: 'custom',
       message: 'Empty result needs clarification',

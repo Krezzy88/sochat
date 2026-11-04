@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { collectCoverage } from './coverage.ts';
+import { resetSyntheticComposeLimiter } from './compose-fixture.ts';
 async function register(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Đăng ký ngay' }).click();
@@ -12,6 +13,9 @@ async function register(page: Page) {
     .fill(`synthetic-${randomUUID()}@example.test`);
   await page
     .getByLabel('Mật khẩu', { exact: true })
+    .fill('Synthetic-browser-password-2026');
+  await page
+    .getByLabel('Xác nhận mật khẩu', { exact: true })
     .fill('Synthetic-browser-password-2026');
   await page
     .getByRole('button', { name: 'Tạo tài khoản', exact: true })
@@ -28,11 +32,17 @@ async function parse(page: Page, text = 'ăn phở 50k') {
   ).toBeVisible();
 }
 async function save(page: Page) {
+  const saved = page.waitForResponse(
+    (r) =>
+      r.url().endsWith('/api/transactions/batch') &&
+      r.request().method() === 'POST',
+  );
   await page
     .getByRole('button', { name: 'Xác nhận và lưu', exact: true })
     .click();
+  expect((await saved).status()).toBe(201);
   await expect(
-    page.getByRole('status').filter({ hasText: 'Đã lưu' }),
+    page.getByRole('status').filter({ hasText: /Đã lưu \d+ khoản/ }),
   ).toBeVisible();
 }
 async function go(page: Page, name: string) {
@@ -44,7 +54,8 @@ async function go(page: Page, name: string) {
     page.getByRole('heading', { name, exact: true, level: 1 }),
   ).toBeVisible();
 }
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, info) => {
+  resetSyntheticComposeLimiter(info.project.use.baseURL);
   await page.coverage.startJSCoverage({ resetOnNavigation: false });
   await register(page);
 });
@@ -177,7 +188,9 @@ test('transaction edit/delete and budget warning use persisted data', async ({
   await page.getByRole('button', { name: /^Sửa / }).click();
   await page.getByLabel('Số tiền (đ)', { exact: true }).fill('80000');
   await page.getByRole('button', { name: 'Lưu thay đổi' }).click();
-  await expect(page.getByRole('status')).toContainText('Đã cập nhật');
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Đã cập nhật giao dịch.' }),
+  ).toBeVisible();
   await expect(page.getByRole('cell', { name: /80.000/ })).toBeVisible();
   await go(page, 'Ngân sách');
   await page.getByLabel('Giới hạn tháng (đ)').fill('100000');
@@ -185,8 +198,11 @@ test('transaction edit/delete and budget warning use persisted data', async ({
   await expect(page.getByText('Đã dùng từ 80%', { exact: true })).toBeVisible();
   await expect(page.getByText('Đã dùng 80%', { exact: true })).toBeVisible();
   await go(page, 'Giao dịch');
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: /^Xóa / }).click();
+  await page
+    .getByRole('dialog', { name: 'Xóa giao dịch?' })
+    .getByRole('button', { name: 'Xóa giao dịch', exact: true })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'Chưa có giao dịch phù hợp' }),
   ).toBeVisible();
@@ -309,9 +325,507 @@ test('cursor filters and goal edit/delete controls work', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Quỹ đã sửa', exact: true }),
   ).toBeVisible();
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Xóa quỹ Quỹ đã sửa' }).click();
+  await page
+    .getByRole('dialog', { name: 'Xóa quỹ?' })
+    .getByRole('button', { name: 'Xóa quỹ', exact: true })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'Bạn đang ấp ủ điều gì?' }),
   ).toBeVisible();
+});
+
+test('semantic consent defaults off, persists, revokes; voice is absent', async ({
+  page,
+}) => {
+  await expect(
+    page.getByRole('button', { name: 'Ghi âm', exact: true }),
+  ).toHaveCount(0);
+  await go(page, 'Cài đặt');
+  const toggle = page.getByLabel(
+    'Cho phép gửi ghi chú giao dịch để tìm theo ý nghĩa',
+  );
+  await expect(toggle).not.toBeChecked();
+  const updated = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/me/ai-preferences') &&
+      r.request().method() === 'PUT',
+  );
+  await toggle.click();
+  await page
+    .getByRole('dialog', { name: 'Cho phép tìm kiếm bằng AI?' })
+    .getByRole('button', { name: 'Bật tính năng' })
+    .click();
+  expect((await updated).status()).toBe(200);
+  await expect(toggle).toBeChecked();
+  await expect(toggle).toBeEnabled();
+  await page.reload();
+  await expect(toggle).toBeChecked();
+  const revoked = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/me/ai-preferences') &&
+      r.request().method() === 'PUT',
+  );
+  await toggle.uncheck();
+  expect((await revoked).status()).toBe(200);
+  await expect(toggle).not.toBeChecked();
+  expect(
+    (
+      await page.request.post('/api/assistant/transcribe', {
+        data: { audio: 'removed' },
+      })
+    ).status(),
+  ).toBe(404);
+});
+
+test('separate question form preserves expense draft (mocked question transport)', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await page.route('**/api/assistant/query', (r) =>
+    r.fulfill({
+      json: {
+        needs_clarification: false,
+        question: 'Các khoản đã lưu',
+        month: '2026-11',
+        category: null,
+        income_vnd: '0',
+        expense_vnd: '0',
+        evidence_url: '/api/transactions?from=2026-11-01&to=2026-11-30',
+      },
+    }),
+  );
+  await page.getByLabel('Câu hỏi về thu chi').fill('Tháng này chi bao nhiêu?');
+  await page.getByRole('button', { name: 'Hỏi cuốn sổ', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Kiểm tra trước khi lưu' }),
+  ).toBeVisible();
+  await page.route('**/api/assistant/revise', async (route) => {
+    const input = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        items: input.items.map((i: object) => ({ ...i, amount_vnd: '70000' })),
+        needs_clarification: false,
+        question: 'Đã cập nhật bản nháp.',
+        changed_indices: [0],
+      },
+    });
+  });
+  await page.getByText('Sửa bản nháp bằng câu nói', { exact: true }).click();
+  await page.getByLabel('Yêu cầu sửa bản nháp').fill('tăng thêm 20k');
+  await page
+    .getByRole('button', { name: 'Áp dụng vào bản nháp', exact: true })
+    .click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Đã cập nhật bản nháp.' }),
+  ).toBeVisible();
+  await save(page);
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(1);
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items[0]
+      .amount_vnd,
+  ).toBe('70000');
+});
+
+test('editing a scrolled transaction opens a visible modal and Escape returns focus', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  await go(page, 'Giao dịch');
+  const trigger = page.getByRole('button', { name: /^Sửa / }).first();
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Sửa giao dịch' });
+  await expect(dialog).toBeInViewport();
+  await expect(
+    dialog.getByRole('combobox', { name: 'Loại', exact: true }),
+  ).toBeFocused();
+  await dialog.getByLabel('Số tiền (đ)', { exact: true }).fill('75000');
+  await page.route(
+    '**/api/transactions/*',
+    (r) =>
+      r.fulfill({
+        status: 503,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ detail: 'Không lưu được, thử lại nhé.' }),
+      }),
+    { times: 1 },
+  );
+  await dialog.getByRole('button', { name: 'Lưu thay đổi' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Không lưu được');
+  await dialog.getByRole('button', { name: 'Lưu thay đổi' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Đã cập nhật giao dịch.' }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items[0]
+      .amount_vnd,
+  ).toBe('75000');
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+test('toasts dismiss, themed cancel preserves data, reporting boxes are equal', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  const toast = page.locator('.toast').filter({ hasText: 'Đã lưu 1 khoản' });
+  await expect(toast).toBeVisible();
+  await toast.getByRole('button', { name: 'Đóng thông báo' }).click();
+  await expect(toast).toHaveCount(0);
+  await go(page, 'Giao dịch');
+  const remove = page.getByRole('button', { name: /^Xóa / });
+  await remove.click();
+  const confirm = page.getByRole('dialog', { name: 'Xóa giao dịch?' });
+  await expect(
+    confirm.getByRole('button', { name: 'Hủy', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(confirm).toHaveCount(0);
+  await expect(remove).toBeFocused();
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(1);
+  await go(page, 'Tổng quan');
+  const period = await page
+      .getByLabel('Kỳ báo cáo', { exact: true })
+      .boundingBox(),
+    month = await page
+      .getByLabel('Tháng báo cáo', { exact: true })
+      .boundingBox();
+  expect(period).not.toBeNull();
+  expect(month).not.toBeNull();
+  expect(Math.abs(period!.width - month!.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(period!.height - month!.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(period!.y - month!.y)).toBeLessThanOrEqual(1);
+  await go(page, 'Cài đặt');
+  const consent = page.getByLabel(
+    'Cho phép gửi ghi chú giao dịch để tìm theo ý nghĩa',
+  );
+  await consent.click();
+  await page
+    .getByRole('dialog', { name: 'Cho phép tìm kiếm bằng AI?' })
+    .getByRole('button', { name: 'Hủy', exact: true })
+    .click();
+  await expect(consent).not.toBeChecked();
+  expect(
+    (await (await page.request.get('/api/me/ai-preferences')).json())
+      .semantic_enabled,
+  ).toBe(false);
+});
+
+test('budget edit pre-fills limit; month/year selection and confirmed deletion are scoped', async ({
+  page,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  await go(page, 'Ngân sách');
+  await page.getByLabel('Giới hạn tháng (đ)').fill('100000');
+  await page
+    .getByRole('button', { name: 'Lưu ngân sách', exact: true })
+    .click();
+  const edit = page.getByRole('button', {
+    name: 'Sửa ngân sách Ăn uống',
+    exact: true,
+  });
+  await edit.click();
+  await expect(page.getByLabel('Giới hạn tháng (đ)')).toHaveValue('100.000');
+  await expect(page.getByLabel('Giới hạn tháng (đ)')).toBeFocused();
+  await page.getByLabel('Giới hạn tháng (đ)').fill('150000');
+  const beforeMonth = await page
+    .getByLabel('Tháng ngân sách', { exact: true })
+    .inputValue();
+  await page
+    .getByLabel('Tháng ngân sách', { exact: true })
+    .selectOption(beforeMonth === '12' ? '01' : '12');
+  await page
+    .getByRole('dialog', { name: 'Đổi tháng ngân sách?', exact: true })
+    .getByRole('button', { name: 'Hủy', exact: true })
+    .click();
+  await expect(page.getByLabel('Tháng ngân sách', { exact: true })).toHaveValue(
+    beforeMonth,
+  );
+  await expect(page.getByLabel('Giới hạn tháng (đ)')).toHaveValue('150.000');
+
+  await page
+    .getByRole('button', { name: 'Lưu thay đổi ngân sách', exact: true })
+    .click();
+  await expect(page.getByText('/ 150.000', { exact: false })).toBeVisible();
+  const originalMonth = await page
+      .getByLabel('Tháng ngân sách', { exact: true })
+      .inputValue(),
+    originalYear = await page
+      .getByLabel('Năm ngân sách', { exact: true })
+      .inputValue();
+  const nextYear = String(Number(originalYear) + 1);
+  await page
+    .getByLabel('Năm ngân sách', { exact: true })
+    .selectOption(nextYear);
+  await expect(
+    page.getByRole('heading', { name: 'Chưa đặt ngân sách tháng này' }),
+  ).toBeVisible();
+  await page.getByLabel('Tháng ngân sách', { exact: true }).selectOption('12');
+  await page.getByLabel('Giới hạn tháng (đ)').fill('200000');
+  await page
+    .getByRole('button', { name: 'Lưu ngân sách', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Sửa ngân sách Ăn uống', exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel('Năm ngân sách', { exact: true })
+    .selectOption(originalYear);
+  await page
+    .getByLabel('Tháng ngân sách', { exact: true })
+    .selectOption(originalMonth);
+  await expect(edit).toBeVisible();
+  const remove = page.getByRole('button', {
+    name: 'Xóa ngân sách Ăn uống',
+    exact: true,
+  });
+  await remove.click();
+  await page
+    .getByRole('dialog', { name: 'Xóa ngân sách?', exact: true })
+    .getByRole('button', { name: 'Hủy', exact: true })
+    .click();
+  await expect(remove).toBeVisible();
+  await remove.click();
+  await page
+    .getByRole('dialog', { name: 'Xóa ngân sách?', exact: true })
+    .getByRole('button', { name: 'Xóa ngân sách', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Chưa đặt ngân sách tháng này' }),
+  ).toBeVisible();
+  expect(
+    (
+      await (
+        await page.request.get('/api/budgets?month=' + nextYear + '-12')
+      ).json()
+    ).items[0].limit_vnd,
+  ).toBe('200000');
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(1);
+});
+
+test('month popup applies selected period, Escape cancels, and years are selectable', async ({
+  page,
+}) => {
+  await go(page, 'Tổng quan');
+  const control = page.getByLabel('Tháng báo cáo', { exact: true }),
+    previous = await control.inputValue();
+  await control.click();
+  const popup = page.getByRole('dialog', {
+    name: 'Chọn tháng báo cáo',
+    exact: true,
+  });
+  await expect(popup).toBeVisible();
+  await popup.getByLabel('Chọn tháng', { exact: true }).selectOption('12');
+  await page.keyboard.press('Escape');
+  await expect(popup).toHaveCount(0);
+  await expect(control).toHaveValue(previous);
+  await expect(control).toBeFocused();
+  await control.click();
+  await popup.getByLabel('Chọn tháng', { exact: true }).selectOption('12');
+  await popup.getByLabel('Chọn năm', { exact: true }).selectOption('2027');
+  const response = page.waitForResponse((r) =>
+    r.url().includes('/reports/month?month=2027-12'),
+  );
+  await popup.getByRole('button', { name: 'Áp dụng', exact: true }).click();
+  expect((await response).status()).toBe(200);
+  await expect(control).toHaveValue('12/2027');
+  await page.getByLabel('Kỳ báo cáo', { exact: true }).selectOption('year');
+  await page.getByLabel('Năm báo cáo', { exact: true }).selectOption('2027');
+  await expect(page.getByLabel('Năm báo cáo', { exact: true })).toHaveValue(
+    '2027',
+  );
+  await go(page, 'Giao dịch');
+  await expect(page.getByLabel('Từ ngày', { exact: true })).toHaveAttribute(
+    'type',
+    'date',
+  );
+  await expect(page.getByLabel('Đến ngày', { exact: true })).toHaveAttribute(
+    'type',
+    'date',
+  );
+});
+
+test('lost contribution response retries the same intent without double counting', async ({
+  page,
+}) => {
+  await go(page, 'Quỹ mục tiêu');
+  await page.getByLabel('Tên quỹ', { exact: true }).fill('Quỹ chống trùng');
+  await page.getByLabel('Số tiền mục tiêu (đ)').fill('100000');
+  await page.getByLabel('Ngày mục tiêu').fill('2027-12-31');
+  await page.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
+  await page.getByRole('button', { name: '+ Đóng góp', exact: true }).click();
+  await page.getByLabel('Số tiền đóng góp (đ)').fill('30000');
+  await page.route(
+    '**/api/goals/*/contributions',
+    async (route) => {
+      const actual = await route.fetch();
+      expect(actual.status()).toBe(201);
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page
+    .getByRole('button', { name: 'Ghi nhận đóng góp', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Thử ghi lại', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Số tiền đóng góp (đ)')).toBeDisabled();
+  await page.getByRole('button', { name: 'Thử ghi lại', exact: true }).click();
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Đã ghi nhận đóng góp vào quỹ.' }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/goals')).json()).items[0]
+      .contributed_vnd,
+  ).toBe('30000');
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(0);
+});
+
+test('lost goal creation response retries without creating another goal', async ({
+  page,
+}) => {
+  await go(page, 'Quỹ mục tiêu');
+  await page.getByLabel('Tên quỹ', { exact: true }).fill('Quỹ tạo an toàn');
+  await page.getByLabel('Số tiền mục tiêu (đ)').fill('100000');
+  await page.getByLabel('Ngày mục tiêu').fill('2027-12-31');
+  await page.route(
+    '**/api/goals',
+    async (route) => {
+      const actual = await route.fetch();
+      expect(actual.status()).toBe(201);
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Thử tạo lại', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Tên quỹ', { exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Thử tạo lại', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Quỹ tạo an toàn', exact: true }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/goals')).json()).items,
+  ).toHaveLength(1);
+});
+test('two tabs reject stale transaction save and allow explicit reload', async ({
+  page,
+  context,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  await go(page, 'Giao dịch');
+  const second = await context.newPage();
+  await second.goto('/#transactions');
+  await second.getByRole('button', { name: /^Sửa / }).click();
+  await page.getByRole('button', { name: /^Sửa / }).click();
+  await second
+    .getByRole('dialog')
+    .getByLabel('Số tiền (đ)', { exact: true })
+    .fill('75000');
+  await second
+    .getByRole('button', { name: 'Lưu thay đổi', exact: true })
+    .click();
+  await expect(second.getByRole('dialog')).toHaveCount(0);
+  const draft = page.getByRole('dialog', { name: 'Sửa giao dịch' });
+  await draft.getByLabel('Số tiền (đ)', { exact: true }).fill('99000');
+  await draft
+    .getByRole('button', { name: 'Lưu thay đổi', exact: true })
+    .click();
+  await expect(draft.getByRole('alert')).toContainText('thay đổi');
+  await expect(draft.getByLabel('Số tiền (đ)', { exact: true })).toHaveValue(
+    '99.000',
+  );
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items[0]
+      .amount_vnd,
+  ).toBe('75000');
+  await draft.getByRole('button', { name: 'Tải bản mới', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Tải bản mới?', exact: true })
+    .getByRole('button', { name: 'Tải bản mới', exact: true })
+    .click();
+  await page.getByRole('button', { name: /^Sửa / }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Sửa giao dịch' })
+      .getByLabel('Số tiền (đ)', { exact: true }),
+  ).toHaveValue('75.000');
+  await second.close();
+});
+
+test('reload recovers a committed goal after losing its response without another create', async ({
+  page,
+}) => {
+  await go(page, 'Quỹ mục tiêu');
+  await page.getByLabel('Tên quỹ', { exact: true }).fill('Quỹ khôi phục');
+  await page.getByLabel('Số tiền mục tiêu (đ)').fill('100000');
+  await page.getByLabel('Ngày mục tiêu').fill('2027-12-31');
+  await page.route(
+    '**/api/goals',
+    async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Thử tạo lại', exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Quỹ khôi phục', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Yêu cầu tạo quỹ trước đã hoàn tất.' }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/goals')).json()).items,
+  ).toHaveLength(1);
+  await expect(page.getByLabel('Tên quỹ', { exact: true })).toBeEnabled();
+});
+
+test('non-JSON upstream startup response shows a friendly retry message', async ({
+  page,
+}) => {
+  await page.route(
+    '**/api/transactions?*',
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<html>Starting service</html>',
+      }),
+    { times: 1 },
+  );
+  await go(page, 'Giao dịch');
+  await expect(page.getByRole('alert')).toContainText('Máy chủ chưa sẵn sàng');
+  await page.getByRole('button', { name: 'Thử tải lại', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });

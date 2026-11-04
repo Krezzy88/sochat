@@ -1,0 +1,27 @@
+{
+  "kind": "Owner-authorized public HTTPS smoke with disposable synthetic data; NO model generation",
+  "url": "https://sochat.onrender.com",
+  "generated_at": "2026-11-04T07:25:17.950Z",
+  "checks": [
+    "Public HTTPS frontend loads without certificate bypass",
+    "Synthetic registration through UI",
+    "Secure HttpOnly SameSite=Lax session cookie",
+    "Authenticated session survives reload",
+    "Shorthand 35 -> 35000 via rules; parse saves nothing; zero provider attempts",
+    "Explicit confirmation persists exact integer VND",
+    "Transaction edit works through actual hosted UI",
+    "Database revision advances and stale write returns 409",
+    "SQL report matches edited 45000 VND expense",
+    "Goal UUID retry returns one saved goal",
+    "Owned UTF-8 CSV export succeeds with exact edited amount and no-store",
+    "390px layout has no horizontal overflow"
+  ],
+  "real_gemini_attempts": 0,
+  "cleanup": true,
+  "configured_provider": "gemini",
+  "money_profile": "owner-confirmed-v2",
+  "success": true,
+  "scope_caveat": "Functional synthetic public checks, not a user study, hosted restore or representative model evaluation",
+  "deployed_commit_sha": "7586e2d84ee0954980f11a18f363bcd24a1230af",
+  "commit_provenance": "Owner confirmed Render Live deployment commit"
+}

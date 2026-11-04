@@ -1,3 +1,8 @@
+import { indexNotes, semanticSearch } from './semantic.ts';
+import { instrument } from '../telemetry.ts';
+import { tenantPool, withTenant } from '../db/tenant.ts';
+import { revisionInput, revise } from './revision.ts';
+import { interpretQuestion } from './assistant.ts';
 import express from 'express';
 import type { Request, Response } from 'express';
 import session from 'express-session';
@@ -23,9 +28,13 @@ export interface ApiOptions {
   sessionSecret: string;
   origin: string;
   production?: boolean;
+  webRoot?: string;
   trustProxyHops?: number;
   now?: () => Date;
   extractor: {
+    readonly providerName?: 'gemini' | 'fake';
+    readonly moneyProfile?:
+      'standard' | 'owner-confirmed-v1' | 'owner-confirmed-v2';
     parseHybrid(
       message: string,
       now: string,
@@ -47,6 +56,7 @@ const userSchema = z.strictObject({
 });
 const txSchema = z.strictObject({
   id: c.id,
+  version: c.id,
   type: z.enum(['income', 'expense']),
   amount_vnd: strMoney,
   category: c.category,
@@ -55,6 +65,7 @@ const txSchema = z.strictObject({
 });
 const goalSchema = z.strictObject({
   id: c.id,
+  version: c.id,
   name: z.string(),
   target_vnd: strMoney,
   deadline: c.day,
@@ -66,6 +77,7 @@ const goalSchema = z.strictObject({
 });
 const budgetSchema = z.strictObject({
   id: c.id,
+  version: c.budgetVersion,
   category: c.category,
   month: c.day,
   limit_vnd: strMoney,
@@ -112,7 +124,8 @@ export async function createApp(options: ApiOptions) {
   )
     throw new Error('Invalid proxy hop configuration.');
   const now = options.now ?? (() => new Date());
-  const repo = apiRepository(options.pool, options.sessionSecret);
+  const tenantDB = tenantPool(options.pool);
+  const repo = apiRepository(tenantDB, options.sessionSecret);
   const app = express();
   const dummyHash = await argon2.hash(randomBytes(32).toString('hex'), {
     type: argon2.argon2id,
@@ -310,7 +323,11 @@ export async function createApp(options: ApiOptions) {
       const query = read((spec.query ?? c.empty) as Q, req.query);
       const params = read((spec.params ?? c.empty) as P, req.params);
       user = req.session.userId ?? '';
-      const result = await handler({ req, res, user, body, query, params });
+      const result = await instrument(method, path, code, () =>
+        withTenant(spec.public ? '' : user, async () =>
+          handler({ req, res, user, body, query, params }),
+        ),
+      );
       if (res.headersSent) return;
       if (code === 204) {
         res.status(204).end();
@@ -467,7 +484,96 @@ export async function createApp(options: ApiOptions) {
     },
     async ({ user }) => ({ items: await repo.categories(user) }),
   );
+  route(
+    'get',
+    '/api/chat/status',
+    {
+      response: z.strictObject({
+        provider: z.enum(['gemini', 'fake']),
+        money_profile: z.enum([
+          'standard',
+          'owner-confirmed-v1',
+          'owner-confirmed-v2',
+        ]),
+      }),
+    },
+    () => ({
+      provider: options.extractor.providerName ?? 'fake',
+      money_profile: options.extractor.moneyProfile ?? 'standard',
+    }),
+  );
+  route(
+    'post',
+    '/api/assistant/query',
+    {
+      body: c.message,
+      response: z.strictObject({
+        needs_clarification: z.boolean(),
+        question: z.string(),
+        month: c.month.nullable(),
+        category: z.string().nullable(),
+        income_vnd: strMoney,
+        expense_vnd: strMoney,
+        evidence_url: z.string().nullable(),
+      }),
+    },
+    async ({ req, res, user, body }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Hỏi cuốn sổ cần cấu hình Gemini thật.');
+      await rate(req, res, 'assistant', user, user, 5);
+      const intent = await interpretQuestion(
+        body.message,
+        now(),
+        user,
+        tenantDB,
+      );
+      if (intent.needs_clarification)
+        return {
+          needs_clarification: true,
+          question:
+            'Bạn hỏi tổng thu/chi của một tháng và tối đa một danh mục nhé.',
+          month: null,
+          category: null,
+          income_vnd: '0',
+          expense_vnd: '0',
+          evidence_url: null,
+        };
+      const report = await repo.month(
+        user,
+        intent.month + '-01',
+        c.nextMonth(intent.month),
+      );
+      const groups = report.by_category.filter(
+        (row) => !intent.category || row.category === intent.category,
+      );
+      return {
+        needs_clarification: false,
+        question: 'Tổng hợp từ giao dịch đã lưu của bạn.',
+        month: intent.month,
+        category: intent.category,
+        income_vnd: groups
+          .filter((r) => r.type === 'income')
+          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
+          .toString(),
+        expense_vnd: groups
+          .filter((r) => r.type === 'expense')
+          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
+          .toString(),
+        evidence_url:
+          '/api/transactions?from=' +
+          intent.month +
+          '-01&to=' +
+          new Date(
+            Date.parse(c.nextMonth(intent.month) + 'T00:00:00Z') - 86400000,
+          )
+            .toISOString()
+            .slice(0, 10) +
+          (intent.category ? '&category=' + intent.category : ''),
+      };
+    },
+  );
   const proposal = z.strictObject({
+    provider: z.enum(['gemini', 'fake']),
     items: z.array(
       z.object({
         type: z.enum(['income', 'expense']),
@@ -497,11 +603,112 @@ export async function createApp(options: ApiOptions) {
     { body: c.message, response: proposal },
     async ({ req, res, user, body }) => {
       await rate(req, res, 'parse', user, user, options.limits?.parse ?? 20);
-      return options.extractor.parseHybrid(
-        body.message,
-        now().toISOString(),
-        user,
+      return {
+        provider: options.extractor.providerName ?? 'fake',
+        ...(await options.extractor.parseHybrid(
+          body.message,
+          now().toISOString(),
+          user,
+        )),
+      };
+    },
+  );
+  route(
+    'post',
+    '/api/assistant/index',
+    {
+      body: c.empty,
+      response: z.strictObject({ indexed: z.number().int().min(0).max(20) }),
+    },
+    async ({ req, res, user }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Cần Gemini thật.');
+      await rate(req, res, 'embedding', user, user, 3);
+      return indexNotes(user, tenantDB, now());
+    },
+  );
+  route(
+    'post',
+    '/api/assistant/search',
+    {
+      body: z.strictObject({ query: z.string().trim().min(1).max(300) }),
+      response: z.strictObject({
+        indexed: z.number().int().min(0).max(1000),
+        items: z
+          .array(
+            txSchema
+              .omit({ category: true })
+              .extend({ score: z.number().finite() }),
+          )
+          .max(5),
+      }),
+    },
+    async ({ req, res, user, body }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Cần Gemini thật.');
+      await rate(req, res, 'semantic', user, user, 5);
+      return semanticSearch(body.query, user, tenantDB, now());
+    },
+  );
+  const preferences = z.strictObject({
+    semantic_enabled: z.boolean(),
+  });
+  route(
+    'get',
+    '/api/me/ai-preferences',
+    { response: preferences },
+    async ({ user }) => {
+      const result = await tenantDB.query(
+        'SELECT semantic_enabled FROM ai_preferences WHERE user_id=$1',
+        [user],
       );
+      return result.rows[0] ?? { semantic_enabled: false };
+    },
+  );
+  route(
+    'put',
+    '/api/me/ai-preferences',
+    { body: preferences, response: preferences },
+    async ({ user, body }) => {
+      const client = await tenantDB.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          'INSERT INTO ai_preferences(user_id,semantic_enabled) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET semantic_enabled=$2,updated_at=now()',
+          [user, body.semantic_enabled],
+        );
+        if (!body.semantic_enabled)
+          await client.query(
+            'DELETE FROM transaction_embeddings WHERE user_id=$1',
+            [user],
+          );
+        await client.query('COMMIT');
+        return body;
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+  );
+  route(
+    'post',
+    '/api/assistant/revise',
+    {
+      body: revisionInput,
+      response: z.strictObject({
+        items: revisionInput.shape.items,
+        needs_clarification: z.boolean(),
+        question: z.string(),
+        changed_indices: z.array(z.number().int()),
+      }),
+    },
+    async ({ req, res, user, body }) => {
+      if (options.extractor.providerName !== 'gemini')
+        fail(503, 'Chỉnh bằng hội thoại cần Gemini thật.');
+      await rate(req, res, 'revision', user, user, 5);
+      return revise(body, now(), user, tenantDB);
     },
   );
   route(
@@ -535,8 +742,13 @@ export async function createApp(options: ApiOptions) {
   route(
     'delete',
     '/api/transactions/:id',
-    { params: c.idParams, status: 204 },
-    ({ user, params }) => repo.deleteTransaction(user, params.id),
+    {
+      params: c.idParams,
+      query: z.strictObject({ version: c.id }),
+      status: 204,
+    },
+    ({ user, params, query }) =>
+      repo.deleteTransaction(user, params.id, query.version),
   );
   route(
     'get',
@@ -619,6 +831,26 @@ export async function createApp(options: ApiOptions) {
     }),
   );
   route(
+    'delete',
+    '/api/budgets/:category',
+    {
+      query: c.monthQuery.extend({ version: c.budgetVersion }),
+      params: z.strictObject({ category: c.category }),
+      status: 204,
+    },
+    async ({ user, query, params }) => {
+      if (
+        !(await repo.deleteBudget(
+          user,
+          query.month + '-01',
+          params.category,
+          query.version,
+        ))
+      )
+        fail(404, 'Không tìm thấy ngân sách trong tháng đã chọn.');
+    },
+  );
+  route(
     'get',
     '/api/budgets/status',
     {
@@ -627,6 +859,7 @@ export async function createApp(options: ApiOptions) {
         items: z.array(
           z.strictObject({
             category: c.category,
+            version: c.budgetVersion,
             limit_vnd: strMoney,
             spent_vnd: strMoney,
             remaining_vnd: strMoney,
@@ -647,6 +880,7 @@ export async function createApp(options: ApiOptions) {
     row:
       | {
           id: string;
+          version: string;
           name: string;
           target_vnd: string;
           deadline: string;
@@ -680,6 +914,18 @@ export async function createApp(options: ApiOptions) {
   }
   route(
     'get',
+    '/api/goals/creation-status/:key',
+    {
+      params: z.strictObject({ key: z.uuid() }),
+      response: z.strictObject({
+        state: z.enum(['saved', 'deleted', 'unknown']),
+        goal_id: c.id.optional(),
+      }),
+    },
+    ({ user, params }) => repo.goalCreationStatus(user, params.key),
+  );
+  route(
+    'get',
     '/api/goals',
     { response: z.strictObject({ items: z.array(goalSchema) }) },
     async ({ user }) => ({ items: (await repo.goals(user)).map(goalView) }),
@@ -694,7 +940,7 @@ export async function createApp(options: ApiOptions) {
   route(
     'post',
     '/api/goals',
-    { body: c.goal, status: 201, response: goalSchema },
+    { body: c.goalCreate, status: 201, response: goalSchema },
     async ({ user, body }) => goalView(await repo.createGoal(user, body)),
   );
   route(
@@ -707,8 +953,13 @@ export async function createApp(options: ApiOptions) {
   route(
     'delete',
     '/api/goals/:id',
-    { params: c.idParams, status: 204 },
-    ({ user, params }) => repo.deleteGoal(user, params.id),
+    {
+      params: c.idParams,
+      query: z.strictObject({ version: c.id }),
+      status: 204,
+    },
+    ({ user, params, query }) =>
+      repo.deleteGoal(user, params.id, query.version),
   );
   route(
     'post',
@@ -728,50 +979,57 @@ export async function createApp(options: ApiOptions) {
   );
   route('get', '/api/me/export', { csv: true }, async ({ req, res, user }) => {
     await rate(req, res, 'export', user, user, 3);
-    res
-      .status(200)
-      .type('text/csv')
-      .set(
-        'Content-Disposition',
-        'attachment; filename="sochat-transactions.csv"',
-      );
-    res.write('id,type,amount_vnd,category,note,occurred_on\r\n');
-    let after = '0';
-    for (;;) {
-      if (res.destroyed) return;
-      const rows = await repo.exportRows(user, after);
-      if (!rows.length) break;
-      for (const row of rows) {
-        if (res.destroyed) return;
-        const line =
-          [
-            row.id,
-            row.type,
-            row.amount_vnd,
-            row.category,
-            row.note,
-            row.occurred_on,
-          ]
-            .map(csv)
-            .join(',') + '\r\n';
-        if (!res.write(line)) {
-          await new Promise<void>((resolve) => {
-            const done = () => {
-              res.off('drain', done);
-              res.off('close', done);
-              res.off('error', done);
-              resolve();
-            };
-            res.once('drain', done);
-            res.once('close', done);
-            res.once('error', done);
-          });
+    const timer = setTimeout(() => res.destroy(), 30000);
+    try {
+      await repo.exportSnapshot(user, async (page) => {
+        res
+          .status(200)
+          .type('text/csv')
+          .set(
+            'Content-Disposition',
+            'attachment; filename="sochat-transactions.csv"',
+          );
+        res.write('\uFEFFid,type,amount_vnd,category,note,occurred_on\r\n');
+        let after = '0';
+        for (;;) {
           if (res.destroyed) return;
+          const rows = await page(after);
+          if (!rows.length) break;
+          for (const row of rows) {
+            if (res.destroyed) return;
+            const line =
+              [
+                row.id,
+                row.type,
+                row.amount_vnd,
+                row.category,
+                row.note,
+                row.occurred_on,
+              ]
+                .map(csv)
+                .join(',') + '\r\n';
+            if (!res.write(line)) {
+              await new Promise<void>((resolve) => {
+                const done = () => {
+                  res.off('drain', done);
+                  res.off('close', done);
+                  res.off('error', done);
+                  resolve();
+                };
+                res.once('drain', done);
+                res.once('close', done);
+                res.once('error', done);
+              });
+              if (res.destroyed) return;
+            }
+          }
+          after = rows.at(-1)?.id ?? after;
         }
-      }
-      after = rows.at(-1)?.id ?? after;
+        res.end();
+      });
+    } finally {
+      clearTimeout(timer);
     }
-    res.end();
   });
   const openapi = {
     openapi: '3.1.0',
@@ -789,6 +1047,20 @@ export async function createApp(options: ApiOptions) {
     },
   };
   app.get('/openapi.json', (_req, res) => res.json(openapi));
+  if (options.webRoot)
+    app.use(
+      express.static(options.webRoot, {
+        dotfiles: 'deny',
+        redirect: false,
+        setHeaders(res, file) {
+          if (/[/\\]assets[/\\]/.test(file))
+            res.setHeader(
+              'Cache-Control',
+              'public, max-age=31536000, immutable',
+            );
+        },
+      }),
+    );
   app.use((_req, _res, next) =>
     next(new HttpProblem(404, 'Không tìm thấy đường dẫn.')),
   );

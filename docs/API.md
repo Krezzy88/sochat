@@ -102,3 +102,29 @@ No email verification/reset-password, OCR, bank linking, shared wallets, investm
 or tax functionality is implemented. Security/privacy hardening remain later phases; Phase 5 now provides the React UI and Chromium e2e. Deployment and full security review are
 later work. Deployment proxy/HTTPS remains unverified; Phase 5 hosted CI results
 are recorded in EVIDENCE.md.
+
+CSV export uses UTF-8 with a BOM, comma-separated RFC-style quoted cells and CRLF.
+The header remains `id,type,amount_vnd,category,note,occurred_on`. Amounts are raw
+integer VND (no grouping punctuation); dates are ISO calendar dates. Leading formula
+characters in text cells remain escaped. Excel/Numbers import may still require
+selecting UTF-8 and comma delimiters depending on locale; no native spreadsheet-app
+compatibility certification is claimed. Export includes only the authenticated
+owner's transactions and streams in bounded pages.
+
+`DELETE /api/budgets/:category?month=YYYY-MM` removes only that category's monthly
+limit for the authenticated user. Returns 204, or 404 if no owned matching budget
+exists. Requires CSRF; invalid month/category is rejected. It never deletes ledger
+transactions or another month's budget. PUT continues to upsert a limit by the
+same owner/category/month identity.
+
+Business audit update (2026-11-03): POST /api/goals/:id/contributions now requires
+an `idempotency_key` UUID alongside amount/date/note. Replays for the same owner,
+key, goal and normalized payload return the original response without another
+contribution. Changed payloads return 409; failed transactions do not consume keys.
+The web client snapshots and retries an uncertain contribution with the same key;
+this pending intent is memory-only and does not survive page reload/navigation.
+Future-dated contributions count immediately by explicit owner policy.
+
+Each month/year report uses one read-only REPEATABLE READ transaction so totals and
+breakdowns describe the same snapshot. Separate report requests may naturally
+observe different commits. CSV export retains its documented streaming semantics.

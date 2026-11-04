@@ -1,4 +1,8 @@
+import { startTelemetry, stopTelemetry } from './telemetry.ts';
+import { tenantPool } from './db/tenant.ts';
 import process from 'node:process';
+import path from 'node:path';
+import { access } from 'node:fs/promises';
 import pg from 'pg';
 import { createExtractor } from './extraction/factory.ts';
 import { createApp } from './http/app.ts';
@@ -18,20 +22,32 @@ pool.on('error', () =>
   process.stderr.write('Database connection unavailable.\n'),
 );
 try {
+  const webRoot =
+    process.env.SERVE_WEB === 'true'
+      ? path.resolve('apps/web/dist')
+      : undefined;
+  if (webRoot) await access(path.join(webRoot, 'index.html'));
+  startTelemetry();
   await pool.query('SELECT 1');
-  const extractor = await createExtractor(pool);
+  const extractor = await createExtractor(tenantPool(pool));
   const runtime = await createApp({
     pool,
     extractor,
     sessionSecret: secret,
-    origin: process.env.APP_ORIGIN ?? 'http://localhost:5173',
+    origin:
+      process.env.APP_ORIGIN ??
+      (process.env.RENDER === 'true'
+        ? process.env.RENDER_EXTERNAL_URL
+        : undefined) ??
+      'http://localhost:5173',
+    ...(webRoot ? { webRoot } : {}),
     production: process.env.NODE_ENV === 'production',
     trustProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? 0),
   });
   const port = Number(process.env.PORT ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     throw new Error('Invalid PORT');
-  const server = runtime.app.listen(port, '127.0.0.1', () =>
+  const server = runtime.app.listen(port, process.env.HOST ?? '127.0.0.1', () =>
     process.stdout.write(JSON.stringify({ event: 'api_started', port }) + '\n'),
   );
   server.on('error', () => {
@@ -44,7 +60,10 @@ try {
     if (stopping) return;
     stopping = true;
     server.close(() => {
-      void runtime.close().finally(() => pool.end());
+      void runtime.close().finally(async () => {
+        await pool.end();
+        await stopTelemetry();
+      });
     });
   };
   process.on('SIGINT', stop);

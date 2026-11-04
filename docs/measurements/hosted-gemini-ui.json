@@ -1,0 +1,33 @@
+{
+  "kind": "Owner-authorized synthetic real Gemini browser smoke",
+  "generated_at": "2026-11-04T07:32:27.154Z",
+  "provider": "gemini",
+  "path": "llm",
+  "attempts": 1,
+  "usage": {
+    "input_tokens": 405,
+    "output_tokens": 87,
+    "total_tokens": 492
+  },
+  "needs_clarification": false,
+  "confirmed_amount_vnd": "185000",
+  "checks": [
+    "password confirmation/visibility",
+    "real Gemini fallback",
+    "owner-confirmed-v2 shorthand",
+    "database revision counter and stale-edit rejection",
+    "goal UUID replay and recovery status",
+    "CSV export after versioned edit",
+    "no save before confirmation",
+    "grouping/paste/caret",
+    "integer confirmation",
+    "390px no overflow",
+    "reduced motion"
+  ],
+  "target_url": "https://sochat.onrender.com",
+  "owner_authorized_billing_tier": "Paid Tier 1",
+  "data_scope": "Disposable synthetic fixtures only; no owner ledger",
+  "representative_accuracy": false,
+  "deployed_commit_sha": "7586e2d84ee0954980f11a18f363bcd24a1230af",
+  "commit_provenance": "Owner confirmed Render Live deployment commit"
+}

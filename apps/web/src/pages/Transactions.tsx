@@ -1,20 +1,38 @@
-import { useState } from 'react';
+import { CalendarInput } from '../DateControls.tsx';
+import { useFeedback } from '../Feedback.tsx';
+import SemanticSearch from './SemanticSearch.tsx';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { dateLabel, errorText, money, request } from '../api.ts';
+import { ApiError, dateLabel, errorText, money, request } from '../api.ts';
 import type { Category, Transaction } from '../api.ts';
-import { Alert, Empty, Loading, LoadError, useLoad } from '../ui.tsx';
+import {
+  MoneyInput,
+  Alert,
+  Empty,
+  Loading,
+  LoadError,
+  useLoad,
+} from '../ui.tsx';
 export default function Transactions({
   categories,
 }: {
   categories: Category[];
 }) {
+  const editor = useRef<HTMLDialogElement>(null);
   const [filter, setFilter] = useState('');
   const [cursor, setCursor] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [editing, setEditing] = useState<Transaction>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [conflict, setConflict] = useState(false);
+  const setNotice = useFeedback().success;
+  useEffect(() => {
+    if (!editing) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    editor.current?.showModal();
+    return () => trigger?.focus();
+  }, [editing?.id]);
   const query =
     filter + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
   const state = useLoad(
@@ -39,34 +57,64 @@ export default function Transactions({
     setBusy(true);
     setError('');
     try {
-      await request(
-        '/transactions/' + editing.id,
-        'PATCH',
-        Object.fromEntries(new FormData(e.currentTarget)),
-      );
+      await request('/transactions/' + editing.id, 'PATCH', {
+        ...Object.fromEntries(new FormData(e.currentTarget)),
+        version: editing.version,
+      });
       setEditing(undefined);
       setNotice('Đã cập nhật giao dịch.');
       state.reload();
     } catch (e) {
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
     }
   }
+  const confirmAction = useFeedback().confirm;
   async function remove(t: Transaction) {
-    if (!window.confirm('Xóa giao dịch “' + t.note + '”? Không thể khôi phục.'))
+    if (
+      !(await confirmAction({
+        title: 'Xóa giao dịch?',
+        message:
+          'Xóa giao dịch “' + t.note + '”? Thao tác này không thể hoàn tác.',
+        accept: 'Xóa giao dịch',
+      }))
+    )
       return;
     setBusy(true);
     setError('');
     try {
-      await request('/transactions/' + t.id, 'DELETE');
+      await request(
+        '/transactions/' + t.id + '?version=' + t.version,
+        'DELETE',
+      );
       setNotice('Đã xóa giao dịch.');
       state.reload();
     } catch (e) {
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
     }
+  }
+  async function reloadConflict() {
+    if (
+      editing &&
+      !(await confirmAction({
+        title: 'Tải bản mới?',
+        message:
+          'Bản chỉnh sửa hiện tại sẽ bị bỏ. Bạn có thể sao chép nội dung trước khi tiếp tục.',
+        accept: 'Tải bản mới',
+      }))
+    )
+      return;
+    setEditing(undefined);
+    setConflict(false);
+    setError('');
+    state.reload();
   }
   return (
     <>
@@ -80,14 +128,15 @@ export default function Transactions({
           + Ghi khoản mới
         </a>
       </header>
+      <SemanticSearch />
       <form className="panel filters" onSubmit={apply}>
         <label>
           Từ ngày
-          <input name="from" type="date" />
+          <CalendarInput name="from" type="date" />
         </label>
         <label>
           Đến ngày
-          <input name="to" type="date" />
+          <CalendarInput name="to" type="date" />
         </label>
         <label>
           Loại
@@ -112,93 +161,103 @@ export default function Transactions({
           Lọc giao dịch
         </button>
       </form>
-      {notice && (
-        <p role="status" className="success">
-          {notice}
-        </p>
+      {error && !editing && <Alert>{error}</Alert>}
+      {conflict && !editing && (
+        <button className="secondary" onClick={() => void reloadConflict()}>
+          Tải bản mới
+        </button>
       )}
-      {error && <Alert>{error}</Alert>}
       {editing && (
-        <section className="panel editor">
-          <h2>Sửa giao dịch</h2>
+        <dialog
+          ref={editor}
+          className="panel editor transaction-dialog"
+          aria-labelledby="edit-transaction-title"
+          onCancel={(e) => {
+            if (busy) e.preventDefault();
+            else setEditing(undefined);
+          }}
+        >
+          <h2 id="edit-transaction-title">Sửa giao dịch</h2>
+          {error && <Alert>{error}</Alert>}
+          {conflict && (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void reloadConflict()}
+            >
+              Tải bản mới
+            </button>
+          )}
           <form onSubmit={update}>
-            <div className="form-grid">
-              <label>
-                Loại
-                <select
-                  name="type"
-                  value={editing.type}
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      type: e.target.value as Transaction['type'],
-                      category:
-                        categories.find((c) => c.type === e.target.value)
-                          ?.key ?? '',
-                    })
-                  }
-                >
-                  <option value="expense">Chi tiêu</option>
-                  <option value="income">Thu nhập</option>
-                </select>
-              </label>
-              <label>
-                Danh mục
-                <select
-                  name="category"
-                  value={editing.category}
-                  onChange={(e) =>
-                    setEditing({ ...editing, category: e.target.value })
-                  }
-                >
-                  {categories
-                    .filter((c) => c.type === editing.type)
-                    .map((c) => (
-                      <option key={c.id} value={c.key}>
-                        {c.name_vi}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                Số tiền (đ)
-                <input
-                  name="amount_vnd"
-                  type="number"
-                  min="1"
-                  max="100000000000"
-                  step="1"
-                  required
+            <fieldset disabled={busy} className="editor-fields">
+              <div className="form-grid">
+                <label>
+                  Loại
+                  <select
+                    name="type"
+                    value={editing.type}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        type: e.target.value as Transaction['type'],
+                        category:
+                          categories.find((c) => c.type === e.target.value)
+                            ?.key ?? '',
+                      })
+                    }
+                  >
+                    <option value="expense">Chi tiêu</option>
+                    <option value="income">Thu nhập</option>
+                  </select>
+                </label>
+                <label>
+                  Danh mục
+                  <select
+                    name="category"
+                    value={editing.category}
+                    onChange={(e) =>
+                      setEditing({ ...editing, category: e.target.value })
+                    }
+                  >
+                    {categories
+                      .filter((c) => c.type === editing.type)
+                      .map((c) => (
+                        <option key={c.id} value={c.key}>
+                          {c.name_vi}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <MoneyInput
                   value={editing.amount_vnd}
-                  onChange={(e) =>
-                    setEditing({ ...editing, amount_vnd: e.target.value })
-                  }
+                  onChange={(v) => setEditing({ ...editing, amount_vnd: v })}
                 />
-              </label>
+
+                <label>
+                  Ngày giao dịch
+                  <CalendarInput
+                    name="occurred_on"
+                    type="date"
+                    required
+                    value={editing.occurred_on}
+                    onChange={(e) =>
+                      setEditing({ ...editing, occurred_on: e.target.value })
+                    }
+                  />
+                </label>
+              </div>
               <label>
-                Ngày giao dịch
+                Ghi chú
                 <input
-                  name="occurred_on"
-                  type="date"
-                  required
-                  value={editing.occurred_on}
+                  name="note"
+                  maxLength={300}
+                  value={editing.note}
                   onChange={(e) =>
-                    setEditing({ ...editing, occurred_on: e.target.value })
+                    setEditing({ ...editing, note: e.target.value })
                   }
                 />
               </label>
-            </div>
-            <label>
-              Ghi chú
-              <input
-                name="note"
-                maxLength={300}
-                value={editing.note}
-                onChange={(e) =>
-                  setEditing({ ...editing, note: e.target.value })
-                }
-              />
-            </label>
+            </fieldset>
             <div className="actions">
               <button className="primary" disabled={busy}>
                 Lưu thay đổi
@@ -213,7 +272,7 @@ export default function Transactions({
               </button>
             </div>
           </form>
-        </section>
+        </dialog>
       )}
       {state.loading ? (
         <Loading />
@@ -269,6 +328,7 @@ export default function Transactions({
                           disabled={busy}
                           onClick={() => {
                             setEditing(t);
+                            setConflict(false);
                             setError('');
                           }}
                           aria-label={'Sửa ' + (t.note || 'giao dịch')}

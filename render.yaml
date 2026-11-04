@@ -1,0 +1,41 @@
+# Owner-selected free demo. Creating this service still publishes a public URL.
+# Set secrets only in Render's dashboard. No managed database is provisioned here.
+services:
+  - type: web
+    name: sochat-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/app.Dockerfile
+    dockerContext: .
+    autoDeployTrigger: off
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: SERVE_WEB
+        value: 'true'
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: TRUST_PROXY_HOPS
+        value: '1'
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: MONEY_PROFILE
+        value: owner-confirmed-v2
+      - key: LLM_DAILY_CAP_PER_USER
+        value: '10'
+      - key: LLM_DAILY_CAP_GLOBAL
+        value: '30'
+      # Separate opt-in admin setup is required for managed-host RLS.
+      - key: ENABLE_RLS
+        value: 'false'
+      - key: OTEL_ENABLED
+        value: 'false'

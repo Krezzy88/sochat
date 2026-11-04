@@ -1,0 +1,48 @@
+# Disposable loopback-only deployment rehearsal. Contains no real keys or data.
+services:
+  db:
+    image: postgres:18.6-bookworm
+    environment:
+      POSTGRES_USER: sochat_release_admin
+      POSTGRES_DB: sochat_release
+      POSTGRES_PASSWORD: synthetic-release-admin-only
+    volumes:
+      - ./docker/release-test-init.sql:/docker-entrypoint-initdb.d/010-role.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U sochat_release_admin -d sochat_release']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    environment:
+      DATABASE_URL: postgres://sochat_release_app:synthetic-release-app-only@db:5432/sochat_release
+      SESSION_SECRET: synthetic-release-session-secret-never-use-publicly
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      SERVE_WEB: 'true'
+      RENDER: 'true'
+      RENDER_EXTERNAL_URL: https://localhost:18143
+      TRUST_PROXY_HOPS: 1
+      LLM_PROVIDER: fake
+      MONEY_PROFILE: owner-confirmed-v2
+      ENABLE_RLS: 'false'
+    ports:
+      - '127.0.0.1:18180:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
