@@ -18,8 +18,10 @@ Release work, in order:
       actual inbox delivery before production release.
 - [x] Operational implementation: guarded restore utility with synthetic rehearsal,
       migration/rollback procedure, health/error visibility, provider failure and cost controls.
-- [ ] Hosted backup/restore: execute against an authorized source and a separate
-      empty destination, verify retention and record the actual result.
+- [x] Hosted backup/restore rehearsal: authorized Neon source restored into a
+      separate empty Neon database; selected table counts and transaction sum matched.
+- [ ] Backup operations: owner must set ongoing retention/scheduling and cleanup
+      the disposable restore database after review.
 - [x] Privacy: reconcile synthetic-demo documentation with real-data operation and
       explain provider processing/deletion accurately.
 - [x] Release presentation: concise README, architecture and separate historical evidence.
@@ -185,3 +187,15 @@ and one-use verification that updates only the token owner's security state.
 All 108 integration tests now pass locally with unchanged thresholds: statements
 91.24%, branches 83.74%, functions 94.44%, lines 91.89%. No production code or
 coverage threshold was altered to make the gate pass. A new CI run is required.
+
+## Hosted restore completed — 2026-11-04
+
+Owner's first run failed during pg_dump because libpq lacked a root CA file.
+Read-only diagnostics confirmed both direct Neon connections and an empty target.
+Fixed system CA trust while retaining verify-full, normalized Node SSL aliases,
+and added safe stage/reason diagnostics. A schema-only probe passed; the authorized
+full Neon-to-Neon rehearsal then passed. The private report states row counts and
+transaction sum match; the archive is mode 0600. Source database was not modified.
+No source/target URLs, credentials, ledger rows or monetary totals are published.
+Three focused utility tests and lint passed. Ongoing retention and test-target
+cleanup remain operator responsibilities; this is not a disaster-recovery SLA.

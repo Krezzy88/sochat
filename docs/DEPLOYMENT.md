@@ -164,3 +164,10 @@ This script has not been executed against the hosted production database.
 
 `/healthz` is process liveness; `/readyz` verifies database connectivity and returns
 503 when unavailable, without returning database details or contacting Gemini.
+
+TLS note: the rehearsal normalizes remote require/prefer/verify-ca aliases to
+verify-full and supplies PGSSLROOTCERT=system to libpq tools unless an explicit CA
+path is configured. Node pg and pg_dump have different trust-store defaults.
+Local non-TLS disposable databases retain sslmode=disable. Failures report only
+phase and a safe reason, never raw child stderr or connection strings.
+See https://www.postgresql.org/docs/18/libpq-ssl.html.

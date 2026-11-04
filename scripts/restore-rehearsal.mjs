@@ -22,6 +22,12 @@ export function validateDatabases(source, target) {
     )
       throw new Error('Remote TLS must not be disabled.');
   }
+  for (const u of [a, b]) {
+    const remote = !['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+    const mode = u.searchParams.get('sslmode');
+    if ((remote && !mode) || ['prefer', 'require', 'verify-ca'].includes(mode))
+      u.searchParams.set('sslmode', 'verify-full');
+  }
   if (
     !/^sochat_restore_[a-z0-9_]+$/.test(decodeURIComponent(b.pathname.slice(1)))
   )
@@ -34,7 +40,12 @@ export function validateDatabases(source, target) {
     throw new Error('Source and target must differ.');
   return [a, b];
 }
-function pgEnvironment(u) {
+export function pgEnvironment(u) {
+  const mode =
+    u.searchParams.get('sslmode') ||
+    (['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)
+      ? 'disable'
+      : 'verify-full');
   return {
     ...process.env,
     PGHOST: u.hostname,
@@ -42,11 +53,13 @@ function pgEnvironment(u) {
     PGDATABASE: decodeURIComponent(u.pathname.slice(1)),
     PGUSER: decodeURIComponent(u.username),
     PGPASSWORD: decodeURIComponent(u.password),
-    PGSSLMODE:
-      u.searchParams.get('sslmode') ||
-      (['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)
-        ? 'disable'
-        : 'verify-full'),
+    PGSSLMODE: mode,
+    PGSSLROOTCERT:
+      mode === 'disable'
+        ? ''
+        : u.searchParams.get('sslrootcert') ||
+          process.env.PGSSLROOTCERT ||
+          'system',
     PGCHANNELBINDING: u.searchParams.get('channel_binding') || 'prefer',
   };
 }
@@ -79,6 +92,30 @@ async function fingerprint(db) {
   ).rows[0].n;
   return result;
 }
+export function safeDiagnostic(stage, error) {
+  const text = String(error?.stderr || '') + ' ' + String(error?.message || '');
+  const reason =
+    /root certificate file.*does not exist|could not (read|open).*certificate/i.test(
+      text,
+    )
+      ? 'missing_root_certificate'
+      : /empty public schema/.test(text)
+        ? 'target_not_empty'
+        : /fingerprint differs/.test(text)
+          ? 'verification_mismatch'
+          : /permission denied/i.test(text)
+            ? 'permission_denied'
+            : /version mismatch|server version.*pg_dump version/is.test(text)
+              ? 'pg_tool_version_mismatch'
+              : /certificate|SSL|TLS/i.test(text)
+                ? 'tls_failure'
+                : /password|SASL|authentication/i.test(text)
+                  ? 'authentication_failure'
+                  : error?.code === 'ENOENT'
+                    ? 'pg_tool_not_found'
+                    : 'operation_failed';
+  return { stage, reason };
+}
 export async function main() {
   const [source, target] = validateDatabases(
     process.env.BACKUP_SOURCE_URL || '',
@@ -99,9 +136,12 @@ export async function main() {
   const archive = join(directory, 'database.dump');
   const sourceDB = new pg.Client({ connectionString: source.href }),
     targetDB = new pg.Client({ connectionString: target.href });
+  let stage = 'source_connection';
   try {
     await sourceDB.connect();
+    stage = 'target_connection';
     await targetDB.connect();
+    stage = 'target_empty_check';
     const count = (
       await targetDB.query(
         "SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'",
@@ -109,6 +149,7 @@ export async function main() {
     ).rows[0].n;
     if (count !== 0)
       throw new Error('Restore target must have an empty public schema.');
+    stage = 'source_snapshot';
     await sourceDB.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const snapshot = (
       await sourceDB.query('SELECT pg_export_snapshot() AS snapshot')
@@ -116,6 +157,7 @@ export async function main() {
     const expected = await fingerprint(sourceDB);
     const binary = process.env.SOCHAT_PG_BIN || '/Library/PostgreSQL/18/bin';
     // Never put connection strings or passwords into argv or print child stderr.
+    stage = 'dump';
     execFileSync(
       join(binary, 'pg_dump'),
       [
@@ -131,6 +173,7 @@ export async function main() {
     );
     await chmod(archive, 0o600);
     await sourceDB.query('COMMIT');
+    stage = 'restore';
     execFileSync(
       join(binary, 'pg_restore'),
       [
@@ -144,6 +187,7 @@ export async function main() {
       ],
       { env: pgEnvironment(target), stdio: 'pipe', timeout: 900000 },
     );
+    stage = 'verification';
     const actual = await fingerprint(targetDB);
     const matches = JSON.stringify(expected) === JSON.stringify(actual);
     await writeFile(
@@ -166,6 +210,10 @@ export async function main() {
     console.log(
       'Restore rehearsal passed. Private archive and verification saved under .local/backups. Review retention and remove the disposable target manually.',
     );
+  } catch (error) {
+    throw Object.assign(new Error('Restore rehearsal failed'), {
+      restoreDiagnostic: safeDiagnostic(stage, error),
+    });
   } finally {
     await sourceDB.end().catch(() => {});
     await targetDB.end().catch(() => {});
@@ -175,7 +223,12 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
-  main().catch(() => {
+  main().catch((error) => {
+    console.error(
+      JSON.stringify(
+        error.restoreDiagnostic || safeDiagnostic('configuration', error),
+      ),
+    );
     console.error(
       'Restore rehearsal failed. No credentials or database output are printed. Check configuration, target permissions and local PostgreSQL 18 tools.',
     );
