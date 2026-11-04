@@ -245,8 +245,8 @@ No deployment, user interview or held-out result is invented.
 
 Remaining technical work includes development dependency advisories, startup layout
 shift, real-device/Safari/Firefox/screen-reader verification and measured production
-load. Confirmation retry intent is memory-only; inspect Transactions after leaving
-an uncertain save. Future OCR, bank parsing, shared goals, native apps, reminders,
+load. Transaction/contribution retry payloads are memory-only; inspect saved rows after
+leaving an uncertain save. Goal creation retains a per-tab opaque recovery UUID. Future OCR, bank parsing, shared goals, native apps, reminders,
 English UI and tax tools are backlog ideas, not shipped features.
 
 ## AI expansion, first read-only slice
@@ -279,3 +279,20 @@ isolation checks, plus local-only OpenTelemetry traces/metrics without transacti
 content or identity. Native PostgreSQL remains unchanged. See [expansion scope](docs/AI_EXPANSION.md),
 [privacy](docs/PRIVACY.md), [threat model](docs/THREAT_MODEL.md), and the explicit
 [hardening steps](docs/RUNBOOK.md). No public deployment or new CI result is implied.
+
+## Business hardening before deployment
+
+Goal creation now requires a per-intent UUID and safely replays a lost response;
+a per-account recovery check handles reloads. Transaction/goal edits and deletes
+require observed revisions; budget tokens also distinguish delete/recreate cycles.
+A stale tab receives 409 and preserves its draft until explicit reload. CSV pages
+share one read-only database snapshot, with a bounded 30-second stream lifetime.
+Migration `008_record_versions.sql` requires API/web to upgrade together; reload
+old tabs. See [business audit](docs/BUSINESS_AUDIT.md) and [runbook](docs/RUNBOOK.md).
+
+The opt-in demo uses the owner's revised money convention: `1` → 1000 VND,
+`10` → 10000, `100` → 100000 for bare monetary integers 1–999; quantities and
+calendar/time values are excluded. Explicit units take precedence. Standard profile
+still asks about missing units. Rules/LLM provenance and editable confirmation are
+shown. The owner development set is used for tuning, not representative accuracy;
+final held-out evaluation and user validation remain Phase 8 gates.

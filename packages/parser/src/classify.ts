@@ -36,9 +36,24 @@ const EXPENSE_RULES: readonly (readonly [ExpenseCategory, RegExp])[] = [
   ],
   ['mua_sam', /\b(mua|ao|quan|giay|dep|shopee|lazada|do dung|my pham|tui)\b/],
 ];
-export function classify(foldedSegment: string): Classification {
+export function classify(
+  foldedSegment: string,
+  ownerProfile = false,
+): Classification {
   for (const [cat, re] of INCOME_RULES)
     if (re.test(foldedSegment)) return { type: 'income', category: cat };
+  if (ownerProfile) {
+    const extra: readonly (readonly [ExpenseCategory, RegExp])[] = [
+      ['mua_sam', /\b(ban phim|tai nghe|op lung)\b/],
+      ['hoa_don', /\b(giat do|nap dien thoai)\b/],
+      ['di_chuyen', /\b(ship|phi van chuyen|phi giao hang)\b/],
+      ['hoc_tap', /\b(tap but)\b/],
+      ['giai_tri', /\b(net|valo)\b/],
+      ['an_uong', /\b(ca phe|date|matcha|hu tieu|buffet|ga ran|di cho)\b/],
+    ];
+    for (const [category, re] of extra)
+      if (re.test(foldedSegment)) return { type: 'expense', category };
+  }
   for (const [cat, re] of EXPENSE_RULES)
     if (re.test(foldedSegment)) return { type: 'expense', category: cat };
   return { type: 'expense', category: 'khac' };

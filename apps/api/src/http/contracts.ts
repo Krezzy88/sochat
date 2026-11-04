@@ -35,7 +35,8 @@ export const transaction = z.strictObject({
 });
 export const transactionPatch = transaction
   .partial()
-  .refine((v) => Object.keys(v).length > 0);
+  .extend({ version: id })
+  .refine((v) => Object.keys(v).length > 1);
 export const registration = z.strictObject({
   email: z
     .email()
@@ -76,10 +77,20 @@ export const listQuery = z
   })
   .refine((v) => !v.from || !v.to || v.from <= v.to);
 export const cursor = z.strictObject({ date: day, id });
+export const budgetVersion = z
+  .string()
+  .regex(/^[1-9]\d{0,18}:[1-9]\d{0,18}$/)
+  .refine((v) => v.split(':').every((n) => BigInt(n) <= 9223372036854775807n));
 export const budgets = z
   .strictObject({
     items: z
-      .array(z.strictObject({ category, limit_vnd: money }))
+      .array(
+        z.strictObject({
+          category,
+          limit_vnd: money,
+          version: z.union([z.literal('0'), budgetVersion]),
+        }),
+      )
       .min(1)
       .max(30),
   })
@@ -91,9 +102,11 @@ export const goal = z.strictObject({
   target_vnd: money,
   deadline: day,
 });
+export const goalCreate = goal.extend({ idempotency_key: z.uuid() });
 export const goalPatch = goal
   .partial()
-  .refine((v) => Object.keys(v).length > 0);
+  .extend({ version: id })
+  .refine((v) => Object.keys(v).length > 1);
 export const contribution = z.strictObject({
   idempotency_key: z.uuid(),
   amount_vnd: money,

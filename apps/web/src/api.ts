@@ -11,13 +11,14 @@ export interface Category {
 }
 export interface Transaction {
   id: string;
+  version: string;
   type: 'income' | 'expense';
   category: string;
   amount_vnd: string;
   note: string;
   occurred_on: string;
 }
-export type Draft = Omit<Transaction, 'id'>;
+export type Draft = Omit<Transaction, 'id' | 'version'>;
 export interface Proposal {
   provider: 'gemini' | 'fake';
   path: 'rules' | 'llm' | 'cache';
@@ -54,6 +55,7 @@ export interface YearReport {
   notice: string;
 }
 export interface Budget {
+  version: string;
   category: string;
   limit_vnd: string;
   spent_vnd: string;
@@ -62,6 +64,7 @@ export interface Budget {
 }
 export interface Goal {
   id: string;
+  version: string;
   name: string;
   target_vnd: string;
   deadline: string;

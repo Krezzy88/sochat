@@ -361,7 +361,7 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
               ) : page === 'budgets' ? (
                 <Budgets categories={categories.data?.items ?? []} />
               ) : page === 'goals' ? (
-                <Goals />
+                <Goals userId={user.id} />
               ) : (
                 <Settings user={user} onDeleted={onExit} />
               )}

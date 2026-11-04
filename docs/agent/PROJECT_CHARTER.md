@@ -131,3 +131,31 @@ future dates. This is an explicit recorded contribution, not a scheduled transfe
 Contributions remain independent of income/expense ledger entries. Owner selected
 “Giữ cộng ngay như hiện tại” during the business-rule audit. Monetary mutations must
 remain exact, human-confirmed, owner scoped, and safe to retry after lost responses.
+
+## 16. Owner-approved real development evaluation and money glossary — 2026-11-04
+
+Owner authorizes the agent to send the 50 voluntarily supplied phrases in
+`eval/inbox/owner-20261103.jsonl` to real Gemini for development evaluation/tuning.
+Owner approved the private 50-case label review; cành is explicitly 100000 VND.
+Labels and raw outputs remain ignored under `.local/owner-dev`, not in the public
+repository. This is development data, never a held-out or representative-user claim.
+CI still uses isolated scripted providers and never real Gemini credentials.
+
+The explicit `owner-confirmed-v1` deployment profile interprets lít/loét/xị/cành as
+100000 VND and chục as 10000 VND, including approved fractional suffixes. Standard
+profile retains ambiguous slang. Quantities are not money and unitless numbers
+still require clarification; the owner-confirmed cf/đx/hqua/đt abbreviations are
+normalized for interpretation. All arithmetic remains exact code/SQL. User
+confirmation remains required. No OCR, bank integration, advice or deployment is
+authorized by this follow-up.
+
+### Follow-up policy change (same day, explicit owner instruction)
+
+Owner subsequently changed the bare monetary-number rule: “1 là 1.000,
+10=10.000, 100=100.000 ... cứ như thế”. The new `owner-confirmed-v2` deployment
+profile therefore scales bare monetary integers 1–999 by 1000. Explicit units take
+precedence, four-digit/grouped dong values retain literal VND, and dates/times/
+quantities are excluded. Unknown or conflicting interpretations still ask; every
+proposal still requires editable human confirmation. The web shows the convention.
+Earlier v1 labels/runs remain preserved privately. V2 labels are policy-derived
+revisions of the approved dev set and cannot be compared as an unchanged gold set.

@@ -2,7 +2,7 @@ import { YearSelect } from '../DateControls.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { errorText, money, request, today } from '../api.ts';
+import { ApiError, errorText, money, request, today } from '../api.ts';
 import type { Category, Budget } from '../api.ts';
 import {
   Alert,
@@ -14,6 +14,8 @@ import {
 } from '../ui.tsx';
 export default function Budgets({ categories }: { categories: Category[] }) {
   const [month, setMonth] = useState(today().slice(0, 7));
+  const [conflict, setConflict] = useState(false);
+  const [formEpoch, setFormEpoch] = useState(0);
   const [editing, setEditing] = useState<Budget | null>(null);
   const editor = useRef<HTMLElement>(null);
   const confirm = useFeedback().confirm;
@@ -56,7 +58,9 @@ export default function Budgets({ categories }: { categories: Category[] }) {
         '/budgets/' +
           encodeURIComponent(item.category) +
           '?month=' +
-          selectedMonth,
+          selectedMonth +
+          '&version=' +
+          item.version,
         'DELETE',
       );
       setNotice('Đã xóa ngân sách.');
@@ -64,6 +68,8 @@ export default function Budgets({ categories }: { categories: Category[] }) {
       state.reload();
     } catch (e) {
       setErrorFor('delete');
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
@@ -85,7 +91,17 @@ export default function Budgets({ categories }: { categories: Category[] }) {
     setError('');
     try {
       await request('/budgets?month=' + month, 'PUT', {
-        items: [{ category: f.get('category'), limit_vnd: f.get('limit_vnd') }],
+        items: [
+          {
+            category: f.get('category'),
+            limit_vnd: f.get('limit_vnd'),
+            version:
+              editing?.version ??
+              state.data?.items.find((i) => i.category === f.get('category'))
+                ?.version ??
+              '0',
+          },
+        ],
       });
       setNotice(
         'Đã lưu ngân sách tháng ' + month.split('-').reverse().join('/') + '.',
@@ -95,10 +111,28 @@ export default function Budgets({ categories }: { categories: Category[] }) {
       state.reload();
     } catch (e) {
       setErrorFor('save');
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
     }
+  }
+  async function reloadConflict() {
+    if (
+      !(await confirm({
+        title: 'Tải ngân sách mới?',
+        message:
+          'Dữ liệu chưa lưu trong form sẽ bị bỏ để tải hạn mức mới nhất.',
+        accept: 'Tải bản mới',
+      }))
+    )
+      return;
+    setEditing(null);
+    setConflict(false);
+    setError('');
+    setFormEpoch((n) => n + 1);
+    state.reload();
   }
   return (
     <>
@@ -145,6 +179,11 @@ export default function Budgets({ categories }: { categories: Category[] }) {
         kỳ khác.
       </p>
       {error && errorFor === 'delete' && <Alert>{error}</Alert>}
+      {conflict && (
+        <button className="secondary" onClick={() => void reloadConflict()}>
+          Tải ngân sách mới
+        </button>
+      )}
       <div className="split-layout">
         <section>
           {state.loading ? (
@@ -242,7 +281,7 @@ export default function Budgets({ categories }: { categories: Category[] }) {
           <h2>{editing ? 'Sửa ngân sách' : 'Đặt ngân sách'}</h2>
           <p className="muted">Lưu lại danh mục đã có để cập nhật giới hạn.</p>
           <form
-            key={month + '-' + (editing?.category ?? 'new')}
+            key={month + '-' + (editing?.category ?? 'new') + '-' + formEpoch}
             onSubmit={save}
           >
             <fieldset disabled={busy} className="editor-fields">

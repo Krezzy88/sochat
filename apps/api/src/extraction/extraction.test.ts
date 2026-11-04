@@ -417,3 +417,65 @@ it('does not reuse one money mention to prefill multiple model transactions', as
   expect(result.items[1]?.flags).toContain('llm_amount_reused');
   expect(result.needs_clarification).toBe(true);
 });
+
+describe('partial structured extraction and approved money profiles', () => {
+  it('retains multiple unknown amounts as null proposals and still asks clarification', async () => {
+    const provider = new FakeProvider([
+      {
+        items: [
+          { ...item, amount_vnd: null },
+          { ...item, amount_vnd: null },
+        ],
+        needs_clarification: true,
+        clarification_question: 'Bao nhiêu đồng cho từng khoản?',
+      },
+    ]);
+    const service = new HybridExtractor(provider, new MemoryExtractionStore(), {
+      perUser: 5,
+      global: 5,
+    });
+    const result = await service.parseHybrid('phở 35 nước mía 15', NOW, 'u');
+    expect(result.items).toHaveLength(2);
+    expect(result.items.every((i) => i.amount_vnd === null)).toBe(true);
+    expect(result.needs_clarification).toBe(true);
+  });
+  it('rejects unresolved fields presented as certain and isolates profile cache keys', () => {
+    expect(
+      LlmResult.safeParse({ ...output, items: [{ ...item, amount_vnd: null }] })
+        .success,
+    ).toBe(false);
+    expect(cacheKey('ăn 2 lít', '2026-11-03', 'm', 'standard')).not.toBe(
+      cacheKey('ăn 2 lít', '2026-11-03', 'm', 'owner-confirmed-v1'),
+    );
+  });
+});
+
+describe('owner-approved bare monetary shorthand', () => {
+  const service = (items: unknown[]) =>
+    new HybridExtractor(
+      new FakeProvider([
+        { items, needs_clarification: false, clarification_question: null },
+      ]),
+      new MemoryExtractionStore(),
+      { perUser: 5, global: 5 },
+      { moneyProfile: 'owner-confirmed-v2' },
+    );
+  it('splits explicit purchases only when every amount is grounded exactly once', async () => {
+    const result = await service([
+      { ...item, amount_vnd: 40000 },
+      { ...item, amount_vnd: 15000 },
+    ]).parseHybrid('bún bò 40 nước mía 15', NOW, 'u');
+    expect(result.items.map((i) => i.amount_vnd)).toEqual([40000, 15000]);
+    expect(result.needs_clarification).toBe(false);
+  });
+  it.each(['áo 200 giảm còn 150', 'phở 40 hoặc 15', 'bún bò 40 nước mía 15'])(
+    'keeps discounts/alternatives or reused/invented values unresolved: %s',
+    async (text) => {
+      const result = await service([
+        { ...item, amount_vnd: 40000 },
+        { ...item, amount_vnd: 40000 },
+      ]).parseHybrid(text, NOW, 'u');
+      expect(result.needs_clarification).toBe(true);
+    },
+  );
+});

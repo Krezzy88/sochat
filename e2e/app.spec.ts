@@ -697,3 +697,114 @@ test('lost contribution response retries the same intent without double counting
     (await (await page.request.get('/api/transactions')).json()).items,
   ).toHaveLength(0);
 });
+
+test('lost goal creation response retries without creating another goal', async ({
+  page,
+}) => {
+  await go(page, 'Quỹ mục tiêu');
+  await page.getByLabel('Tên quỹ', { exact: true }).fill('Quỹ tạo an toàn');
+  await page.getByLabel('Số tiền mục tiêu (đ)').fill('100000');
+  await page.getByLabel('Ngày mục tiêu').fill('2027-12-31');
+  await page.route(
+    '**/api/goals',
+    async (route) => {
+      const actual = await route.fetch();
+      expect(actual.status()).toBe(201);
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Thử tạo lại', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Tên quỹ', { exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Thử tạo lại', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Quỹ tạo an toàn', exact: true }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/goals')).json()).items,
+  ).toHaveLength(1);
+});
+test('two tabs reject stale transaction save and allow explicit reload', async ({
+  page,
+  context,
+}) => {
+  await parse(page, 'ăn phở 50k');
+  await save(page);
+  await go(page, 'Giao dịch');
+  const second = await context.newPage();
+  await second.goto('/#transactions');
+  await second.getByRole('button', { name: /^Sửa / }).click();
+  await page.getByRole('button', { name: /^Sửa / }).click();
+  await second
+    .getByRole('dialog')
+    .getByLabel('Số tiền (đ)', { exact: true })
+    .fill('75000');
+  await second
+    .getByRole('button', { name: 'Lưu thay đổi', exact: true })
+    .click();
+  await expect(second.getByRole('dialog')).toHaveCount(0);
+  const draft = page.getByRole('dialog', { name: 'Sửa giao dịch' });
+  await draft.getByLabel('Số tiền (đ)', { exact: true }).fill('99000');
+  await draft
+    .getByRole('button', { name: 'Lưu thay đổi', exact: true })
+    .click();
+  await expect(draft.getByRole('alert')).toContainText('thay đổi');
+  await expect(draft.getByLabel('Số tiền (đ)', { exact: true })).toHaveValue(
+    '99.000',
+  );
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items[0]
+      .amount_vnd,
+  ).toBe('75000');
+  await draft.getByRole('button', { name: 'Tải bản mới', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Tải bản mới?', exact: true })
+    .getByRole('button', { name: 'Tải bản mới', exact: true })
+    .click();
+  await page.getByRole('button', { name: /^Sửa / }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Sửa giao dịch' })
+      .getByLabel('Số tiền (đ)', { exact: true }),
+  ).toHaveValue('75.000');
+  await second.close();
+});
+
+test('reload recovers a committed goal after losing its response without another create', async ({
+  page,
+}) => {
+  await go(page, 'Quỹ mục tiêu');
+  await page.getByLabel('Tên quỹ', { exact: true }).fill('Quỹ khôi phục');
+  await page.getByLabel('Số tiền mục tiêu (đ)').fill('100000');
+  await page.getByLabel('Ngày mục tiêu').fill('2027-12-31');
+  await page.route(
+    '**/api/goals',
+    async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Thử tạo lại', exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Quỹ khôi phục', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Yêu cầu tạo quỹ trước đã hoàn tất.' }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/goals')).json()).items,
+  ).toHaveLength(1);
+  await expect(page.getByLabel('Tên quỹ', { exact: true })).toBeEnabled();
+});

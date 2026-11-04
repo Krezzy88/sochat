@@ -139,3 +139,30 @@ conserving the shared quota. Reports state which assertions ran. No microphone,
 synthetic speech file or voice permission is required in the current product.
 Do not increase/reset quota to bypass limits silently. Sanitized reports are saved
 under docs/measurements; older voice results are explicitly historical.
+
+## Revision/idempotency upgrade (migration 008)
+
+Back up the Docker demo privately before upgrading. Never use `down -v`. Upgrade
+API and web together; old clients lack required version fields and must reload.
+Native PostgreSQL development migration is a separate owner operation, not part of
+the Docker update. PATCH/DELETE transactions/goals require their observed `version`;
+budget update/delete requires returned `id:version`, creation uses `0`. On 409 fetch
+fresh data, review changes and retry explicitly; do not auto-retry stale edits.
+Goal creation requires a per-intent UUID. After an unknown response retry the exact
+payload/key. `GET /api/goals/creation-status/:key` is owner scoped and returns
+saved/deleted/unknown for recovery; it does not disclose another owner's intent.
+CSV uses a read-only snapshot until completion/disconnect, bounded to 30 seconds.
+
+Owner-confirmed v2 slang and bare-money shorthand are explicitly enabled in `compose.gemini.yaml`; ordinary
+native/CI defaults remain `MONEY_PROFILE=standard`. Private owner dev commands:
+
+```sh
+node --env-file=.env --experimental-strip-types scripts/probe-owner-dev.ts --owner-approved --tag <new-run-name>
+node --experimental-strip-types scripts/score-owner-dev.ts --tag <new-run-name>
+```
+
+The scoring command requires the 50 owner-approved labels in ignored
+`.local/owner-dev/approved.jsonl`. Probe outputs are private; a run tag cannot be
+overwritten. Evaluation has a dedicated bounded 50-attempt memory quota and does
+not bypass or change web quotas. Do not run in CI, publish raw phrases/labels or
+report this tuned dev score as held-out accuracy. No current pricing is assumed.

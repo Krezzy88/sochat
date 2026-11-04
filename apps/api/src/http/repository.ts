@@ -4,16 +4,18 @@ import type { z } from 'zod';
 import * as c from './contracts.ts';
 import { fail } from './problem.ts';
 type DB = Pick<pg.Pool, 'query'>;
-const SELECT_TX = `SELECT t.id,t.type,t.amount_vnd::text,c.key AS category,t.note,t.occurred_on::text FROM transactions t JOIN categories c ON c.id=t.category_id`;
+const SELECT_TX = `SELECT t.id,t.type,t.amount_vnd::text,c.key AS category,t.note,t.occurred_on::text,t.version::text FROM transactions t JOIN categories c ON c.id=t.category_id`;
 interface TxRow {
   id: string;
   type: 'expense' | 'income';
   amount_vnd: string;
+  version: string;
   category: string;
   note: string;
   occurred_on: string;
 }
 interface GoalRow {
+  version: string;
   id: string;
   name: string;
   target_vnd: string;
@@ -49,6 +51,26 @@ export function apiRepository(pool: pg.Pool, secret: string) {
     } finally {
       client.release();
     }
+  }
+  async function assertVersion(
+    client: DB,
+    table: 'transactions' | 'goals',
+    user: string,
+    id: string,
+    version: string,
+  ) {
+    const row = (
+      await client.query(
+        `SELECT version::text FROM ${table} WHERE user_id=$1 AND id=$2 FOR UPDATE`,
+        [user, id],
+      )
+    ).rows[0];
+    if (!row) fail(404, 'Không tìm thấy dữ liệu.');
+    if (row.version !== version)
+      fail(
+        409,
+        'Dữ liệu đã thay đổi ở tab khác. Tải bản mới trước khi thao tác.',
+      );
   }
   return {
     async throttle(
@@ -135,6 +157,14 @@ export function apiRepository(pool: pg.Pool, secret: string) {
           ).rows[0];
           if (old?.request_hash !== hash)
             fail(409, 'Idempotency key đã dùng với nội dung khác.');
+          const cached = old.response as {
+            items?: { version?: string }[];
+          } | null;
+          if (!cached?.items?.every((item) => typeof item.version === 'string'))
+            fail(
+              409,
+              'Yêu cầu đã được xử lý ở phiên bản cũ. Tải danh sách giao dịch mới để kiểm tra, không tạo lại yêu cầu.',
+            );
           return old.response;
         }
         const items: TxRow[] = [];
@@ -233,6 +263,8 @@ export function apiRepository(pool: pg.Pool, secret: string) {
               [user, id],
             )
           ).rows[0] ?? fail(404, 'Không tìm thấy giao dịch.');
+        if (old.version !== patch.version)
+          fail(409, 'Giao dịch đã được thay đổi. Tải bản mới để tránh ghi đè.');
         const type = patch.type ?? old.type;
         const key = patch.category ?? old.category;
         const category = await ownedCategory(client, user, key, type);
@@ -256,24 +288,31 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         ).rows[0];
       });
     },
-    async deleteTransaction(user: string, id: string) {
-      if (
-        !(
-          await pool.query(
-            'DELETE FROM transactions WHERE user_id=$1 AND id=$2 RETURNING id',
-            [user, id],
-          )
-        ).rowCount
-      )
-        fail(404, 'Không tìm thấy giao dịch.');
+    async deleteTransaction(user: string, id: string, version: string) {
+      await atomic(async (client) => {
+        await assertVersion(client, 'transactions', user, id, version);
+        await client.query(
+          'DELETE FROM transactions WHERE user_id=$1 AND id=$2',
+          [user, id],
+        );
+      });
     },
-    async exportRows(user: string, after: string) {
+    async exportRows(user: string, after: string, db: DB = pool) {
       return (
-        await pool.query<TxRow>(
+        await db.query<TxRow>(
           SELECT_TX + ' WHERE t.user_id=$1 AND t.id>$2 ORDER BY t.id LIMIT 500',
           [user, after],
         )
       ).rows;
+    },
+    async exportSnapshot<T>(
+      user: string,
+      work: (page: (after: string) => Promise<TxRow[]>) => Promise<T>,
+    ) {
+      return atomic(async (client) => {
+        await client.query("SET LOCAL statement_timeout = '30s'");
+        return work((after) => this.exportRows(user, after, client));
+      }, 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     },
     async report(user: string, from: string, to: string, db: DB = pool) {
       const totals = (
@@ -335,7 +374,7 @@ export function apiRepository(pool: pg.Pool, secret: string) {
     async budgets(user: string, month: string) {
       return (
         await pool.query(
-          'SELECT b.id,c.key AS category,b.month::text,b.limit_vnd::text FROM budgets b JOIN categories c ON c.id=b.category_id WHERE b.user_id=$1 AND b.month=$2 ORDER BY c.key',
+          'SELECT b.id,c.key AS category,b.month::text,b.limit_vnd::text,concat(b.id,chr(58),b.version) AS version FROM budgets b JOIN categories c ON c.id=b.category_id WHERE b.user_id=$1 AND b.month=$2 ORDER BY c.key',
           [user, month],
         )
       ).rows;
@@ -353,29 +392,61 @@ export function apiRepository(pool: pg.Pool, secret: string) {
             item.category,
             'expense',
           );
-          await client.query(
-            'INSERT INTO budgets(user_id,category_id,month,limit_vnd) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,category_id,month) DO UPDATE SET limit_vnd=EXCLUDED.limit_vnd',
-            [user, category, month, item.limit_vnd.toString()],
-          );
+          const changed =
+            item.version === '0'
+              ? await client.query(
+                  'INSERT INTO budgets(user_id,category_id,month,limit_vnd) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING id',
+                  [user, category, month, item.limit_vnd.toString()],
+                )
+              : await client.query(
+                  'UPDATE budgets SET limit_vnd=$4 WHERE user_id=$1 AND category_id=$2 AND month=$3 AND version=$5 AND id=$6 RETURNING id',
+                  [
+                    user,
+                    category,
+                    month,
+                    item.limit_vnd.toString(),
+                    item.version.split(':')[1],
+                    item.version.split(':')[0],
+                  ],
+                );
+          if (!changed.rowCount)
+            fail(409, 'Ngân sách đã thay đổi. Tải bản mới trước khi lưu.');
         }
       });
       return this.budgets(user, month);
     },
-    async deleteBudget(user: string, month: string, category: string) {
-      const result = await pool.query(
-        'DELETE FROM budgets b USING categories c WHERE b.category_id=c.id AND b.user_id=$1 AND b.month=$2 AND c.key=$3 RETURNING b.id',
-        [user, month, category],
-      );
-      return result.rowCount !== 0;
+    async deleteBudget(
+      user: string,
+      month: string,
+      category: string,
+      version: string,
+    ) {
+      return atomic(async (client) => {
+        const row = (
+          await client.query(
+            'SELECT b.id,concat(b.id,chr(58),b.version) AS version FROM budgets b JOIN categories c ON c.id=b.category_id WHERE b.user_id=$1 AND b.month=$2 AND c.key=$3 FOR UPDATE OF b',
+            [user, month, category],
+          )
+        ).rows[0];
+        if (!row) return false;
+        if (row.version !== version)
+          fail(409, 'Ngân sách đã thay đổi. Tải bản mới trước khi xóa.');
+        await client.query('DELETE FROM budgets WHERE user_id=$1 AND id=$2', [
+          user,
+          row.id,
+        ]);
+        return true;
+      });
     },
     async budgetStatus(user: string, from: string, to: string) {
       return (
         await pool.query<{
           category: string;
           limit_vnd: string;
+          version: string;
           spent_vnd: string;
         }>(
-          `SELECT c.key AS category,b.limit_vnd::text,COALESCE(sum(t.amount_vnd),0)::text AS spent_vnd FROM budgets b JOIN categories c ON c.id=b.category_id LEFT JOIN transactions t ON t.user_id=b.user_id AND t.category_id=b.category_id AND t.type='expense' AND t.occurred_on >= $2 AND t.occurred_on < $3 WHERE b.user_id=$1 AND b.month=$2 GROUP BY c.key,b.limit_vnd ORDER BY c.key`,
+          `SELECT c.key AS category,b.limit_vnd::text,concat(b.id,chr(58),b.version) AS version,COALESCE(sum(t.amount_vnd),0)::text AS spent_vnd FROM budgets b JOIN categories c ON c.id=b.category_id LEFT JOIN transactions t ON t.user_id=b.user_id AND t.category_id=b.category_id AND t.type='expense' AND t.occurred_on >= $2 AND t.occurred_on < $3 WHERE b.user_id=$1 AND b.month=$2 GROUP BY c.key,b.id,b.limit_vnd,b.version ORDER BY c.key`,
           [user, from, to],
         )
       ).rows.map((row) => {
@@ -393,53 +464,99 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         };
       });
     },
-    async goals(user: string, id?: string) {
+    async goals(user: string, id?: string, db: DB = pool) {
       return (
-        await pool.query<GoalRow>(
-          `SELECT g.id,g.name,g.target_vnd::text,g.deadline::text,COALESCE(sum(c.amount_vnd),0)::text AS contributed_vnd FROM goals g LEFT JOIN goal_contributions c ON c.goal_id=g.id AND c.user_id=g.user_id WHERE g.user_id=$1 AND ($2::bigint IS NULL OR g.id=$2) GROUP BY g.id ORDER BY g.id`,
+        await db.query<GoalRow>(
+          `SELECT g.id,g.name,g.target_vnd::text,g.deadline::text,g.version::text,COALESCE(sum(c.amount_vnd),0)::text AS contributed_vnd FROM goals g LEFT JOIN goal_contributions c ON c.goal_id=g.id AND c.user_id=g.user_id WHERE g.user_id=$1 AND ($2::bigint IS NULL OR g.id=$2) GROUP BY g.id ORDER BY g.id`,
           [user, id ?? null],
         )
       ).rows;
     },
-    async createGoal(user: string, input: c.Goal) {
-      const row = (
-        await pool.query<{ id: string }>(
-          'INSERT INTO goals(user_id,name,target_vnd,deadline) VALUES($1,$2,$3,$4) RETURNING id',
-          [user, input.name, input.target_vnd.toString(), input.deadline],
+    async goalCreationStatus(user: string, key: string) {
+      const cached = (
+        await pool.query(
+          'SELECT response FROM batch_requests WHERE user_id=$1 AND key=$2',
+          [user, key],
         )
-      ).rows[0];
-      return (await this.goals(user, row?.id))[0];
+      ).rows[0]?.response;
+      if (
+        !cached ||
+        typeof cached.name !== 'string' ||
+        typeof cached.target_vnd !== 'string' ||
+        typeof cached.id !== 'string'
+      )
+        return { state: 'unknown' as const };
+      const current = (await this.goals(user, cached.id))[0];
+      return current
+        ? { state: 'saved' as const, goal_id: current.id }
+        : { state: 'deleted' as const };
+    },
+    async createGoal(user: string, input: z.infer<typeof c.goalCreate>) {
+      return atomic(async (client) => {
+        const hash = createHash('sha256')
+          .update(c.stableJson({ kind: 'create_goal', ...input }))
+          .digest('hex');
+        const inserted = await client.query(
+          'INSERT INTO batch_requests(user_id,key,request_hash) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING key',
+          [user, input.idempotency_key, hash],
+        );
+        if (!inserted.rowCount) {
+          const old = (
+            await client.query(
+              'SELECT request_hash,response FROM batch_requests WHERE user_id=$1 AND key=$2',
+              [user, input.idempotency_key],
+            )
+          ).rows[0];
+          if (old?.request_hash !== hash)
+            fail(409, 'Idempotency key đã dùng với nội dung khác.');
+          return old.response;
+        }
+        const row = (
+          await client.query(
+            'INSERT INTO goals(user_id,name,target_vnd,deadline) VALUES($1,$2,$3,$4) RETURNING id',
+            [user, input.name, input.target_vnd.toString(), input.deadline],
+          )
+        ).rows[0];
+        const response = (await this.goals(user, row.id, client))[0];
+        await client.query(
+          'UPDATE batch_requests SET response=$3 WHERE user_id=$1 AND key=$2',
+          [user, input.idempotency_key, JSON.stringify(response)],
+        );
+        return response;
+      });
     },
     async patchGoal(
       user: string,
       id: string,
       input: z.infer<typeof c.goalPatch>,
     ) {
-      const changed = await pool.query(
-        'UPDATE goals SET name=COALESCE($3,name),target_vnd=COALESCE($4,target_vnd),deadline=COALESCE($5,deadline) WHERE user_id=$1 AND id=$2 RETURNING id',
-        [
+      return atomic(async (client) => {
+        await assertVersion(client, 'goals', user, id, input.version);
+        const changed = await client.query(
+          'UPDATE goals SET name=COALESCE($3,name),target_vnd=COALESCE($4,target_vnd),deadline=COALESCE($5,deadline) WHERE user_id=$1 AND id=$2 RETURNING id',
+          [
+            user,
+            id,
+            input.name ?? null,
+            input.target_vnd?.toString() ?? null,
+            input.deadline ?? null,
+          ],
+        );
+        if (!changed.rowCount) fail(404, 'Không tìm thấy quỹ.');
+        return (
+          (await this.goals(user, id, client))[0] ??
+          fail(404, 'Không tìm thấy quỹ.')
+        );
+      });
+    },
+    async deleteGoal(user: string, id: string, version: string) {
+      await atomic(async (client) => {
+        await assertVersion(client, 'goals', user, id, version);
+        await client.query('DELETE FROM goals WHERE user_id=$1 AND id=$2', [
           user,
           id,
-          input.name ?? null,
-          input.target_vnd?.toString() ?? null,
-          input.deadline ?? null,
-        ],
-      );
-      if (!changed.rowCount) fail(404, 'Không tìm thấy quỹ.');
-      return (
-        (await this.goals(user, id))[0] ?? fail(404, 'Không tìm thấy quỹ.')
-      );
-    },
-    async deleteGoal(user: string, id: string) {
-      if (
-        !(
-          await pool.query(
-            'DELETE FROM goals WHERE user_id=$1 AND id=$2 RETURNING id',
-            [user, id],
-          )
-        ).rowCount
-      )
-        fail(404, 'Không tìm thấy quỹ.');
+        ]);
+      });
     },
     async contribute(
       user: string,

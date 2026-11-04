@@ -114,6 +114,29 @@ function call(
   path: string,
   body?: object | string,
 ) {
+  // Fresh fixtures start at version 1; tests for later/stale revisions supply explicit tokens.
+  if (body && typeof body === 'object') {
+    if (method === 'post' && path === '/api/goals')
+      body = { idempotency_key: randomUUID(), ...body };
+    if (method === 'patch' && /^\/api\/(transactions|goals)\//.test(path))
+      body = { version: '1', ...body };
+    if (method === 'put' && path.startsWith('/api/budgets?')) {
+      const data = body as { items: Record<string, unknown>[] };
+      body = {
+        ...data,
+        items: data.items.map((item) => ({ version: '0', ...item })),
+      };
+    }
+  }
+  if (
+    method === 'delete' &&
+    /^\/api\/(transactions|goals|budgets)\//.test(path) &&
+    !path.includes('version=')
+  )
+    path +=
+      (path.includes('?') ? '&' : '?') +
+      'version=' +
+      (path.startsWith('/api/budgets/') ? '1:1' : '1');
   let test = actor.agent[method](path)
     .set('Origin', origin)
     .set('X-CSRF-Token', actor.token);
@@ -362,7 +385,9 @@ describe('proposal, confirmation and idempotency', () => {
       note: 'edited',
     }).expect(200);
     expect(updated.body.amount_vnd).toBe('12345');
-    await call(a, 'delete', '/api/transactions/' + id).expect(204);
+    await call(a, 'delete', '/api/transactions/' + id + '?version=2').expect(
+      204,
+    );
     await call(a, 'delete', '/api/transactions/' + id).expect(404);
   });
 });
@@ -494,7 +519,7 @@ describe('reports, budgets, goals, export and account deletion', () => {
       deadline: '2026-11-01',
     }).expect(200);
     expect(past.body.suggested_daily_saving_vnd).toBeNull();
-    await call(a, 'delete', '/api/goals/' + g.id).expect(204);
+    await call(a, 'delete', '/api/goals/' + g.id + '?version=2').expect(204);
     expect(
       (
         await pool.query(
@@ -804,14 +829,24 @@ it('updates and deletes only the owned budget in the selected month, preserving 
     items: [{ category: 'an_uong', limit_vnd: '200000' }],
   }).expect(200);
   await save(a);
+  const initial = (await call(a, 'get', '/api/budgets?month=2026-11')).body
+    .items[0];
   await call(a, 'put', '/api/budgets?month=2026-11', {
-    items: [{ category: 'an_uong', limit_vnd: '150000' }],
+    items: [
+      { category: 'an_uong', limit_vnd: '150000', version: initial.version },
+    ],
   }).expect(200);
   expect(
     (await call(a, 'get', '/api/budgets?month=2026-11')).body.items[0]
       .limit_vnd,
   ).toBe('150000');
-  await call(a, 'delete', '/api/budgets/an_uong?month=2026-11').expect(204);
+  const current = (await call(a, 'get', '/api/budgets?month=2026-11')).body
+    .items[0];
+  await call(
+    a,
+    'delete',
+    '/api/budgets/an_uong?month=2026-11&version=' + current.version,
+  ).expect(204);
   expect(
     (await call(a, 'get', '/api/budgets?month=2026-11')).body.items,
   ).toEqual([]);
@@ -960,12 +995,14 @@ it('recalculates reports and budgets after changing transaction type, amount and
   ).toBe('exceeded');
   await call(a, 'patch', `/api/transactions/${id}`, {
     occurred_on: '2026-12-01',
+    version: '2',
   }).expect(200);
   expect(
     (await call(a, 'get', '/api/budgets/status?month=2026-11')).body.items[0]
       .spent_vnd,
   ).toBe('0');
   await call(a, 'patch', `/api/transactions/${id}`, {
+    version: '3',
     type: 'income',
     category: 'luong',
     amount_vnd: '100000',
@@ -973,7 +1010,7 @@ it('recalculates reports and budgets after changing transaction type, amount and
   expect(
     (await call(a, 'get', '/api/reports/month?month=2026-12')).body.totals,
   ).toEqual({ income_vnd: '100000', expense_vnd: '0', net_vnd: '100000' });
-  await call(a, 'delete', `/api/transactions/${id}`).expect(204);
+  await call(a, 'delete', `/api/transactions/${id}?version=4`).expect(204);
   expect(
     (await call(a, 'get', '/api/reports/year?year=2026')).body.totals,
   ).toEqual({ income_vnd: '0', expense_vnd: '0', net_vnd: '0' });
@@ -1019,4 +1056,174 @@ it('counts future contributions immediately, caps progress and handles deadline 
   expect((await call(a, 'get', '/api/transactions')).body.items).toHaveLength(
     0,
   );
+});
+
+it('goal creation retries return one goal and changed payloads conflict', async () => {
+  const data = {
+    idempotency_key: randomUUID(),
+    name: 'Retry-safe creation',
+    target_vnd: '100000',
+    deadline: '2027-12-31',
+  };
+  const [one, two] = await Promise.all([
+    call(a, 'post', '/api/goals', data),
+    call(a, 'post', '/api/goals', data),
+  ]);
+  expect(one.status).toBe(201);
+  expect(two.status).toBe(201);
+  expect(one.body.id).toBe(two.body.id);
+  expect((await call(a, 'get', '/api/goals')).body.items).toHaveLength(1);
+  await call(a, 'post', '/api/goals', {
+    ...data,
+    name: 'Changed intent',
+  }).expect(409);
+  await call(b, 'post', '/api/goals', data).expect(201);
+});
+it('stale transaction and goal edits/deletes cannot overwrite newer data', async () => {
+  const t = (await save(a)).body.items[0];
+  const updated = (
+    await call(a, 'patch', `/api/transactions/${t.id}`, {
+      version: t.version,
+      note: 'Newer saved note',
+    }).expect(200)
+  ).body;
+  expect(updated.version).not.toBe(t.version);
+  await call(a, 'patch', `/api/transactions/${t.id}`, {
+    version: t.version,
+    amount_vnd: '999',
+  }).expect(409);
+  await call(
+    a,
+    'delete',
+    `/api/transactions/${t.id}?version=${t.version}`,
+  ).expect(409);
+  expect((await call(a, 'get', '/api/transactions')).body.items[0].note).toBe(
+    'Newer saved note',
+  );
+  const g = (await goal(a)).body;
+  const newGoal = (
+    await call(a, 'patch', `/api/goals/${g.id}`, {
+      version: g.version,
+      name: 'New goal name',
+    }).expect(200)
+  ).body;
+  await call(a, 'patch', `/api/goals/${g.id}`, {
+    version: g.version,
+    target_vnd: '1',
+  }).expect(409);
+  await call(a, 'delete', `/api/goals/${g.id}?version=${g.version}`).expect(
+    409,
+  );
+  await call(
+    a,
+    'delete',
+    `/api/goals/${g.id}?version=${newGoal.version}`,
+  ).expect(204);
+});
+it('budget revisions also reject stale tokens after delete and recreation', async () => {
+  const create = () =>
+    call(a, 'put', '/api/budgets?month=2026-11', {
+      items: [{ category: 'an_uong', limit_vnd: '100000', version: '0' }],
+    });
+  const original = (await create().expect(200)).body.items[0];
+  const next = (
+    await call(a, 'put', '/api/budgets?month=2026-11', {
+      items: [
+        { category: 'an_uong', limit_vnd: '200000', version: original.version },
+      ],
+    }).expect(200)
+  ).body.items[0];
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [{ category: 'an_uong', limit_vnd: '3', version: original.version }],
+  }).expect(409);
+  await call(
+    a,
+    'delete',
+    `/api/budgets/an_uong?month=2026-11&version=${original.version}`,
+  ).expect(409);
+  await call(
+    a,
+    'delete',
+    `/api/budgets/an_uong?month=2026-11&version=${next.version}`,
+  ).expect(204);
+  const replacement = (await create().expect(200)).body.items[0];
+  expect(replacement.version).not.toBe(original.version);
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [{ category: 'an_uong', limit_vnd: '3', version: original.version }],
+  }).expect(409);
+});
+it('CSV snapshot retains original rows across pages during concurrent writes', async () => {
+  await pool.query(
+    "INSERT INTO transactions(user_id,type,amount_vnd,category_id,note,occurred_on) SELECT $1,'expense'::txn_type,1000,c.id,'snapshot-'||g,DATE '2026-11-02' FROM generate_series(1,501)g CROSS JOIN categories c WHERE c.key='an_uong' AND c.user_id IS NULL",
+    [a.id],
+  );
+  await withTenant(a.id, () =>
+    apiRepository(
+      tenantPool(pool, true),
+      'synthetic-export-secret',
+    ).exportSnapshot(a.id, async (page) => {
+      const first = await page('0');
+      expect(first).toHaveLength(500);
+      await pool.query(
+        "UPDATE transactions SET note='changed after export start' WHERE user_id=$1 AND note='snapshot-501'",
+        [a.id],
+      );
+      await pool.query(
+        "INSERT INTO transactions(user_id,type,amount_vnd,category_id,note,occurred_on) SELECT $1,'expense'::txn_type,1,id,'late row',DATE '2026-11-02' FROM categories WHERE key='an_uong' AND user_id IS NULL",
+        [a.id],
+      );
+      const second = await page(first.at(-1)!.id);
+      expect(second).toHaveLength(1);
+      expect(second[0]!.note).toBe('snapshot-501');
+      expect(await page(second[0]!.id)).toEqual([]);
+    }),
+  );
+});
+
+it('goal creation recovery status is owner scoped and survives goal deletion', async () => {
+  const key = randomUUID();
+  expect(
+    (await call(a, 'get', `/api/goals/creation-status/${key}`).expect(200)).body
+      .state,
+  ).toBe('unknown');
+  const g = (
+    await call(a, 'post', '/api/goals', {
+      idempotency_key: key,
+      name: 'Recovery fixture',
+      target_vnd: '100000',
+      deadline: '2027-12-31',
+    }).expect(201)
+  ).body;
+  expect(
+    (await call(a, 'get', `/api/goals/creation-status/${key}`).expect(200))
+      .body,
+  ).toEqual({ state: 'saved', goal_id: g.id });
+  expect(
+    (await call(b, 'get', `/api/goals/creation-status/${key}`).expect(200)).body
+      .state,
+  ).toBe('unknown');
+  await call(a, 'delete', `/api/goals/${g.id}?version=${g.version}`).expect(
+    204,
+  );
+  expect(
+    (await call(a, 'get', `/api/goals/creation-status/${key}`).expect(200)).body
+      .state,
+  ).toBe('deleted');
+  await call(a, 'get', '/api/goals/creation-status/not-a-uuid').expect(400);
+});
+
+it('releases the snapshot transaction when export consumer fails', async () => {
+  await withTenant(a.id, async () => {
+    const repo = apiRepository(
+      tenantPool(pool, true),
+      'synthetic-export-secret',
+    );
+    await expect(
+      repo.exportSnapshot(a.id, async (page) => {
+        await page('0');
+        throw Error('simulated disconnect');
+      }),
+    ).rejects.toThrow('simulated disconnect');
+    expect((await repo.exportRows(a.id, '0')).length).toBe(0);
+  });
 });

@@ -2891,10 +2891,19 @@
                         "gemini",
                         "fake"
                       ]
+                    },
+                    "money_profile": {
+                      "type": "string",
+                      "enum": [
+                        "standard",
+                        "owner-confirmed-v1",
+                        "owner-confirmed-v2"
+                      ]
                     }
                   },
                   "required": [
-                    "provider"
+                    "provider",
+                    "money_profile"
                   ],
                   "additionalProperties": false
                 }
@@ -4560,6 +4569,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,18}$"
                           },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,18}$"
+                          },
                           "type": {
                             "type": "string",
                             "enum": [
@@ -4585,6 +4598,7 @@
                         },
                         "required": [
                           "id",
+                          "version",
                           "type",
                           "amount_vnd",
                           "note",
@@ -6229,6 +6243,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,18}$"
                           },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,18}$"
+                          },
                           "type": {
                             "type": "string",
                             "enum": [
@@ -6255,6 +6273,7 @@
                         },
                         "required": [
                           "id",
+                          "version",
                           "type",
                           "amount_vnd",
                           "category",
@@ -6672,6 +6691,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,18}$"
                           },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,18}$"
+                          },
                           "type": {
                             "type": "string",
                             "enum": [
@@ -6698,6 +6721,7 @@
                         },
                         "required": [
                           "id",
+                          "version",
                           "type",
                           "amount_vnd",
                           "category",
@@ -7100,8 +7124,15 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                     "format": "date"
+                  },
+                  "version": {
+                    "type": "string",
+                    "pattern": "^[1-9]\\d{0,18}$"
                   }
                 },
+                "required": [
+                  "version"
+                ],
                 "additionalProperties": false
               }
             }
@@ -7117,6 +7148,10 @@
                   "type": "object",
                   "properties": {
                     "id": {
+                      "type": "string",
+                      "pattern": "^[1-9]\\d{0,18}$"
+                    },
+                    "version": {
                       "type": "string",
                       "pattern": "^[1-9]\\d{0,18}$"
                     },
@@ -7146,6 +7181,7 @@
                   },
                   "required": [
                     "id",
+                    "version",
                     "type",
                     "amount_vnd",
                     "category",
@@ -7473,6 +7509,15 @@
           }
         ],
         "parameters": [
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d{0,18}$"
+            }
+          },
           {
             "name": "id",
             "in": "path",
@@ -8705,6 +8750,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,18}$"
                           },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,18}:[1-9]\\d{0,18}$"
+                          },
                           "category": {
                             "type": "string",
                             "pattern": "^[a-z_]{2,40}$"
@@ -8721,6 +8770,7 @@
                         },
                         "required": [
                           "id",
+                          "version",
                           "category",
                           "month",
                           "limit_vnd"
@@ -9103,11 +9153,24 @@
                               "pattern": "^(?:[1-9]\\d{0,10}|100000000000)$"
                             }
                           ]
+                        },
+                        "version": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "0"
+                            },
+                            {
+                              "type": "string",
+                              "pattern": "^[1-9]\\d{0,18}:[1-9]\\d{0,18}$"
+                            }
+                          ]
                         }
                       },
                       "required": [
                         "category",
-                        "limit_vnd"
+                        "limit_vnd",
+                        "version"
                       ],
                       "additionalProperties": false
                     }
@@ -9139,6 +9202,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,18}$"
                           },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,18}:[1-9]\\d{0,18}$"
+                          },
                           "category": {
                             "type": "string",
                             "pattern": "^[a-z_]{2,40}$"
@@ -9155,6 +9222,7 @@
                         },
                         "required": [
                           "id",
+                          "version",
                           "category",
                           "month",
                           "limit_vnd"
@@ -9496,6 +9564,15 @@
             "schema": {
               "type": "string",
               "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d{0,18}:[1-9]\\d{0,18}$"
             }
           },
           {
@@ -9867,6 +9944,10 @@
                             "type": "string",
                             "pattern": "^[a-z_]{2,40}$"
                           },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,18}:[1-9]\\d{0,18}$"
+                          },
                           "limit_vnd": {
                             "type": "string",
                             "pattern": "^(?:0|[1-9]\\d*)$"
@@ -9890,6 +9971,7 @@
                         },
                         "required": [
                           "category",
+                          "version",
                           "limit_vnd",
                           "spent_vnd",
                           "remaining_vnd",
@@ -9901,6 +9983,365 @@
                   },
                   "required": [
                     "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem response",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/goals/creation-status/{key}": {
+      "get": {
+        "operationId": "get_api_goals_creation_status__key",
+        "security": [
+          {
+            "cookieSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "saved",
+                        "deleted",
+                        "unknown"
+                      ]
+                    },
+                    "goal_id": {
+                      "type": "string",
+                      "pattern": "^[1-9]\\d{0,18}$"
+                    }
+                  },
+                  "required": [
+                    "state"
                   ],
                   "additionalProperties": false
                 }
@@ -10243,6 +10684,10 @@
                             "type": "string",
                             "pattern": "^[1-9]\\d{0,18}$"
                           },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[1-9]\\d{0,18}$"
+                          },
                           "name": {
                             "type": "string"
                           },
@@ -10287,6 +10732,7 @@
                         },
                         "required": [
                           "id",
+                          "version",
                           "name",
                           "target_vnd",
                           "deadline",
@@ -10664,12 +11110,18 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                     "format": "date"
+                  },
+                  "idempotency_key": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
                   "name",
                   "target_vnd",
-                  "deadline"
+                  "deadline",
+                  "idempotency_key"
                 ],
                 "additionalProperties": false
               }
@@ -10686,6 +11138,10 @@
                   "type": "object",
                   "properties": {
                     "id": {
+                      "type": "string",
+                      "pattern": "^[1-9]\\d{0,18}$"
+                    },
+                    "version": {
                       "type": "string",
                       "pattern": "^[1-9]\\d{0,18}$"
                     },
@@ -10733,6 +11189,7 @@
                   },
                   "required": [
                     "id",
+                    "version",
                     "name",
                     "target_vnd",
                     "deadline",
@@ -11088,6 +11545,10 @@
                       "type": "string",
                       "pattern": "^[1-9]\\d{0,18}$"
                     },
+                    "version": {
+                      "type": "string",
+                      "pattern": "^[1-9]\\d{0,18}$"
+                    },
                     "name": {
                       "type": "string"
                     },
@@ -11132,6 +11593,7 @@
                   },
                   "required": [
                     "id",
+                    "version",
                     "name",
                     "target_vnd",
                     "deadline",
@@ -11511,8 +11973,15 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                     "format": "date"
+                  },
+                  "version": {
+                    "type": "string",
+                    "pattern": "^[1-9]\\d{0,18}$"
                   }
                 },
+                "required": [
+                  "version"
+                ],
                 "additionalProperties": false
               }
             }
@@ -11528,6 +11997,10 @@
                   "type": "object",
                   "properties": {
                     "id": {
+                      "type": "string",
+                      "pattern": "^[1-9]\\d{0,18}$"
+                    },
+                    "version": {
                       "type": "string",
                       "pattern": "^[1-9]\\d{0,18}$"
                     },
@@ -11575,6 +12048,7 @@
                   },
                   "required": [
                     "id",
+                    "version",
                     "name",
                     "target_vnd",
                     "deadline",
@@ -11905,6 +12379,15 @@
           }
         ],
         "parameters": [
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d{0,18}$"
+            }
+          },
           {
             "name": "id",
             "in": "path",

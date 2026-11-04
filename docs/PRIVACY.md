@@ -7,7 +7,10 @@ bank linking or OCR. The Settings page contains the in-app privacy explanation.
 Stored: email/display name, argon2id password hash, server-side sessions, confirmed
 transactions, budgets, goals/contributions, idempotency responses, extraction cache
 and usage/rate counters. Password plaintext is not retained. Session cookies are
-httpOnly and tokens are not stored in localStorage. Drafts remain in React memory.
+httpOnly and tokens are not stored in localStorage. Draft financial payloads remain in React memory. Goal creation additionally stores
+only an opaque per-account retry UUID in sessionStorage for recovery after reload;
+it contains no amount, name, note or authentication credential and is removed on
+resolved recovery/success (or when the tab session ends).
 
 Gemini receives one message and the current Vietnam calendar date, together with
 the fixed extraction instructions/schema. It does not receive account ID/email,
@@ -26,7 +29,8 @@ message text, emails, passwords or credentials. No retention policy for hosting 
 or backups is established before hosting is chosen; these remain deployment tasks.
 
 Settings exports all transactions as CSV, not a full account archive. Export is
-chunked and may reflect concurrent writes. Account deletion is irreversible and
+chunked within one read-only repeatable-read snapshot. Slow streams are terminated
+after 30 seconds; retry if the download is incomplete. Account deletion is irreversible and
 removes user-owned database rows and all user sessions through foreign-key cascade;
 a regression test checks every public table with user_id. Anonymous sessions and
 global aggregate quota counts contain no account reference. Provider logs and any
@@ -66,3 +70,15 @@ and retention remain deployment configuration. CI uses mocked transport solely f
 deterministic regressions; separately labeled owner-authorized local checks use the
 real Gemini API and synthetic accounts. Historical pre-removal audio checks are
 labeled as such and do not describe current product features.
+
+## Owner-provided development evaluation
+
+Owner explicitly authorized the 50 voluntarily supplied development phrases to be
+sent to Gemini and approved their labels, then revised the bare-number policy.
+Approved labels/raw outputs live only in ignored owner-only `.local/owner-dev`
+files. Public evidence contains aggregate metrics/hashes, never the new raw outputs
+or financial labels. These phrases are not held-out data. The evaluation process
+uses a separate capped memory budget, never changes the web application's caps and
+never inspects the owner's saved ledger. The demo profile now explicitly defines
+bare monetary 1–999 as thousands, while dates/times/quantities remain excluded;
+all proposals require human review and no extraction writes ledger rows.

@@ -32,6 +32,8 @@ export interface ApiOptions {
   now?: () => Date;
   extractor: {
     readonly providerName?: 'gemini' | 'fake';
+    readonly moneyProfile?:
+      'standard' | 'owner-confirmed-v1' | 'owner-confirmed-v2';
     parseHybrid(
       message: string,
       now: string,
@@ -53,6 +55,7 @@ const userSchema = z.strictObject({
 });
 const txSchema = z.strictObject({
   id: c.id,
+  version: c.id,
   type: z.enum(['income', 'expense']),
   amount_vnd: strMoney,
   category: c.category,
@@ -61,6 +64,7 @@ const txSchema = z.strictObject({
 });
 const goalSchema = z.strictObject({
   id: c.id,
+  version: c.id,
   name: z.string(),
   target_vnd: strMoney,
   deadline: c.day,
@@ -72,6 +76,7 @@ const goalSchema = z.strictObject({
 });
 const budgetSchema = z.strictObject({
   id: c.id,
+  version: c.budgetVersion,
   category: c.category,
   month: c.day,
   limit_vnd: strMoney,
@@ -481,8 +486,20 @@ export async function createApp(options: ApiOptions) {
   route(
     'get',
     '/api/chat/status',
-    { response: z.strictObject({ provider: z.enum(['gemini', 'fake']) }) },
-    () => ({ provider: options.extractor.providerName ?? 'fake' }),
+    {
+      response: z.strictObject({
+        provider: z.enum(['gemini', 'fake']),
+        money_profile: z.enum([
+          'standard',
+          'owner-confirmed-v1',
+          'owner-confirmed-v2',
+        ]),
+      }),
+    },
+    () => ({
+      provider: options.extractor.providerName ?? 'fake',
+      money_profile: options.extractor.moneyProfile ?? 'standard',
+    }),
   );
   route(
     'post',
@@ -724,8 +741,13 @@ export async function createApp(options: ApiOptions) {
   route(
     'delete',
     '/api/transactions/:id',
-    { params: c.idParams, status: 204 },
-    ({ user, params }) => repo.deleteTransaction(user, params.id),
+    {
+      params: c.idParams,
+      query: z.strictObject({ version: c.id }),
+      status: 204,
+    },
+    ({ user, params, query }) =>
+      repo.deleteTransaction(user, params.id, query.version),
   );
   route(
     'get',
@@ -811,13 +833,18 @@ export async function createApp(options: ApiOptions) {
     'delete',
     '/api/budgets/:category',
     {
-      query: c.monthQuery,
+      query: c.monthQuery.extend({ version: c.budgetVersion }),
       params: z.strictObject({ category: c.category }),
       status: 204,
     },
     async ({ user, query, params }) => {
       if (
-        !(await repo.deleteBudget(user, query.month + '-01', params.category))
+        !(await repo.deleteBudget(
+          user,
+          query.month + '-01',
+          params.category,
+          query.version,
+        ))
       )
         fail(404, 'Không tìm thấy ngân sách trong tháng đã chọn.');
     },
@@ -831,6 +858,7 @@ export async function createApp(options: ApiOptions) {
         items: z.array(
           z.strictObject({
             category: c.category,
+            version: c.budgetVersion,
             limit_vnd: strMoney,
             spent_vnd: strMoney,
             remaining_vnd: strMoney,
@@ -851,6 +879,7 @@ export async function createApp(options: ApiOptions) {
     row:
       | {
           id: string;
+          version: string;
           name: string;
           target_vnd: string;
           deadline: string;
@@ -884,6 +913,18 @@ export async function createApp(options: ApiOptions) {
   }
   route(
     'get',
+    '/api/goals/creation-status/:key',
+    {
+      params: z.strictObject({ key: z.uuid() }),
+      response: z.strictObject({
+        state: z.enum(['saved', 'deleted', 'unknown']),
+        goal_id: c.id.optional(),
+      }),
+    },
+    ({ user, params }) => repo.goalCreationStatus(user, params.key),
+  );
+  route(
+    'get',
     '/api/goals',
     { response: z.strictObject({ items: z.array(goalSchema) }) },
     async ({ user }) => ({ items: (await repo.goals(user)).map(goalView) }),
@@ -898,7 +939,7 @@ export async function createApp(options: ApiOptions) {
   route(
     'post',
     '/api/goals',
-    { body: c.goal, status: 201, response: goalSchema },
+    { body: c.goalCreate, status: 201, response: goalSchema },
     async ({ user, body }) => goalView(await repo.createGoal(user, body)),
   );
   route(
@@ -911,8 +952,13 @@ export async function createApp(options: ApiOptions) {
   route(
     'delete',
     '/api/goals/:id',
-    { params: c.idParams, status: 204 },
-    ({ user, params }) => repo.deleteGoal(user, params.id),
+    {
+      params: c.idParams,
+      query: z.strictObject({ version: c.id }),
+      status: 204,
+    },
+    ({ user, params, query }) =>
+      repo.deleteGoal(user, params.id, query.version),
   );
   route(
     'post',
@@ -932,50 +978,57 @@ export async function createApp(options: ApiOptions) {
   );
   route('get', '/api/me/export', { csv: true }, async ({ req, res, user }) => {
     await rate(req, res, 'export', user, user, 3);
-    res
-      .status(200)
-      .type('text/csv')
-      .set(
-        'Content-Disposition',
-        'attachment; filename="sochat-transactions.csv"',
-      );
-    res.write('\uFEFFid,type,amount_vnd,category,note,occurred_on\r\n');
-    let after = '0';
-    for (;;) {
-      if (res.destroyed) return;
-      const rows = await repo.exportRows(user, after);
-      if (!rows.length) break;
-      for (const row of rows) {
-        if (res.destroyed) return;
-        const line =
-          [
-            row.id,
-            row.type,
-            row.amount_vnd,
-            row.category,
-            row.note,
-            row.occurred_on,
-          ]
-            .map(csv)
-            .join(',') + '\r\n';
-        if (!res.write(line)) {
-          await new Promise<void>((resolve) => {
-            const done = () => {
-              res.off('drain', done);
-              res.off('close', done);
-              res.off('error', done);
-              resolve();
-            };
-            res.once('drain', done);
-            res.once('close', done);
-            res.once('error', done);
-          });
+    const timer = setTimeout(() => res.destroy(), 30000);
+    try {
+      await repo.exportSnapshot(user, async (page) => {
+        res
+          .status(200)
+          .type('text/csv')
+          .set(
+            'Content-Disposition',
+            'attachment; filename="sochat-transactions.csv"',
+          );
+        res.write('\uFEFFid,type,amount_vnd,category,note,occurred_on\r\n');
+        let after = '0';
+        for (;;) {
           if (res.destroyed) return;
+          const rows = await page(after);
+          if (!rows.length) break;
+          for (const row of rows) {
+            if (res.destroyed) return;
+            const line =
+              [
+                row.id,
+                row.type,
+                row.amount_vnd,
+                row.category,
+                row.note,
+                row.occurred_on,
+              ]
+                .map(csv)
+                .join(',') + '\r\n';
+            if (!res.write(line)) {
+              await new Promise<void>((resolve) => {
+                const done = () => {
+                  res.off('drain', done);
+                  res.off('close', done);
+                  res.off('error', done);
+                  resolve();
+                };
+                res.once('drain', done);
+                res.once('close', done);
+                res.once('error', done);
+              });
+              if (res.destroyed) return;
+            }
+          }
+          after = rows.at(-1)?.id ?? after;
         }
-      }
-      after = rows.at(-1)?.id ?? after;
+        res.end();
+      });
+    } finally {
+      clearTimeout(timer);
     }
-    res.end();
   });
   const openapi = {
     openapi: '3.1.0',

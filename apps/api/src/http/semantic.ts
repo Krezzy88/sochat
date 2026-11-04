@@ -156,7 +156,7 @@ export async function semanticSearch(
   await requireSemantic(user, pool);
   let rows = (
     await pool.query(
-      'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
+      'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
       [user, embeddingModel],
     )
   ).rows;
@@ -165,7 +165,7 @@ export async function semanticSearch(
   await requireSemantic(user, pool);
   rows = (
     await pool.query(
-      'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
+      'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
       [user, embeddingModel],
     )
   ).rows;
@@ -174,6 +174,7 @@ export async function semanticSearch(
     items: rows
       .map((r) => ({
         id: r.id,
+        version: r.version,
         note: r.note,
         amount_vnd: r.amount_vnd,
         occurred_on: r.occurred_on,

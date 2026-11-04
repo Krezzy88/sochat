@@ -10,7 +10,11 @@ import type { Category, Draft, Proposal } from '../api.ts';
 import { Alert, Icon, MoneyInput, useLoad } from '../ui.tsx';
 export function Chat({ categories }: { categories: Category[] }) {
   const engine = useLoad(
-    () => request<{ provider: 'gemini' | 'fake' }>('/chat/status'),
+    () =>
+      request<{
+        provider: 'gemini' | 'fake';
+        money_profile: 'standard' | 'owner-confirmed-v1' | 'owner-confirmed-v2';
+      }>('/chat/status'),
     [],
   );
   const [message, setMessage] = useState('');
@@ -392,6 +396,18 @@ export function Chat({ categories }: { categories: Category[] }) {
               <div>
                 <strong>Có số, có đơn vị</strong>
                 <p>50k, 1tr2, 2 triệu rưỡi.</p>
+                {engine.data && engine.data.money_profile !== 'standard' && (
+                  <details>
+                    <summary>Quy ước tiếng lóng</summary>
+                    <p>
+                      Lít, loét, xị, cành = 100.000đ; chục = 10.000đ.{' '}
+                      {engine.data.money_profile === 'owner-confirmed-v2'
+                        ? 'Số tiền từ 1–999 thiếu đơn vị được hiểu là nghìn đồng (35 = 35.000đ); ngày, giờ và số lượng không quy đổi.'
+                        : 'Số thiếu đơn vị vẫn cần hỏi lại.'}{' '}
+                      Bạn luôn kiểm tra trước khi lưu.
+                    </p>
+                  </details>
+                )}
               </div>
             </div>
             <div className="tip-row">

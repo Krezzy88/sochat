@@ -1,8 +1,13 @@
+import process from 'node:process';
 import { z } from 'zod';
 import type pg from 'pg';
 import * as c from './contracts.ts';
 import { queryIntent, generateStructured } from './assistant.ts';
-import { extractAmounts, fold } from '../../../../packages/parser/src/index.ts';
+import {
+  extractAmounts,
+  fold,
+  moneyProfile,
+} from '../../../../packages/parser/src/index.ts';
 export const revisionInput = z.strictObject({
   message: c.message.shape.message,
   items: z
@@ -79,9 +84,10 @@ export async function revise(
     );
   if (
     result.amount_vnd !== null &&
-    !extractAmounts(fold(input.message)).some(
-      (a) => a.value === result.amount_vnd,
-    )
+    !extractAmounts(
+      fold(input.message),
+      moneyProfile(process.env.MONEY_PROFILE),
+    ).some((a) => a.value === result.amount_vnd)
   )
     return ask('Bạn ghi rõ số tiền và đơn vị, ví dụ 35k nhé.');
   if (

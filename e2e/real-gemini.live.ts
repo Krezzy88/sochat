@@ -43,6 +43,16 @@ test('real Gemini, grouped money, accessible auth and responsive playful UI', as
     await expect(
       page.getByText('✦ Gemini thật đã bật', { exact: true }),
     ).toBeVisible();
+    const status = await (await page.request.get('/api/chat/status')).json();
+    expect(status.money_profile).toBe('owner-confirmed-v2');
+    const csrf = (await (await page.request.get('/api/me')).json()).csrf_token;
+    const headers = { 'X-CSRF-Token': csrf };
+    const shorthand = await page.request.post('/api/chat/parse', {
+      headers,
+      data: { message: 'phở 35' },
+    });
+    expect(shorthand.status()).toBe(200);
+    expect((await shorthand.json()).items[0].amount_vnd).toBe(35000);
     mkdirSync('docs/screenshots/ux', { recursive: true });
     await page.screenshot({
       path: 'docs/screenshots/ux/chat-desktop.png',
@@ -87,6 +97,53 @@ test('real Gemini, grouped money, accessible auth and responsive playful UI', as
     const ledger = await (await page.request.get('/api/transactions')).json();
     expect(ledger.items).toHaveLength(1);
     expect(ledger.items[0].amount_vnd).toBe('185000');
+    expect(ledger.items[0].version).toBe('1');
+    const edit = await page.request.patch(
+      '/api/transactions/' + ledger.items[0].id,
+      { headers, data: { version: '1', note: 'Synthetic updated fixture' } },
+    );
+    expect(edit.status()).toBe(200);
+    expect((await edit.json()).version).toBe('2');
+    expect(
+      (
+        await page.request.patch('/api/transactions/' + ledger.items[0].id, {
+          headers,
+          data: { version: '1', note: 'Stale fixture' },
+        })
+      ).status(),
+    ).toBe(409);
+    const goal = {
+      idempotency_key: randomUUID(),
+      name: 'Synthetic retry goal',
+      target_vnd: '100000',
+      deadline: '2027-12-31',
+    };
+    const firstGoal = await page.request.post('/api/goals', {
+      headers,
+      data: goal,
+    });
+    expect(firstGoal.status()).toBe(201);
+    const repeated = await page.request.post('/api/goals', {
+      headers,
+      data: goal,
+    });
+    expect(repeated.status()).toBe(201);
+    expect((await repeated.json()).id).toBe((await firstGoal.json()).id);
+    expect(
+      (await (await page.request.get('/api/goals')).json()).items,
+    ).toHaveLength(1);
+    expect(
+      (
+        await (
+          await page.request.get(
+            '/api/goals/creation-status/' + goal.idempotency_key,
+          )
+        ).json()
+      ).state,
+    ).toBe('saved');
+    const exported = await page.request.get('/api/me/export');
+    expect(exported.status()).toBe(200);
+    expect(await exported.text()).toContain('Synthetic updated fixture');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
@@ -116,6 +173,10 @@ test('real Gemini, grouped money, accessible auth and responsive playful UI', as
           checks: [
             'password confirmation/visibility',
             'real Gemini fallback',
+            'owner-confirmed-v2 shorthand',
+            'database revision counter and stale-edit rejection',
+            'goal UUID replay and recovery status',
+            'CSV export after versioned edit',
             'no save before confirmation',
             'grouping/paste/caret',
             'integer confirmation',

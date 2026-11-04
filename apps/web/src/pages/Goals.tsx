@@ -20,7 +20,7 @@ import {
   MoneyInput,
   useLoad,
 } from '../ui.tsx';
-export default function Goals() {
+export default function Goals({ userId }: { userId: string }) {
   const state = useLoad(() => request<{ items: Goal[] }>('/goals'), []);
   const [editing, setEditing] = useState<Goal>();
   const editor = useRef<HTMLElement>(null);
@@ -33,11 +33,84 @@ export default function Goals() {
   const [contributing, setContributing] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [conflict, setConflict] = useState(false);
   const setNotice = useFeedback().success;
+  const pendingGoal = useRef<Record<string, FormDataEntryValue> | null>(null);
+  const [goalLocked, setGoalLocked] = useState(false);
+  const creationKey = useRef<string | null>(null),
+    goalForm = useRef<HTMLFormElement>(null);
+  const [pendingCreation, setPendingCreation] = useState(false),
+    [checkingCreation, setCheckingCreation] = useState(false);
+  const storageKey = 'sochat.pending-goal:' + userId;
+  function rememberCreation(key: string | null) {
+    creationKey.current = key;
+    setPendingCreation(!!key);
+    try {
+      if (key) sessionStorage.setItem(storageKey, key);
+      else sessionStorage.removeItem(storageKey);
+    } catch {
+      /* Replay still works in-page if browser storage is unavailable. */
+    }
+  }
+  async function checkCreation() {
+    const key = creationKey.current;
+    if (!key) return;
+    setCheckingCreation(true);
+    try {
+      const result = await request<{
+        state: 'saved' | 'deleted' | 'unknown';
+        goal_id?: string;
+      }>('/goals/creation-status/' + key);
+      if (result.state !== 'unknown') {
+        rememberCreation(null);
+        pendingGoal.current = null;
+        setGoalLocked(false);
+        if (!editing) goalForm.current?.reset();
+        setError('');
+        setNotice(
+          result.state === 'saved'
+            ? 'Yêu cầu tạo quỹ trước đã hoàn tất.'
+            : 'Quỹ của yêu cầu trước đã được xóa.',
+        );
+        state.reload();
+      }
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setCheckingCreation(false);
+    }
+  }
+  useEffect(() => {
+    try {
+      const key = sessionStorage.getItem(storageKey);
+      if (
+        key &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          key,
+        )
+      ) {
+        rememberCreation(key);
+        void checkCreation();
+      }
+    } catch {
+      /* Keep memory-only behavior if storage is unavailable. */
+    }
+  }, [userId]);
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form));
+    const fields = Object.fromEntries(new FormData(form));
+    if (!editing)
+      pendingGoal.current ??= {
+        ...fields,
+        idempotency_key: creationKey.current ?? crypto.randomUUID(),
+      };
+    if (!editing)
+      rememberCreation(String(pendingGoal.current!.idempotency_key));
+    const data = editing
+      ? { ...fields, version: editing.version }
+      : pendingGoal.current;
+    if (!editing) setGoalLocked(true);
     setBusy(true);
     setError('');
     try {
@@ -46,11 +119,20 @@ export default function Goals() {
         editing ? 'PATCH' : 'POST',
         data,
       );
+      pendingGoal.current = null;
+      if (!editing) rememberCreation(null);
+      setGoalLocked(false);
       setEditing(undefined);
       form.reset();
       setNotice('Đã lưu quỹ mục tiêu.');
       state.reload();
     } catch (e) {
+      if (e instanceof ApiError && [400, 404, 415].includes(e.status)) {
+        pendingGoal.current = null;
+        setGoalLocked(false);
+      }
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
@@ -112,15 +194,37 @@ export default function Goals() {
     setBusy(true);
     setError('');
     try {
-      await request('/goals/' + g.id, 'DELETE');
+      await request('/goals/' + g.id + '?version=' + g.version, 'DELETE');
       if (editing?.id === g.id) setEditing(undefined);
       setNotice('Đã xóa quỹ.');
       state.reload();
     } catch (e) {
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
     }
+  }
+  async function reloadConflict() {
+    if (
+      !(await confirmAction({
+        title: 'Tải quỹ mới nhất?',
+        message:
+          'Bản chỉnh sửa chưa lưu sẽ bị bỏ; danh sách quỹ sẽ được cập nhật.',
+        accept: 'Tải bản mới',
+      }))
+    )
+      return;
+    pendingGoal.current = null;
+    setGoalLocked(false);
+    pendingContribution.current = null;
+    setContributionLocked(false);
+    setEditing(undefined);
+    setContributing(undefined);
+    setConflict(false);
+    setError('');
+    state.reload();
   }
   return (
     <>
@@ -135,6 +239,26 @@ export default function Goals() {
         </span>
       </header>
       {error && !contributing && <Alert>{error}</Alert>}
+      {conflict && (
+        <button className="secondary" onClick={() => void reloadConflict()}>
+          Tải quỹ mới nhất
+        </button>
+      )}
+      {pendingCreation && (
+        <div className="panel">
+          <p>
+            Có yêu cầu tạo quỹ chưa rõ kết quả. Kiểm tra kết quả trước; nếu cần
+            thử lại, nhập lại cùng thông tin để giữ một yêu cầu duy nhất.
+          </p>
+          <button
+            className="secondary"
+            disabled={busy || checkingCreation || !!editing}
+            onClick={() => void checkCreation()}
+          >
+            Kiểm tra yêu cầu tạo quỹ
+          </button>
+        </div>
+      )}
       <div className="split-layout">
         <section>
           {state.loading ? (
@@ -184,7 +308,12 @@ export default function Goals() {
                   <div className="actions">
                     <button
                       className="secondary"
-                      disabled={busy || contributionLocked}
+                      disabled={
+                        busy ||
+                        contributionLocked ||
+                        goalLocked ||
+                        checkingCreation
+                      }
                       onClick={() =>
                         setContributing(
                           contributing === g.id ? undefined : g.id,
@@ -195,7 +324,12 @@ export default function Goals() {
                     </button>
                     <button
                       className="text-button"
-                      disabled={busy || contributionLocked}
+                      disabled={
+                        busy ||
+                        contributionLocked ||
+                        goalLocked ||
+                        checkingCreation
+                      }
                       onClick={() => setEditing(g)}
                       aria-label={'Sửa quỹ ' + g.name}
                     >
@@ -203,7 +337,12 @@ export default function Goals() {
                     </button>
                     <button
                       className="text-button danger-text"
-                      disabled={busy || contributionLocked}
+                      disabled={
+                        busy ||
+                        contributionLocked ||
+                        goalLocked ||
+                        checkingCreation
+                      }
                       onClick={() => void remove(g)}
                       aria-label={'Xóa quỹ ' + g.name}
                     >
@@ -216,7 +355,12 @@ export default function Goals() {
                       onSubmit={(e) => void contribute(e, g.id)}
                     >
                       <fieldset
-                        disabled={busy || contributionLocked}
+                        disabled={
+                          busy ||
+                          contributionLocked ||
+                          goalLocked ||
+                          checkingCreation
+                        }
                         className="editor-fields"
                       >
                         <MoneyInput label="Số tiền đóng góp (đ)" />
@@ -259,9 +403,11 @@ export default function Goals() {
         </section>
         <section ref={editor} className="panel side-form">
           <h2>{editing ? 'Chỉnh sửa quỹ' : 'Tạo quỹ mới'}</h2>
-          <form key={editing?.id ?? 'new'} onSubmit={save}>
+          <form ref={goalForm} key={editing?.id ?? 'new'} onSubmit={save}>
             <fieldset
-              disabled={busy || contributionLocked}
+              disabled={
+                busy || contributionLocked || goalLocked || checkingCreation
+              }
               className="editor-fields"
             >
               <label>
@@ -289,20 +435,29 @@ export default function Goals() {
                   required
                 />
               </label>
-              <button className="primary full" disabled={busy}>
-                {busy ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo quỹ'}
-              </button>
-              {editing && (
-                <button
-                  type="button"
-                  className="text-button full"
-                  disabled={busy}
-                  onClick={() => setEditing(undefined)}
-                >
-                  Hủy chỉnh sửa quỹ
-                </button>
-              )}
             </fieldset>
+            <button
+              className="primary full"
+              disabled={busy || contributionLocked || checkingCreation}
+            >
+              {busy
+                ? 'Đang lưu…'
+                : editing
+                  ? 'Lưu thay đổi'
+                  : goalLocked
+                    ? 'Thử tạo lại'
+                    : 'Tạo quỹ'}
+            </button>
+            {editing && (
+              <button
+                type="button"
+                className="text-button full"
+                disabled={busy}
+                onClick={() => setEditing(undefined)}
+              >
+                Hủy chỉnh sửa quỹ
+              </button>
+            )}
           </form>
           <p className="form-foot">
             Mức chia mỗi ngày là phép tính đơn giản từ số còn thiếu và số ngày

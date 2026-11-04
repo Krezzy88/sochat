@@ -3,7 +3,7 @@ import { useFeedback } from '../Feedback.tsx';
 import SemanticSearch from './SemanticSearch.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { dateLabel, errorText, money, request } from '../api.ts';
+import { ApiError, dateLabel, errorText, money, request } from '../api.ts';
 import type { Category, Transaction } from '../api.ts';
 import {
   MoneyInput,
@@ -25,6 +25,7 @@ export default function Transactions({
   const [editing, setEditing] = useState<Transaction>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [conflict, setConflict] = useState(false);
   const setNotice = useFeedback().success;
   useEffect(() => {
     if (!editing) return;
@@ -56,15 +57,16 @@ export default function Transactions({
     setBusy(true);
     setError('');
     try {
-      await request(
-        '/transactions/' + editing.id,
-        'PATCH',
-        Object.fromEntries(new FormData(e.currentTarget)),
-      );
+      await request('/transactions/' + editing.id, 'PATCH', {
+        ...Object.fromEntries(new FormData(e.currentTarget)),
+        version: editing.version,
+      });
       setEditing(undefined);
       setNotice('Đã cập nhật giao dịch.');
       state.reload();
     } catch (e) {
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
@@ -84,14 +86,35 @@ export default function Transactions({
     setBusy(true);
     setError('');
     try {
-      await request('/transactions/' + t.id, 'DELETE');
+      await request(
+        '/transactions/' + t.id + '?version=' + t.version,
+        'DELETE',
+      );
       setNotice('Đã xóa giao dịch.');
       state.reload();
     } catch (e) {
+      if (e instanceof ApiError && [404, 409].includes(e.status))
+        setConflict(true);
       setError(errorText(e));
     } finally {
       setBusy(false);
     }
+  }
+  async function reloadConflict() {
+    if (
+      editing &&
+      !(await confirmAction({
+        title: 'Tải bản mới?',
+        message:
+          'Bản chỉnh sửa hiện tại sẽ bị bỏ. Bạn có thể sao chép nội dung trước khi tiếp tục.',
+        accept: 'Tải bản mới',
+      }))
+    )
+      return;
+    setEditing(undefined);
+    setConflict(false);
+    setError('');
+    state.reload();
   }
   return (
     <>
@@ -139,6 +162,11 @@ export default function Transactions({
         </button>
       </form>
       {error && !editing && <Alert>{error}</Alert>}
+      {conflict && !editing && (
+        <button className="secondary" onClick={() => void reloadConflict()}>
+          Tải bản mới
+        </button>
+      )}
       {editing && (
         <dialog
           ref={editor}
@@ -151,6 +179,15 @@ export default function Transactions({
         >
           <h2 id="edit-transaction-title">Sửa giao dịch</h2>
           {error && <Alert>{error}</Alert>}
+          {conflict && (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void reloadConflict()}
+            >
+              Tải bản mới
+            </button>
+          )}
           <form onSubmit={update}>
             <fieldset disabled={busy} className="editor-fields">
               <div className="form-grid">
@@ -291,6 +328,7 @@ export default function Transactions({
                           disabled={busy}
                           onClick={() => {
                             setEditing(t);
+                            setConflict(false);
                             setError('');
                           }}
                           aria-label={'Sửa ' + (t.note || 'giao dịch')}

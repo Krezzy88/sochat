@@ -20,7 +20,8 @@ No private owner ledger was inspected; all mutations/checks use isolated synthet
 The historical four-query retrieval baseline used the earlier substring scorer.
 No live quality improvement is claimed from this change; representative retrieval
 and held-out extraction evaluation are still outstanding. No live Gemini call was
-made during this audit.
+made during the original audit. The follow-up below includes owner-authorized real
+Gemini development evaluation.
 
 ## Rule matrix
 
@@ -30,27 +31,31 @@ made during this audit.
 | Dates                | Calendar-valid ISO values; Vietnam day resolution. Reports use inclusive start/exclusive next-month or next-year bounds. Future transaction dates are explicit recorded dates, not a scheduling engine.                        |
 | Extraction           | Rules first, strict model schemas, amount-in-message guard, calendar/category checks, ambiguity and editable human confirmation. Model plausibility is not a correctness guarantee.                                            |
 | Transaction batches  | Atomic all-or-nothing save, per-owner replay key, conflicts on changed content; a replay can return its original response even if the original transaction was subsequently deleted, without recreating it.                    |
-| Edits/deletes        | Owner predicates and RLS; type/category compatibility; reports and budgets recalculate from live ledger rows.                                                                                                                  |
+| Edits/deletes        | Owner predicates and RLS; required optimistic version on mutations; 409 preserves stale drafts; reports and budgets recalculate from live ledger rows.                                                                         |
 | Reports              | Exact income/expense/net; snapshot-consistent breakdowns per response. Charts are approximate thousands, accessible tables retain exact money.                                                                                 |
 | Budgets              | Monthly, per expense category; upsert keeps omitted categories; warning >=80%, reached/exceeded >=100%, remaining floor=0. Delete removes only that limit/month, not transactions.                                             |
 | Goals                | Contributions are independent of income/expense ledger. Remaining floor=0; progress caps at 100%; overfunding allowed; daily target uses integer ceiling. Unfunded goals due today/past return null, completed goals return 0. |
 | Future contributions | Owner explicitly chose immediate counting, including future dates. UI explains this; regression covers it. These are recorded contributions, not scheduled transfers.                                                          |
 | Optional semantic AI | Default-off server consent; owner-first vector queries; invalidation on note edit, cascades on transaction/account delete, vectors deleted when disabled. Filtering is minimization, not anonymization.                        |
 | Auth/data ownership  | Cookie sessions, CSRF, owner checks, private-table RLS on opted-in demo, account cascades and export isolation remain covered by integration tests. Email verification/reset remains outside approved scope.                   |
-| CSV                  | Integer amounts, ISO dates, UTF-8 BOM, quoted cells/formula protection. Streamed export is not a point-in-time snapshot; native Excel/Numbers import remains unverified.                                                       |
+| CSV                  | Integer amounts, ISO dates, UTF-8 BOM, quoted cells/formula protection. All pages share one read-only REPEATABLE READ snapshot; 30-second stream bound; native Excel/Numbers import remains unverified.                        |
 
 ## Explicit remaining limits / decisions
 
-- Pending replay keys/payloads in the web client are memory-only. Reloading or
-  navigating away after an uncertain response loses retry context; inspect saved
-  data before manually creating a new intent. No durable offline queue is claimed.
-- Goal creation itself is not idempotent; an explicit retry after an unknown
-  creation response can create duplicate goal metadata. Contribution and transaction
-  monetary writes now have replay protection. Review goal list before recreating.
-- Full transaction forms use last-write-wins for concurrent same-account edits;
-  row locks protect atomic updates, but there is no optimistic version-conflict UI.
-- CSV can reflect concurrent edits in later chunks. Report snapshots do not turn
-  CSV streaming or multiple independent page requests into one global snapshot.
+- Goal creation is now idempotent. The client retains the exact in-page intent and
+  a per-account, per-tab opaque UUID in sessionStorage (no financial payload). A
+  recovery endpoint identifies committed/deleted requests after reload. If a request
+  was not committed, re-enter the same fields with the retained key; changed payloads
+  are rejected. Contribution/transaction pending payloads are still memory-only;
+  inspect saved rows after navigating away during uncertain responses. This is not
+  a durable offline outbox or cross-device retry mechanism.
+- All transaction/goal PATCH and DELETE operations require the observed row version.
+  Budgets use an opaque id:version token, preventing delete/recreate ABA conflicts.
+  Conflicts return 409; users explicitly reload before replacing local drafts. Each
+  independent page/report request has its own snapshot, not a global app snapshot.
+- CSV uses one snapshot across all pages and aborts a slow stream after 30 seconds.
+  Very large/slow exports may therefore require a retry. Native spreadsheet import
+  and client network disconnect timing remain platform-dependent.
 - AI may misunderstand meaning, categories or filters; visible interpretation and
   human confirmation remain necessary. Seed examples do not establish real-user
   accuracy. Semantic ranking may return weak matches; no calibrated score threshold
@@ -70,3 +75,19 @@ recalculation, goal rounding/deadline/overfunding, future contribution policy an
 embedding concurrency. Browser test drops a real synthetic backend response after
 commit and retries. Existing schema/amount/date, deletion, export and ownership
 regressions were retained; coverage gates were not lowered.
+
+## Production-hardening follow-up — 2026-11-04
+
+Migration 008 adds database-managed revision counters to transactions, goals and
+budgets. Required versions intentionally change mutation contracts: reload old web
+clients before editing; API consumers must fetch current versions. Budget creation
+uses version `0`; updates/deletes use the returned opaque token. Goal creation
+requires a UUID idempotency key. Reusing a key with different data returns 409;
+replaying a deleted creation returns the original response without resurrecting it.
+
+Tests exercise concurrent duplicate goal creates, owner-scoped recovery, stale
+edits/deletes for all three entities, budget delete/recreate, CSV reads across a
+500-row boundary while another connection edits/inserts rows, and snapshot rollback
+on a failed consumer. Browser journeys cover lost creation responses, recovery on
+reload and real same-account two-tab conflicts. See EVIDENCE.md and the machine-
+readable production-hardening measurement for final counts and AI dev caveats.
