@@ -5,23 +5,27 @@ multi-user evaluation collection are owner responsibilities, not invented result
 
 Release work, in order:
 
-- [ ] Core UX: ordinary note search without AI consent, clear loading/error/empty states,
+- [x] Core UX: ordinary note search without AI consent, clear loading/error/empty states,
       accessible mobile controls and reliable edit/delete/export flows.
-- [ ] AI retrieval: integrate useful search, remove manual repeated batch work;
-      obtain fresh explicit consent before any automatic note processing.
-- [ ] Questions: bounded comparisons, largest expenses and budget usage with SQL
+- [x] AI retrieval: integrate useful search, remove manual repeated batch work;
+      fresh per-action confirmation covers bounded preparation; no automatic sending
+      on consent enable or transaction save. Existing daily AI caps remain unchanged.
+- [x] Questions: bounded comparisons, largest expenses and budget usage with SQL
       calculations and inspectable evidence; no free-form financial advice.
 - [x] Authentication implementation: password change/recovery,
       verification, revocation and abuse controls.
 - [ ] Authentication activation: configure a verified mail sender; confirm
       actual inbox delivery before production release.
-- [ ] Operations: validate hosted backup/restore in an isolated destination, migration
-      rollback procedure, health/error visibility, provider failure and cost controls.
-- [ ] Privacy: reconcile synthetic-demo documentation with real-data operation and
+- [x] Operational implementation: guarded restore utility with synthetic rehearsal,
+      migration/rollback procedure, health/error visibility, provider failure and cost controls.
+- [ ] Hosted backup/restore: execute against an authorized source and a separate
+      empty destination, verify retention and record the actual result.
+- [x] Privacy: reconcile synthetic-demo documentation with real-data operation and
       explain provider processing/deletion accurately.
-- [ ] Release presentation: concise README, architecture and separate historical evidence.
-- [ ] Run appropriate unit, database, browser and production build checks against
-      the final revision; document remaining operational dependencies honestly.
+- [x] Release presentation: concise README, architecture and separate historical evidence.
+- [x] Local verification: unit, database, browser and production build checks.
+- [ ] Hosted verification: CI for the published candidate, backup/restore and actual
+      provider activation/deployment; do not substitute local checks.
 
 Do not migrate production, publish, send email or change billing automatically.
 Do not mark production readiness from unit tests or historical evidence alone.
@@ -134,3 +138,39 @@ No cloud configuration or live database was changed.
 Google removal verification: typecheck, lint, production web build, 252 unit tests,
 103 PostgreSQL tests and six focused desktop/mobile auth journeys passed.
 No public push, cloud configuration change or production migration was performed.
+
+## Final implementation scope: 1.0 repository work
+
+Added SQL-backed largest-expense and budget-usage modes, with totals/details in one
+repeatable-read snapshot. AI only interprets mode/month/category. Search now asks
+fresh consent and processes bounded batches behind one action, shows indexed /
+pending progress, supports stopping and respects original daily model quotas.
+Only latest 1,000 nonempty transaction notes are candidates; at most eight batches
+(160 notes) per confirmation. Remaining work pauses at quota boundaries; no claim
+that all historic records are searched. Cancelling sends no notes or search query.
+
+Added /readyz database probe and switched deployment health configuration to it;
+/healthz remains process liveness. Updated product/privacy wording for intended
+personal use without claiming production activation. Unconfigured email actions
+are disabled. Prepared guarded backup/restore utility and actually rehearsed it
+against a separate disposable synthetic PG18 container: selected table counts and
+transaction amount sum matched after restore; no native/Neon DB was used.
+
+External release dependencies remain: actual hosted backup/restore authorization
+and credentials/empty target, email provider activation and actual delivery, then
+reviewed publication/CI/deployment. Student sessions/video/data collection remain
+owner responsibilities. Do not mark these dependencies complete from local tests.
+
+Verification checkpoint: 253 unit, 106 PostgreSQL integration and 42 full browser
+cases passed. Three explicitly authorized real Gemini synthetic intent checks
+passed for largest expenses, budget usage and comparison; no representative
+accuracy claim. Guarded restore actually passed on isolated synthetic PG18.
+Historical approved screenshots/coverage were preserved; new captures remain local.
+A later change restricts non-total question evidence links to expense entries;
+final lint/typecheck/build and targeted integration checks follow below.
+
+Final backend rerun after evidence filter: all 106 PostgreSQL cases passed.
+Two additional desktop/mobile question-view checks passed using mocked transport;
+these verify presentation, while the separate three real Gemini checks verify
+synthetic provider wiring. Lint/typecheck/build passed. Local implementation is
+complete within the documented bounded scope; external activation is still open.

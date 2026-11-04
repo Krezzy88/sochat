@@ -894,3 +894,102 @@ test('expired account links show a clear error without changing the account', as
   );
   expect((await page.request.get('/api/me')).status()).toBe(200);
 });
+
+test('semantic preparation requires fresh confirmation and cancel sends no notes (mocked transport)', async ({
+  page,
+}) => {
+  let preparation = 0,
+    searches = 0;
+  await page.route('**/api/assistant/search-status', (r) =>
+    r.fulfill({ json: { indexed: 0, pending: 2, total: 2 } }),
+  );
+  await page.route('**/api/assistant/index', (r) => {
+    preparation++;
+    return r.fulfill({ json: { indexed: 2 } });
+  });
+  await page.route('**/api/assistant/search', (r) => {
+    searches++;
+    return r.fulfill({ json: { indexed: 0, items: [] } });
+  });
+  await go(page, 'Giao dịch');
+  await page.getByText('Tìm theo ý nghĩa (tùy chọn)', { exact: true }).click();
+  await page.getByLabel('Tìm theo ý nghĩa', { exact: true }).fill('đi chơi');
+  await page
+    .getByRole('button', { name: 'Tìm theo ý nghĩa', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Chuẩn bị tìm theo ý nghĩa?',
+  });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Tìm theo ý nghĩa', exact: true }),
+  ).toBeEnabled();
+  expect(preparation).toBe(0);
+  expect(searches).toBe(0);
+});
+
+test('question views render largest expenses and budget usage (mocked transport)', async ({
+  page,
+}) => {
+  await page.route('**/api/assistant/query', (route) => {
+    const budget = route.request().postDataJSON().message.includes('ngân sách');
+    return route.fulfill({
+      json: {
+        needs_clarification: false,
+        question: 'Tổng hợp từ giao dịch đã lưu của bạn.',
+        month: '2026-11',
+        category: 'an_uong',
+        income_vnd: '0',
+        expense_vnd: '80000',
+        comparison: null,
+        evidence_url: '/api/transactions?type=expense',
+        mode: budget ? 'budget_usage' : 'largest_expenses',
+        largest: budget
+          ? []
+          : [
+              {
+                id: '1',
+                version: '1',
+                type: 'expense',
+                category: 'an_uong',
+                amount_vnd: '80000',
+                occurred_on: '2026-11-04',
+                note: 'Bữa tối mẫu',
+              },
+            ],
+        budgets: budget
+          ? [
+              {
+                category: 'an_uong',
+                spent_vnd: '80000',
+                limit_vnd: '100000',
+                remaining_vnd: '20000',
+                status: 'warning',
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  await page
+    .getByLabel('Câu hỏi về thu chi', { exact: true })
+    .fill('5 khoản chi lớn nhất');
+  await page.getByRole('button', { name: 'Hỏi cuốn sổ', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Tối đa 5 khoản chi lớn nhất' }),
+  ).toBeVisible();
+  await expect(page.getByText(/Bữa tối mẫu/)).toBeVisible();
+  await page
+    .getByLabel('Câu hỏi về thu chi', { exact: true })
+    .fill('ngân sách ăn uống');
+  await page.getByRole('button', { name: 'Hỏi cuốn sổ', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Mức sử dụng ngân sách' }),
+  ).toBeVisible();
+  await expect(page.getByText(/80%, làm tròn xuống/)).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Tối đa 5 khoản chi lớn nhất' }),
+  ).toHaveCount(0);
+});

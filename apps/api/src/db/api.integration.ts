@@ -169,6 +169,20 @@ async function goal(actor: Actor = a) {
   }).expect(201);
 }
 describe('auth/session/CSRF and validation', () => {
+  it('reports database readiness without exposing connection failures', async () => {
+    await request(runtime.app).get('/readyz').expect(200, { status: 'ready' });
+    const query = vi
+      .spyOn(pool, 'query')
+      .mockRejectedValueOnce(new Error('private connection detail'));
+    try {
+      const response = await request(runtime.app).get('/readyz').expect(503);
+      expect(response.body.detail).toBe('Database chưa sẵn sàng.');
+      expect(JSON.stringify(response.body)).not.toContain('private');
+    } finally {
+      query.mockRestore();
+    }
+  });
+
   it('requests verification under RLS without exposing email or tokens', async () => {
     vi.stubEnv('RESEND_API_KEY', 'synthetic-key');
     vi.stubEnv('MAIL_FROM', 'accounts@example.test');

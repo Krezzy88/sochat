@@ -20,7 +20,12 @@ import {
 } from 'vitest';
 import { migrate } from './migrate.ts';
 import { apiRepository } from '../http/repository.ts';
-import { indexNotes, semanticSearch, embeddings } from '../http/semantic.ts';
+import {
+  indexNotes,
+  semanticSearch,
+  semanticStatus,
+  embeddings,
+} from '../http/semantic.ts';
 let container: StartedPostgreSqlContainer,
   pool: pg.Pool,
   user: string,
@@ -447,4 +452,75 @@ it('sends only an opaque one-use verification link and stores its hash', async (
       ])
     ).rows[0].email_verified_at,
   ).toBeTruthy();
+});
+
+it('answers largest expenses and budget usage from one owner-scoped snapshot', async () => {
+  await seed();
+  const repo = apiRepository(pool, 'test-secret');
+  const category = (
+    await pool.query(
+      "SELECT id FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    )
+  ).rows[0].id;
+  await pool.query(
+    "INSERT INTO budgets(user_id,category_id,month,limit_vnd) VALUES($1,$2,'2026-11-01',40000)",
+    [user, category],
+  );
+  const largest = await repo.questionAnswer(
+    user,
+    '2026-11',
+    null,
+    null,
+    'largest_expenses',
+  );
+  expect(largest.largest).toHaveLength(1);
+  expect(largest.largest[0]?.amount_vnd).toBe('50000');
+  const budget = await repo.questionAnswer(
+    user,
+    '2026-11',
+    null,
+    'an_uong',
+    'budget_usage',
+  );
+  expect(budget.budgets[0]).toMatchObject({
+    spent_vnd: '50000',
+    limit_vnd: '40000',
+    remaining_vnd: '0',
+    status: 'exceeded',
+  });
+  expect(
+    (
+      await repo.questionAnswer(
+        other,
+        '2026-11',
+        null,
+        null,
+        'largest_expenses',
+      )
+    ).largest,
+  ).toHaveLength(0);
+  expect(
+    (await repo.questionAnswer(other, '2026-11', null, null, 'budget_usage'))
+      .budgets,
+  ).toHaveLength(0);
+});
+
+it('reports owned search preparation progress and excludes non-descriptive notes', async () => {
+  await consent();
+  await seed();
+  expect(await semanticStatus(user, pool)).toEqual({
+    indexed: 0,
+    pending: 1,
+    total: 1,
+  });
+  mockEmbedding();
+  await indexNotes(user, pool, now);
+  expect(await semanticStatus(user, pool)).toEqual({
+    indexed: 1,
+    pending: 0,
+    total: 1,
+  });
+  await expect(semanticStatus(other, pool)).rejects.toMatchObject({
+    status: 403,
+  });
 });

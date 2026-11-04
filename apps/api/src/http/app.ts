@@ -3,7 +3,7 @@ import {
   consumeAccountToken,
   emailReady,
 } from './account-email.ts';
-import { indexNotes, semanticSearch } from './semantic.ts';
+import { indexNotes, semanticSearch, semanticStatus } from './semantic.ts';
 import { instrument } from '../telemetry.ts';
 import { tenantPool, withTenant } from '../db/tenant.ts';
 import { revisionInput, revise } from './revision.ts';
@@ -142,7 +142,11 @@ export async function createApp(options: ApiOptions) {
   app.use(helmet());
   app.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
-    if (options.production && req.path !== '/healthz' && !req.secure) {
+    if (
+      options.production &&
+      !['/healthz', '/readyz'].includes(req.path) &&
+      !req.secure
+    ) {
       next(new HttpProblem(400, 'Yêu cầu HTTPS trong môi trường production.'));
       return;
     }
@@ -371,6 +375,19 @@ export async function createApp(options: ApiOptions) {
     '/healthz',
     { public: true, response: z.strictObject({ status: z.literal('ok') }) },
     () => ({ status: 'ok' }),
+  );
+  route(
+    'get',
+    '/readyz',
+    { public: true, response: z.strictObject({ status: z.literal('ready') }) },
+    async () => {
+      try {
+        await options.pool.query('SELECT 1');
+      } catch {
+        fail(503, 'Database chưa sẵn sàng.');
+      }
+      return { status: 'ready' as const };
+    },
   );
   route(
     'get',
@@ -707,6 +724,17 @@ export async function createApp(options: ApiOptions) {
         income_vnd: strMoney,
         expense_vnd: strMoney,
         evidence_url: z.string().nullable(),
+        mode: z.enum(['totals', 'largest_expenses', 'budget_usage']),
+        largest: z.array(txSchema).max(5),
+        budgets: z.array(
+          z.object({
+            category: c.category,
+            limit_vnd: strMoney,
+            spent_vnd: strMoney,
+            remaining_vnd: strMoney,
+            status: z.enum(['ok', 'warning', 'exceeded']),
+          }),
+        ),
         comparison: z
           .strictObject({
             month: c.month,
@@ -727,7 +755,10 @@ export async function createApp(options: ApiOptions) {
         user,
         tenantDB,
       );
-      if (intent.needs_clarification)
+      if (
+        intent.needs_clarification ||
+        (intent.mode !== 'totals' && intent.compare_month)
+      )
         return {
           needs_clarification: true,
           question:
@@ -738,23 +769,27 @@ export async function createApp(options: ApiOptions) {
           expense_vnd: '0',
           evidence_url: null,
           comparison: null,
+          mode: intent.mode,
+          largest: [],
+          budgets: [],
         };
-      const totals = await repo.questionTotals(
+      const detail = await repo.questionAnswer(
         user,
-        [
-          ...new Set([
-            intent.month,
-            ...(intent.compare_month ? [intent.compare_month] : []),
-          ]),
-        ],
+        intent.month,
+        intent.compare_month,
         intent.category,
+        intent.mode,
       );
+      const totals = detail.totals;
       const current = totals.find((r) => r.month === intent.month)!;
       const baseline = intent.compare_month
         ? totals.find((r) => r.month === intent.compare_month)!
         : null;
       return {
         needs_clarification: false,
+        mode: intent.mode,
+        largest: detail.largest,
+        budgets: detail.budgets,
         question: 'Tổng hợp từ giao dịch đã lưu của bạn.',
         month: intent.month,
         category: intent.category,
@@ -777,7 +812,8 @@ export async function createApp(options: ApiOptions) {
           )
             .toISOString()
             .slice(0, 10) +
-          (intent.category ? '&category=' + intent.category : ''),
+          (intent.category ? '&category=' + intent.category : '') +
+          (intent.mode === 'totals' ? '' : '&type=expense'),
       };
     },
   );
@@ -823,6 +859,18 @@ export async function createApp(options: ApiOptions) {
     },
   );
   route(
+    'get',
+    '/api/assistant/search-status',
+    {
+      response: z.strictObject({
+        indexed: z.number().int().min(0).max(1000),
+        pending: z.number().int().min(0).max(1000),
+        total: z.number().int().min(0).max(1000),
+      }),
+    },
+    async ({ user }) => semanticStatus(user, tenantDB),
+  );
+  route(
     'post',
     '/api/assistant/index',
     {
@@ -832,7 +880,7 @@ export async function createApp(options: ApiOptions) {
     async ({ req, res, user }) => {
       if (options.extractor.providerName !== 'gemini')
         fail(503, 'Cần Gemini thật.');
-      await rate(req, res, 'embedding', user, user, 3);
+      await rate(req, res, 'embedding', user, user, 10);
       return indexNotes(user, tenantDB, now());
     },
   );

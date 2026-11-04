@@ -194,9 +194,9 @@ export default function Settings({
             không được gửi đến Gemini.
           </p>
           <p>
-            SổChat là dự án sinh viên, chỉ dùng dữ liệu mẫu. Khi cần Gemini hỗ
-            trợ phân tích, hệ thống gửi nội dung tin nhắn và ngày hiện tại;
-            không gửi email, ID hay các giao dịch khác.
+            SổChat giúp quản lý thu chi cá nhân. Khi cần Gemini hỗ trợ phân
+            tích, hệ thống gửi nội dung tin nhắn và ngày hiện tại; không gửi
+            email, ID hay các giao dịch khác.
           </p>
           <p>
             Bạn kiểm tra và xác nhận trước khi ghi sổ. Không có phân tích hành

@@ -205,3 +205,12 @@ liên kết ngân hàng, nhiều tiền tệ hoặc tư vấn tài chính AI.
 Tạm bỏ đăng nhập/liên kết Google và quay lại phạm vi tài khoản trước OAuth:
 email/mật khẩu, đổi mật khẩu, xác minh email và khôi phục mật khẩu. Phần Google
 ở mục bổ sung phía trên là lịch sử quyết định, không còn trong phạm vi phát hành.
+
+### Mục tiêu phát hành 1.0 — 04/11/2026
+
+Chủ dự án yêu cầu chuyển từ demo sang ứng dụng thu chi cá nhân dùng thực tế.
+Phạm vi code gồm UX chính, tìm kiếm AI có xác nhận rõ và hạn mức, câu hỏi so sánh/
+khoản chi lớn nhất/ngân sách do SQL tính, tài khoản email/mật khẩu và công cụ vận hành.
+Việc chuyển dữ liệu production vẫn cần cấu hình nhà cung cấp email, backup/restore
+hosted và duyệt triển khai. Chưa được thay kết quả local bằng chứng hosted.
+Thử với sinh viên, video và thu thập dữ liệu nhiều người dùng do chủ dự án phụ trách.

@@ -7,6 +7,18 @@ export function ForgotPassword() {
   const [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void request<{ email: boolean }>('/auth/options')
+      .then((r) => {
+        if (active) setAvailable(r.email);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const notify = useFeedback().success;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,6 +45,7 @@ export function ForgotPassword() {
       <button
         className="secondary"
         type="button"
+        disabled={!available || busy}
         onClick={() => setOpen(!open)}
       >
         Quên mật khẩu?
@@ -154,6 +167,18 @@ export function AccountTokenPage({
 }
 export function VerificationEmail() {
   const [verified, setVerified] = useState(false);
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void request<{ email: boolean }>('/auth/options')
+      .then((r) => {
+        if (active) setAvailable(r.email);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   useEffect(() => {
     let active = true;
     void request<{ email_verified: boolean }>('/me/security')
@@ -174,7 +199,7 @@ export function VerificationEmail() {
     <div>
       <button
         className="secondary"
-        disabled={busy}
+        disabled={busy || !available}
         onClick={() => {
           setBusy(true);
           setError('');
@@ -190,6 +215,7 @@ export function VerificationEmail() {
       >
         Gửi email xác minh
       </button>
+      {!available && <p className="muted">Gửi email hiện chưa khả dụng.</p>}
       {error && <Alert>{error}</Alert>}
     </div>
   );

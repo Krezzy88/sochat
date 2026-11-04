@@ -362,9 +362,10 @@ export function apiRepository(pool: pg.Pool, secret: string) {
       user: string,
       months: string[],
       category: string | null,
+      db: DB = pool,
     ) {
       return (
-        await pool.query<{
+        await db.query<{
           month: string;
           income_vnd: string;
           expense_vnd: string;
@@ -382,6 +383,41 @@ export function apiRepository(pool: pg.Pool, secret: string) {
           [user, months, category],
         )
       ).rows;
+    },
+    async questionAnswer(
+      user: string,
+      month: string,
+      compare: string | null,
+      category: string | null,
+      mode: 'totals' | 'largest_expenses' | 'budget_usage',
+    ) {
+      return atomic(async (db) => {
+        const from = month + '-01',
+          to = c.nextMonth(month);
+        const totals = await this.questionTotals(
+          user,
+          [...new Set([month, ...(compare ? [compare] : [])])],
+          category,
+          db,
+        );
+        const largest =
+          mode === 'largest_expenses'
+            ? (
+                await db.query<TxRow>(
+                  SELECT_TX +
+                    " WHERE t.user_id=$1 AND t.type='expense' AND t.occurred_on >= $2 AND t.occurred_on < $3 AND ($4::text IS NULL OR c.key=$4) ORDER BY t.amount_vnd DESC,t.occurred_on DESC,t.id DESC LIMIT 5",
+                  [user, from, to, category],
+                )
+              ).rows
+            : [];
+        const budgets =
+          mode === 'budget_usage'
+            ? (await this.budgetStatus(user, from, to, db)).filter(
+                (r) => !category || r.category === category,
+              )
+            : [];
+        return { totals, largest, budgets };
+      }, 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     },
     async month(user: string, from: string, to: string) {
       const values = [user, from, to];
@@ -491,9 +527,9 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         return true;
       });
     },
-    async budgetStatus(user: string, from: string, to: string) {
+    async budgetStatus(user: string, from: string, to: string, db: DB = pool) {
       return (
-        await pool.query<{
+        await db.query<{
           category: string;
           limit_vnd: string;
           version: string;

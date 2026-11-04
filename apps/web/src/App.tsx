@@ -237,7 +237,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
             </button>
           </p>
           <p className="privacy-note">
-            Dự án sinh viên · Chỉ dùng dữ liệu mẫu
+            Ghi nhanh · Kiểm tra rõ · Chủ động quản lý
             <br />
             Không liên kết ngân hàng. Không có trình theo dõi.
           </p>
@@ -343,8 +343,8 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
       </aside>
       <div className="workspace">
         <div className="demo-banner">
-          <span className="demo-pill">BẢN THỬ NGHIỆM</span>Chỉ dùng dữ liệu mẫu.
-          Đừng nhập thông tin tài chính cá nhân.
+          <span className="demo-pill">SỔ CÁ NHÂN</span>Kiểm tra số tiền, ngày và
+          danh mục trước khi xác nhận lưu.
         </div>
         <main id="main" ref={heading} tabIndex={-1} className="main-content">
           {logoutError && <Alert>{logoutError}</Alert>}

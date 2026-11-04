@@ -38,7 +38,7 @@ settings or provider access were increased for the hosted tests.
 
 - render.yaml: one free service with manual deploys and generated session secret.
 - docker/app.Dockerfile: non-root combined React/API image; SERVE_WEB=true, binds
-  HOST=0.0.0.0 and provider PORT, healthcheck /healthz. No additional frontend proxy.
+  HOST=0.0.0.0 and provider PORT, healthcheck /readyz. No additional frontend proxy.
 - The API uses an explicit APP_ORIGIN if set, otherwise Render's documented
   [RENDER_EXTERNAL_URL](https://render.com/docs/environment-variables) only when
   RENDER=true. It still validates an exact HTTPS origin in production. This avoids
@@ -91,7 +91,7 @@ Existing Docker RLS stays unchanged. Managed-host RLS is a separate admin opt-in
 the current FORCE RLS script was validated with privileged Docker roles and MUST
 NOT be applied blindly to Neon. Non-superuser auth/system queries and role
 membership need separate review. Owner-scoped API predicates/isolation tests
-remain mandatory. Hosted RLS protection is not claimed. 4. Startup migrations use the advisory lock on the fresh DB. Healthcheck /healthz
+remain mandatory. Hosted RLS protection is not claimed. 4. Startup migrations use the advisory lock on the fresh DB. Healthcheck /readyz
 intentionally accepts the provider's internal HTTP probe; it does not prove
 browser TLS/cookies or complete frontend/API usability. 5. Observe the actual Render URL/SHA/CI run URLs. Verify public acceptance below,
 record measured evidence and obtain owner confirmation before marking deployed.
@@ -139,3 +139,28 @@ remains unverified.
 An untouched set of at least 50 held-out cases, five consenting student sessions
 and an actual video of at most two minutes are still required. See USER_TESTING.md
 and docs/release/HELDOUT_PROTOCOL.md. Phase 8 remains IN PROGRESS.
+
+## Guarded restore rehearsal for 1.0
+
+`scripts/restore-rehearsal.mjs` defaults to a dry run and never prints credentials.
+Use a private mode-0600 env file with BACKUP_SOURCE_URL and RESTORE_TARGET_URL.
+The target must be a separately created, empty database named `sochat_restore_*`.
+Set SOCHAT_PG_BIN to PostgreSQL 18 command-line tools if they are not installed at
+`/Library/PostgreSQL/18/bin`. Remote connections require TLS configuration.
+
+```sh
+node --env-file=.local/restore.env scripts/restore-rehearsal.mjs
+# After reviewing source, target and backup retention:
+node --env-file=.local/restore.env scripts/restore-rehearsal.mjs --execute
+```
+
+Execution exports a repeatable-read source snapshot, dumps it to a private archive,
+restores without owner/ACL changes into the empty target, then compares selected
+ledger/account table counts and the transaction amount sum. It refuses a nonempty
+target and never drops a database. Artifacts remain in ignored .local/backups;
+operator chooses retention/deletion and removes the disposable target afterwards.
+Success does not certify every field, retention, RPO/RTO or provider availability.
+This script has not been executed against the hosted production database.
+
+`/healthz` is process liveness; `/readyz` verifies database connectivity and returns
+503 when unavailable, without returning database details or contacting Gemini.
