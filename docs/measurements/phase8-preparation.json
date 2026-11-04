@@ -1,15 +1,15 @@
 {
   "generated_at_utc": "2026-11-04T04:28:16.194940+00:00",
-  "status": "LOCAL PREPARATION; public deployment NOT VERIFIED",
+  "status": "PUBLIC DEMO DEPLOYED AND HOSTED SMOKE PASSED; human validation pending",
   "base_commit": "ddf4083debe0d81483a6973a9b5decb3ececca48",
   "branch": "codex/phase-8",
   "topology": "Render Free combined React/Node API + fresh Neon Free PostgreSQL 18",
-  "hosted_resources_created": false,
+  "hosted_resources_created": true,
   "paid_plans_enabled": false,
   "owner_data_uploaded": false,
   "native_postgresql_modified": false,
   "existing_docker_demo_modified": false,
-  "real_gemini_calls_this_phase": 0,
+  "real_gemini_calls_this_phase": null,
   "hosted_gemini_free_tier_confirmed": false,
   "heldout_runs_this_phase": 0,
   "student_sessions_completed": 0,
@@ -60,12 +60,14 @@
     "high_critical_misconfigurations": 0,
     "exit_code": 0
   },
-  "hosted_ci": "Awaiting hosted rerun for guarded Compose fixture fix",
+  "hosted_ci": {
+    "sha": "7586e2d84ee0954980f11a18f363bcd24a1230af",
+    "run_url": "https://github.com/Krezzy88/sochat/actions/runs/41783820913",
+    "conclusion": "success",
+    "jobs": ["Checks, coverage, browser and Compose", "Trivy filesystem scan"]
+  },
   "pending": [
-    "Owner Render/Neon login and concrete publication approval",
-    "Owner-confirmed Gemini Free Tier credentials entered privately",
-    "Public CI for exact candidate SHA",
-    "Public HTTPS/database/browser acceptance and owner confirmation",
+    "Hosted backup/restore rehearsal not performed",
     "Untouched heldout >=50 cases with independent approved labels",
     "Five consenting student sessions",
     "Actual <=2-minute demo recording"
@@ -100,5 +102,22 @@
     "test_fixture_only": "explicit sochat-ci opt-in, exact localhost:18080 and Compose label guard; clears anonymous test counters only",
     "production_registration_limit_changed": false,
     "lint_typecheck_passed": true
-  }
+  },
+  "deployed_url": "https://sochat.onrender.com",
+  "deployed_commit_sha": "7586e2d84ee0954980f11a18f363bcd24a1230af",
+  "deployed_commit_confirmed_by_owner": true,
+  "hosted_ai_browser_cases_passed": 3,
+  "hosted_core_extraction_usage": {
+    "attempts": 1,
+    "input_tokens": 405,
+    "output_tokens": 87,
+    "total_tokens": 492,
+    "other_feature_usage": "Not exposed in public responses; no billing total inferred"
+  },
+  "billing_decision": "Free-only condition superseded by explicit owner Paid Tier 1 test authorization",
+  "hosted_resources_provisioned_by": "Owner",
+  "paid_plans_enabled_caveat": "Agent enabled no new billing plan; owner authorized existing billable Gemini key",
+  "real_hosted_generation_tested": true,
+  "real_hosted_embeddings_tested": true,
+  "hosted_backup_restore_verified": false
 }

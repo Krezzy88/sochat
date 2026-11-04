@@ -1,9 +1,12 @@
 # Phase 8 free demo deployment
 
-Status: PREPARED LOCALLY, NOT PUBLICLY DEPLOYED. Owner selected Render Web/API +
-Neon database to prioritize $0 and a lasting CV demo. Accounts are being created.
-No cloud resources, paid plan, hosted secret upload or public release has occurred.
-This is a synthetic-data portfolio demo, not a production financial-record service.
+Status: DEPLOYED at https://sochat.onrender.com. Public HTTPS functional checks and
+three real Gemini/embedding browser smoke cases passed on 2026-11-04 with disposable
+synthetic data. The owner confirmed Paid Tier 1 and explicitly authorized testing;
+free-only API cost is no longer a release condition. Hosting remains on the selected
+Render/Neon free plans. This is a portfolio demo, not a financial-record service.
+Owner confirmed deployed commit 7586e2d84ee0954980f11a18f363bcd24a1230af, matching
+the successful CI candidate. Hosted restore remains unverified.
 
 ## Owner-selected topology
 
@@ -19,17 +22,17 @@ URL. No Vercel service, paid domain or MongoDB migration is required.
   egress quotas and scale-to-zero apply. Read actual current limits in the owner's
   console; do not promise unlimited/permanent free availability. Select PG18 on a
   NEW empty project and a nearby region supported by the free accounts.
-- [Gemini pricing](https://aistudio.google.com/docs/pricing): checked 2026-11-04,
-  Gemini 3.5 Flash-Lite and standard Embedding 2 text inputs have Free Tier entries.
-  The existing key's billing tier has NOT been inspected. Use an owner-confirmed
-  Free Tier project without enabling billing; reaching quota must show a limit/
-  clarification, never automatically switch to paid services. Free Tier processing
-  terms differ from paid terms; only synthetic messages with informed consent.
+- [Gemini pricing](https://aistudio.google.com/docs/pricing): the owner confirmed
+  Paid Tier 1 and explicitly allowed real hosted tests despite the initial $0
+  preference. Only synthetic data was used. No API request billing total is inferred
+  from token estimates. Free Tier instructions below describe the initial option;
+  the current owner-approved paid key is also allowed. Provider processing/retention
+  depends on the configured project/tier.
 
-$0 is conditional on staying on these free plans/quotas. App caps do not enforce
-billing tier. Per-user/global generation caps remain 10/30 daily. Semantic consent
-is off until explicitly enabled. No new real Gemini call is needed to prepare this
-phase; verify the project tier before any hosted smoke evaluation.
+Free hosting is conditional on staying within provider plans/quotas; Gemini costs
+are separate. Generation caps remain 10/30 per user/global daily and are operational
+caps, not a hard currency budget. Semantic consent defaults off. No quotas, billing
+settings or provider access were increased for the hosted tests.
 
 ## Ready artifacts
 
@@ -74,7 +77,7 @@ copying an existing key to a new host. No local owner/demo data is uploaded.
 | ------------------------------- | --------------------------------------------------------------------------- |
 | DATABASE_URL                    | Secret: NEW Neon direct TLS URL, not native/local Docker PG                 |
 | SESSION_SECRET                  | Blueprint-generated 256-bit secret, not local demo secret                   |
-| GEMINI_API_KEY                  | Secret: owner-confirmed Free Tier project                                   |
+| GEMINI_API_KEY                  | Secret: owner-approved project/tier (Paid Tier 1 currently authorized)      |
 | GEMINI_MODEL                    | Verified available gemini-3.5-flash-lite                                    |
 | NODE_ENV / HOST / SERVE_WEB     | production / 0.0.0.0 / true                                                 |
 | PORT                            | Provider default; do not force a different public URL port                  |
@@ -106,7 +109,7 @@ Keep manual deploys until these gates are satisfied; no automatic paid fallback.
   edits, reports/budgets/goals work. Stale 409 and UUID replay protections are intact.
 - CSV contains only intended owned rows and latest edits; account deletion logs out
   and removes its data. Native Excel/Numbers import is a distinct manual check.
-- Real Gemini smoke only after Free Tier confirmation; record real provenance,
+- Real Gemini smoke only after owner approval of the billing tier; record real provenance,
   attempts, tokens and ambiguity. No rules/fake run is a model accuracy result.
 - Measure one cold start and one warm journey separately. Render may show its own
   loading page; no SLA/performance score is promised. App non-JSON upstream replies
@@ -130,8 +133,9 @@ or provider retention.
 
 ## Remaining Phase 8 gates
 
-Public CI/deploy and hosted HTTPS+DB smoke, owner confirmation, an untouched
-
-> =50-case held-out set, five consenting student sessions and a <=2-minute actual
-> demo recording remain. See USER_TESTING.md and docs/release/HELDOUT_PROTOCOL.md.
-> Phase 8 remains IN PROGRESS until observed evidence exists.
+Hosted CI and public HTTPS/functional/real-provider smoke passed; see EVIDENCE.md
+and docs/measurements/hosted-*.json. Owner confirmed the Live deployment is commit 7586e2d. Hosted backup/restore
+remains unverified.
+An untouched set of at least 50 held-out cases, five consenting student sessions
+and an actual video of at most two minutes are still required. See USER_TESTING.md
+and docs/release/HELDOUT_PROTOCOL.md. Phase 8 remains IN PROGRESS.

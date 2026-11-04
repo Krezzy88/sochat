@@ -3355,3 +3355,57 @@ monetary/RLS integration and production throttle checks remain intact. Rehearsal
 used only a disposable sochat-ci stack; generated screenshots were kept privately,
 not substituted for owner-approved README images. Hosted rerun is pending for this
 fix; public HTTPS/Neon/Gemini Free Tier/held-out/student gates are still unverified.
+
+### Phase 8 hosted CI and public deployment verification — 2026-11-04
+
+Hosted CI finally PASSED both jobs for 7586e2d84ee0954980f11a18f363bcd24a1230af:
+https://github.com/Krezzy88/sochat/actions/runs/41783820913. This includes the fixed
+18-actor Compose fixture and two production-mode HTTPS checks; earlier failed/
+cancelled attempts remain documented above. Draft PR #13 stays open, not merged.
+The owner deployed https://sochat.onrender.com and explicitly confirmed its Live
+commit is the same 7586e2d. CI source and deployed source therefore match.
+
+Owner-provided Render log shows successful migrations, API start on port 10000 and
+Live status. Independent HTTPS GET /healthz returned 200 with status=ok; root returned
+200 with TLS verification successful. A public browser smoke used one disposable
+synthetic actor: registration, Secure/HttpOnly/SameSite=Lax session across reload,
+rules-only “phở 35” => 35000, no persistence before confirmation, actual UI edit to
+45000, version increment/stale 409, SQL net=-45000, goal UUID replay, owned no-store
+CSV and 390px layout all passed. Its account deletion/401 cleanup was verified.
+Report: measurements/hosted-http-smoke.json. This run made zero model attempts.
+
+The owner then confirmed the key is Paid Tier 1 and explicitly allowed real paid
+hosted testing. No billing setting or daily quota was changed, and no Free Tier or
+zero-cost API claim is made. The existing three real-provider browser cases ran
+against the public URL, with retries=0 in the test runner and only synthetic data:
+
+- Extraction/auth/money/confirmation/version/goal replay/CSV/mobile/reduced-motion
+  smoke passed. Actual extraction path=llm, attempts=1, 405 input + 87 output =
+  492 observed tokens, needs_clarification=false; human-confirmed amount 185000.
+- Read-only question smoke interpreted November 2026 + food, SQL returned exactly
+  50000, evidence excluded the 90000 transport row, and the two saved rows remained
+  unchanged. The model never received authority to generate SQL or ledger totals.
+- Expansion smoke excluded unsaved drafts from query totals, interpreted a +20000
+  draft correction, code produced exactly 70000, exercised explicit semantic opt-in,
+  real indexing/search, revocation UI and mobile layout; no page errors observed.
+
+All **3 passed in 28.4 seconds**. Each case used a fresh synthetic actor and invoked
+account cleanup in finally; the expansion case asserts deletion status 204. No
+owner ledger or key was read/sent. Semantic search had one indexed synthetic note:
+this is feature plumbing/consent verification, not representative ranking quality.
+The question and revision outputs are also author-designed smoke cases, not a new
+held-out evaluation. Only extraction exposed token usage; do not infer a whole-suite
+billing total. Reports: hosted-gemini-ui.json, hosted-query.json,
+hosted-expansion-ui.json in measurements/. Raw browser captures were kept privately;
+historical local measurements and owner-approved README screenshots were restored.
+
+Remaining gates are honest: no new untouched held-out set/run, no five-student
+observations/quotes, no recorded demo video and no restore from the actual hosted
+Neon database. Local synthetic restore success is not substituted for hosted
+recovery. See USER_TESTING.md and release/HELDOUT_PROTOCOL.md for owner participation.
+Deployment/smoke verification is complete; Phase 8 overall remains IN PROGRESS.
+
+Private `.local` owner data and one-off verification artifacts are now excluded
+from ESLint/Prettier consistently with git/Docker ignores. This does not exclude
+production code or change measured coverage scopes/gates. Final lint/typecheck and
+tracked-file secret checks passed before recording hosted evidence.

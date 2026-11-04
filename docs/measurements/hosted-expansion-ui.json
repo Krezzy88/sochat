@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-11-04T07:32:15.562Z",
+  "real_provider": true,
+  "separate_panels": true,
+  "exact_delta": "70000",
+  "unsaved_query_excluded": true,
+  "consent_default_off": true,
+  "semantic_search": true,
+  "revocation": true,
+  "page_errors": [],
+  "target_url": "https://sochat.onrender.com",
+  "owner_authorized_billing_tier": "Paid Tier 1",
+  "data_scope": "Disposable synthetic fixtures only; no owner ledger",
+  "representative_accuracy": false,
+  "deployed_commit_sha": "7586e2d84ee0954980f11a18f363bcd24a1230af",
+  "commit_provenance": "Owner confirmed Render Live deployment commit"
+}

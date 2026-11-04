@@ -15,3 +15,6 @@ eval/inbox/*.jsonl
 
 # Canonical generated contract; regenerate with npm run api:openapi.
 apps/api/openapi.json
+
+# Private owner data and one-off local verification artifacts.
+.local/

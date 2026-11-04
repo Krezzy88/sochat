@@ -176,3 +176,12 @@ student results remain real-evidence gates; preparation alone does not complete 
 Owner added MIT LICENSE on main in commit 71cd17f4271e816f7b56e622ff7705d630009498.
 Phase 8 imports that exact file and aligns root package/lock/README metadata. This
 is synchronization of the owner's existing decision, not an agent-selected license.
+
+## 19. Owner-approved Paid Tier 1 hosted testing — 2026-11-04
+
+Owner confirmed the deployed Gemini key is Paid Tier 1 and explicitly requested
+continuing real tests: “cứ test đi ... quan trọng là dự án hoàn thành đúng như kế
+hoạch”. Bounded synthetic hosted extraction/query/revision/consented-search tests
+are authorized; the prior free-only test block is lifted. No billing setting,
+quota increase, owner-ledger disclosure, paid hosting upgrade or general model
+accuracy claim is authorized by this decision. Human/held-out gates remain real.

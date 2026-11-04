@@ -2,7 +2,7 @@
 
 A Vietnamese chat-to-ledger expense tracker for university students.
 
-Status: **Phase 8 preparation — not publicly deployed**. Playful 2D UI, grouped VND inputs, clearer auth and real Gemini provenance are implemented locally. Public deployment and real-user validation remain owner-gated Phase 8.
+Status: **Public demo deployed; Phase 8 user validation in progress**. [Open SổChat](https://sochat.onrender.com). Public HTTPS functional checks and real Gemini browser smoke passed with synthetic data; held-out evaluation, five student sessions and a demo recording remain pending.
 See [verification evidence](docs/EVIDENCE.md) for actual checks and limitations.
 
 The MVP supports authentication, chat extraction with editable confirmation,
@@ -296,15 +296,21 @@ still asks about missing units. Rules/LLM provenance and editable confirmation a
 shown. The owner development set is used for tuning, not representative accuracy;
 final held-out evaluation and user validation remain Phase 8 gates.
 
-## Phase 8 free demo preparation
+## Phase 8 hosted demo
 
-Owner-selected free-tier route: one Render Free service for React + Node API,
-and a new Neon Free PostgreSQL 18 database. [Deployment guide](docs/DEPLOYMENT.md)
-documents quotas/cold starts, secrets, same-origin cookies and hosted acceptance
-checks. No Vercel service, paid plan or owner-data migration is needed.
+[Live synthetic-data demo](https://sochat.onrender.com): one Render service for
+React + Node API, with Neon PostgreSQL 18. Hosting uses the selected free plans;
+the owner subsequently authorized Paid Tier 1 Gemini testing, so an all-in $0 API
+cost is not claimed. [Deployment guide](docs/DEPLOYMENT.md) records quotas, cold
+starts, privacy, secrets and operational limits.
 
-The combined non-root image, a local HTTPS rehearsal, backup/restore check,
-[user-test script](docs/USER_TESTING.md), [held-out protocol](docs/release/HELDOUT_PROTOCOL.md)
-and [two-minute demo script](docs/release/DEMO_SCRIPT.md) are prepared. Public CI,
-a live demo URL, managed-host RLS, held-out results and student observations are
-not claimed until actually verified.
+[Hosted CI](https://github.com/Krezzy88/sochat/actions/runs/41783820913) passed for
+7586e2d. Public HTTPS/session/ledger/export checks and three real-provider browser
+smokes passed; reports are in docs/measurements/hosted-*.json. Rules versus Gemini
+provenance is explicit; model interpretation never computes totals or writes the
+ledger without human confirmation. These author-designed synthetic checks are not
+representative accuracy or user-study evidence.
+
+The [user-test script](docs/USER_TESTING.md), [held-out protocol](docs/release/HELDOUT_PROTOCOL.md)
+and [two-minute demo script](docs/release/DEMO_SCRIPT.md) are prepared. Phase 8 is
+not complete until real owner-provided results are collected. Deployed commit 7586e2d is owner-confirmed; hosted restore remains unverified. No RLS-on-Neon claim is made.

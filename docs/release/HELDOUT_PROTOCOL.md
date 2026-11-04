@@ -17,7 +17,9 @@ held-out. Do not synthesize a test set and describe it as real-user evaluation.
    disputed labels BEFORE predictions. Freeze file hash, code commit, model,
    prompt version and money profile; owner approves the frozen set/run.
 4. Create an ISOLATED evaluation PostgreSQL 18 database, apply migrations, supply
-   its DATABASE_URL and a Free Tier Gemini key only in an ignored local env file.
+   its DATABASE_URL and an owner-approved Gemini key only in an ignored local env file.
+   Paid provider testing is explicitly authorized under charter section 19; agree
+   the bounded run budget before starting.
    Do not point evaluation commands at native owner, demo or hosted production DB.
    This harness writes a synthetic evaluation account/cache/quota state. Dedicated
    per-user/global caps must cover the authorized run (up to three generation
