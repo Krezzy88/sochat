@@ -3249,3 +3249,81 @@ without inspecting owner ledger rows. Native PostgreSQL remained unchanged. No
 public push, hosted CI, deployment, final held-out run or student interviews were
 performed. Host TLS/secrets/backups/load, representative AI/user validation and
 native spreadsheet/non-Chromium behavior remain Phase 8 work.
+
+## 2026-11-04 — Phase 8 local deployment preparation
+
+Code candidate: `0bc02c95a14bf5674c5c8448c024395c878116ba` on `codex/phase-8`.
+Owner selected **Render Free combined Web/API + Neon Free PostgreSQL 18** after
+considering Vercel and single-platform expiry limits. No Vercel config remains.
+Machine-readable record: measurements/phase8-preparation.json. This prepares Phase 8;
+it does not establish a live demo URL, hosted CI, user-study or held-out result.
+
+Added a non-root combined image, optional static serving within the HTTPS/origin
+middleware, immutable hashed-asset caching, provider PORT healthcheck and Render's
+documented external-origin fallback when RENDER=true. Blueprint is free-only,
+manual deployment, generated session secret, fresh Neon URL/key entered privately;
+no managed database or paid fallback. Managed-host RLS remains an explicit separate
+admin opt-in (false in the initial cloud profile); existing Docker RLS is unchanged.
+The current privileged FORCE RLS script must not be applied blindly to a managed
+non-superuser account. API ownership checks remain tested regardless of RLS.
+
+Privacy: Docker context excludes ignored `.local`/env data and the owner inbox.
+No local owner/demo ledger is a seed source. Non-JSON upstream startup replies now
+produce a friendly retry message. No paid plan, public resource, secret upload or
+real Gemini generation was performed during this preparation. Free model pricing
+was checked in Google's documentation; the existing key's actual project tier was
+not inspected or assumed. Provider limits, cold starts and hosted acceptance are
+recorded in DEPLOYMENT.md.
+
+Local checks actually run: lint/typecheck/OpenAPI drift/secret-pattern checks passed;
+**248 unit tests**, **96 PostgreSQL integration tests**, **36 desktop/mobile browser
+journeys**, **2 local production-mode HTTPS browser journeys** passed. Unit coverage:
+lines 80.87%, statements 80.22%, branches 80.88%, functions 78.89%. Integration:
+lines 91.57%, statements 91.03%, branches 85.08%, functions 94.25%. Gates unchanged.
+Standard-profile rules and scripted hybrid seed dev CLI reports also passed in
+/private/tmp; those scripted results are not real Gemini performance.
+
+The HTTPS rehearsal uses ephemeral local self-signed TLS termination, isolated
+PostgreSQL 18 and a NOSUPERUSER/NOBYPASSRLS DB owner. Final run derives the exact
+origin from simulated Render metadata, serves React+API through the combined image,
+checks browser Secure/HttpOnly/SameSite cookies across reload, shorthand, confirmed
+versioned writes, stale 409, owned CSV and test-account deletion on desktop/mobile.
+It is not a public Render certificate, Neon TLS or hosted latency measurement.
+
+A real synthetic backup/restore rehearsal dumped the disposable DB with `pg_dump
+-Fc` to a mode-0600 archive, restored into a separate DB using `--no-owner --no-acl`,
+and verified one fixture transaction totaling exactly 35123 VND. No native or owner
+DB was touched. After final browser checks the isolated rehearsal containers/volumes
+were removed; the original sochat-demo's three containers remained healthy.
+Hosted restore/retention is still an owner deployment check, not inferred from this.
+
+Current full npm audit: **0 high/critical, 21 moderate**; the high/critical CI gate
+passes, but no claim of zero advisories across all dependencies. Digest-pinned
+Trivy 0.75.0 on a git archive of the exact code candidate returned **0 HIGH/CRITICAL
+vulnerabilities, secrets and misconfigurations** in its filesystem scope (exit 0).
+This excludes ignored credentials/private evaluation data and is not an image OS
+scan, penetration test or hosted security certification. Render Blueprint passed
+structural validation against https://render.com/schema/render.yaml.json with the
+already installed Ajv 2020 implementation; optional format assertions disabled.
+This is not a Render provisioning/API acceptance result.
+
+Evaluation harness now applies/records MONEY_PROFILE consistently in rules and
+hybrid CLI runs, preventing an accidental standard-versus-v2 policy mismatch in a
+future held-out run. Regression uses one synthetic dev case only; mutation removed
+the hybrid profile forwarding and failed as expected (1 failed, 1 passed, 2 skipped),
+then restoration passed both profile checks (2 passed, 2 skipped). No mutation remains.
+An initial retry browser regression targeted “Thử lại” instead of the actual “Thử
+tải lại”; corrected the selector, then the full 36-journey suite passed. Typecheck
+caught optional-property typing at the new server hook; fixed before acceptance.
+
+Prepared USER_TESTING.md, private-session template, untouched held-out protocol and
+a <=2-minute real UI recording script. There are **0 student sessions, 0 held-out
+runs, no quotes and no recorded video** from this phase. Original tuned owner 50-case
+dev set is never relabeled as held-out. Production-mode browser checks use synthetic
+scripted provider behavior, not fake model-accuracy claims.
+
+Read-only GitHub inspection found only the older open Phase 7 draft PR #12 and no
+PR-triggered run for the preceding pre-deploy evidence commit; this does not prove
+latest hosted CI. New candidate publication/CI and public deployment await the
+owner's concrete approval/account access. Main was not merged and no draft PR was
+closed. Phase 8 remains IN PROGRESS until actual hosted/user/held-out evidence exists.

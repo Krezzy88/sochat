@@ -52,7 +52,14 @@
     "verified_amount_vnd": "35123",
     "hosted_restore_verified": false
   },
-  "source_scan": "Pinned Trivy source-only snapshot passed HIGH/CRITICAL gate; no image/host penetration certification",
+  "source_scan": {
+    "tool": "Trivy 0.75.0 digest-pinned CI image",
+    "scope": "git archive of code commit; filesystem vulnerabilities/secrets/misconfigurations only",
+    "high_critical_vulnerabilities": 0,
+    "high_critical_secrets": 0,
+    "high_critical_misconfigurations": 0,
+    "exit_code": 0
+  },
   "hosted_ci": "NOT VERIFIED for new candidate; prior Phase 7 draft PR is separate",
   "pending": [
     "Owner Render/Neon login and concrete publication approval",
@@ -63,5 +70,8 @@
     "Five consenting student sessions",
     "Actual <=2-minute demo recording"
   ],
-  "final_render_origin_rehearsed": true
+  "final_render_origin_rehearsed": true,
+  "code_commit": "0bc02c95a14bf5674c5c8448c024395c878116ba",
+  "render_schema_validation_format_checks": "JSON Schema structural validation; format assertions disabled; provider provisioning not attempted",
+  "local_rehearsal_stack_removed": true
 }
