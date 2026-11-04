@@ -1,3 +1,10 @@
+import { googleAccount } from '../http/google.ts';
+import {
+  consumeAccountToken,
+  requestAccountEmail,
+  tokenHash,
+} from '../http/account-email.ts';
+import { verify } from 'argon2';
 import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
@@ -13,6 +20,7 @@ import {
   vi,
 } from 'vitest';
 import { migrate } from './migrate.ts';
+import { apiRepository } from '../http/repository.ts';
 import { indexNotes, semanticSearch, embeddings } from '../http/semantic.ts';
 let container: StartedPostgreSqlContainer,
   pool: pg.Pool,
@@ -334,4 +342,134 @@ it('does not return a transaction deleted during query embedding work', async ()
     indexed: 0,
     items: [],
   });
+});
+
+it('compares two monthly totals in one owner-scoped query including empty months and categories', async () => {
+  await seed();
+  await pool.query(
+    "INSERT INTO transactions(user_id,category_id,type,amount_vnd,occurred_on,note) SELECT $1,id,'expense',20000,'2026-10-01','baseline' FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    [user],
+  );
+  await pool.query(
+    "INSERT INTO transactions(user_id,category_id,type,amount_vnd,occurred_on,note) SELECT $1,id,'expense',999999,'2026-11-01','other' FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    [other],
+  );
+  const repo = apiRepository(pool, 'test-secret');
+  expect(
+    await repo.questionTotals(user, ['2026-10', '2026-11'], 'an_uong'),
+  ).toEqual([
+    { month: '2026-10', income_vnd: '0', expense_vnd: '20000' },
+    { month: '2026-11', income_vnd: '0', expense_vnd: '50000' },
+  ]);
+  expect(await repo.questionTotals(user, ['2026-12'], null)).toEqual([
+    { month: '2026-12', income_vnd: '0', expense_vnd: '0' },
+  ]);
+  expect(
+    (await repo.questionTotals(user, ['2026-11'], 'di_chuyen'))[0]?.expense_vnd,
+  ).toBe('0');
+});
+
+it('never auto-links Google by email, links explicitly, and preserves stable subject identity', async () => {
+  const identity = {
+    subject: 'google-subject',
+    email: 'a@ai.test',
+    name: 'Google A',
+  };
+  await expect(googleAccount(pool, identity, null)).rejects.toMatchObject({
+    status: 409,
+  });
+  expect((await googleAccount(pool, identity, user)).id).toBe(user);
+  expect(
+    (await googleAccount(pool, { ...identity, email: 'changed@ai.test' }, null))
+      .id,
+  ).toBe(user);
+  await expect(googleAccount(pool, identity, other)).rejects.toMatchObject({
+    status: 409,
+  });
+  const created = await googleAccount(
+    pool,
+    { subject: 'new-subject', email: 'new@ai.test', name: 'New' },
+    null,
+  );
+  expect(created.email).toBe('new@ai.test');
+});
+it('consumes reset tokens once, rejects wrong-purpose/expired tokens and revokes sessions', async () => {
+  const token = 'a'.repeat(64);
+  await pool.query("INSERT INTO account_tokens VALUES($1,$2,'reset',$3)", [
+    tokenHash(token),
+    user,
+    new Date(now.getTime() + 60000),
+  ]);
+  await pool.query(
+    "INSERT INTO sessions(sid,sess,expire) VALUES('reset-session',$1,$2)",
+    [JSON.stringify({ userId: user }), new Date(now.getTime() + 60000)],
+  );
+  await expect(
+    consumeAccountToken(pool, token, 'verify', now),
+  ).rejects.toMatchObject({ status: 400 });
+  await consumeAccountToken(pool, token, 'reset', now, 'New-password-2026');
+  expect(
+    await verify(
+      (await pool.query('SELECT password_hash FROM users WHERE id=$1', [user]))
+        .rows[0].password_hash,
+      'New-password-2026',
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await pool.query(
+        'SELECT count(*)::text AS n FROM sessions WHERE user_id=$1',
+        [user],
+      )
+    ).rows[0].n,
+  ).toBe('0');
+  await expect(
+    consumeAccountToken(pool, token, 'reset', now, 'Another-password-2026'),
+  ).rejects.toMatchObject({ status: 400 });
+  await pool.query("INSERT INTO account_tokens VALUES($1,$2,'verify',$3)", [
+    tokenHash(token),
+    user,
+    now,
+  ]);
+  await expect(
+    consumeAccountToken(pool, token, 'verify', now),
+  ).rejects.toMatchObject({ status: 400 });
+});
+it('sends only an opaque one-use verification link and stores its hash', async () => {
+  vi.stubEnv('RESEND_API_KEY', 'synthetic-key');
+  vi.stubEnv('MAIL_FROM', 'SoChat <mail@example.test>');
+  const send = vi.fn(
+    async (_url: string | URL | Request, _init?: RequestInit) => {
+      void _url;
+      void _init;
+      return new Response('{}');
+    },
+  );
+  vi.stubGlobal('fetch', send);
+  await requestAccountEmail(
+    pool,
+    'a@ai.test',
+    'verify',
+    'https://app.example.test',
+    now,
+  );
+  const body = JSON.parse(String(send.mock.calls[0]?.[1]?.body));
+  const token = /#account-verify=([a-f0-9]{64})/.exec(body.text)?.[1];
+  expect(token).toBeTruthy();
+  expect(
+    (
+      await pool.query(
+        'SELECT token_hash FROM account_tokens WHERE user_id=$1',
+        [user],
+      )
+    ).rows[0].token_hash,
+  ).toBe(tokenHash(token!));
+  await consumeAccountToken(pool, token!, 'verify', now);
+  expect(
+    (
+      await pool.query('SELECT email_verified_at FROM users WHERE id=$1', [
+        user,
+      ])
+    ).rows[0].email_verified_at,
+  ).toBeTruthy();
 });

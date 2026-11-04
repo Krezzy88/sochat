@@ -64,6 +64,7 @@ export const yearQuery = z.strictObject({
 });
 export const listQuery = z
   .strictObject({
+    search: z.string().trim().max(100).normalize().optional(),
     from: day.optional(),
     to: day.optional(),
     category: category.optional(),

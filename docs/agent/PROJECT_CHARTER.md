@@ -185,3 +185,16 @@ hoạch”. Bounded synthetic hosted extraction/query/revision/consented-search 
 are authorized; the prior free-only test block is lifted. No billing setting,
 quota increase, owner-ledger disclosure, paid hosting upgrade or general model
 accuracy claim is authorized by this decision. Human/held-out gates remain real.
+
+## Phạm vi bổ sung được chủ dự án duyệt — 04/11/2026
+
+Bản 1.0 bổ sung đăng nhập Google (OpenID Connect/OAuth 2.0), liên kết Google chủ
+động khi đã đăng nhập, xác minh email, quên/đặt lại mật khẩu và đổi mật khẩu.
+Giữ session cookie hiện có; không tự gộp tài khoản theo email. Chỉ xin quyền hồ sơ
+cơ bản/email, không xin Gmail/Drive hoặc offline access. Email giao dịch tài khoản
+qua dịch vụ gửi thư riêng; secret chỉ ở server. Bật nhà cung cấp và gửi thư thực tế
+phụ thuộc cấu hình được chủ dự án duyệt, không suy ra từ test transport.
+
+Hỏi cuốn sổ được mở rộng sang so sánh hai tháng. Gemini bóc tách ý định; SQL/code
+truy vấn, tính toán và phân quyền. Không thay đổi các mục ngoài phạm vi về OCR,
+liên kết ngân hàng, nhiều tiền tệ hoặc tư vấn tài chính AI.

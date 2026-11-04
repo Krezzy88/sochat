@@ -1,3 +1,5 @@
+import { ForgotPassword, AccountTokenPage } from './AccountEmail.tsx';
+import { GoogleLogin } from './GoogleLogin.tsx';
 import { useFeedback } from './Feedback.tsx';
 import { Mascot } from './Mascot.tsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
@@ -23,7 +25,13 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
   const [register, setRegister] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() =>
+    window.location.hash === '#auth-error=google-conflict'
+      ? 'Email đã có tài khoản hoặc Google đã được liên kết. Hãy đăng nhập bằng mật khẩu rồi kiểm tra liên kết trong Cài đặt.'
+      : window.location.hash === '#auth-error=google-unavailable'
+        ? 'Chưa đăng nhập được bằng Google. Vui lòng thử lại hoặc dùng email và mật khẩu.'
+        : '',
+  );
   const notify = useFeedback().success;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -115,6 +123,8 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
               ? 'Tạo tài khoản để ghi lại thu chi mỗi ngày.'
               : 'Đăng nhập để tiếp tục câu chuyện thu chi.'}
           </p>
+          <GoogleLogin />
+          <ForgotPassword />
           <form
             key={register ? 'register' : 'login'}
             onSubmit={submit}
@@ -377,6 +387,35 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
   );
 }
 export function App() {
+  const [accountToken, setAccountToken] = useState(() => {
+    const match = /^#account-(reset|verify)=([a-f0-9]{64})$/.exec(
+      window.location.hash,
+    );
+    if (!match) return null;
+    return { purpose: match[1] as 'reset' | 'verify', token: match[2]! };
+  });
+  useEffect(() => {
+    const onHash = () => {
+      const match = /^#account-(reset|verify)=([a-f0-9]{64})$/.exec(
+        window.location.hash,
+      );
+      if (match)
+        setAccountToken({
+          purpose: match[1] as 'reset' | 'verify',
+          token: match[2]!,
+        });
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    if (accountToken)
+      window.history.replaceState(
+        null,
+        '',
+        '/#account-' + accountToken.purpose,
+      );
+  }, [accountToken]);
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
@@ -405,6 +444,7 @@ export function App() {
     window.addEventListener('session-expired', expired);
     return () => window.removeEventListener('session-expired', expired);
   }, []);
+  if (accountToken) return <AccountTokenPage {...accountToken} />;
   if (!ready)
     return (
       <main className="startup">

@@ -829,3 +829,68 @@ test('non-JSON upstream startup response shows a friendly retry message', async 
   await page.getByRole('button', { name: 'Thử tải lại', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
+
+test('literal note search can be cleared without AI and password change returns to login', async ({
+  page,
+}) => {
+  await parse(page);
+  await save(page);
+  await go(page, 'Giao dịch');
+  await page
+    .getByLabel('Tìm ghi chú', { exact: true })
+    .fill('no-matching-note');
+  await page
+    .getByRole('button', { name: 'Lọc giao dịch', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: /^Sửa / })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Bỏ bộ lọc', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Sửa / })).toHaveCount(1);
+  const email = await page.evaluate(
+    async () => (await (await fetch('/api/me')).json()).user.email as string,
+  );
+  await go(page, 'Cài đặt');
+  await page
+    .getByLabel('Mật khẩu hiện tại', { exact: true })
+    .fill('Synthetic-browser-password-2026');
+  await page
+    .getByLabel('Mật khẩu mới', { exact: true })
+    .fill('Updated-browser-password-2026');
+  await page
+    .getByLabel('Xác nhận mật khẩu mới', { exact: true })
+    .fill('Updated-browser-password-2026');
+  await page.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Đăng nhập', exact: true }),
+  ).toBeVisible();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page
+    .getByLabel('Mật khẩu', { exact: true })
+    .fill('Updated-browser-password-2026');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Cài đặt', exact: true, level: 1 }),
+  ).toBeVisible();
+});
+
+test('expired account links show a clear error without changing the account', async ({
+  page,
+}) => {
+  await page.goto('/#account-reset=' + 'a'.repeat(64));
+  await expect(
+    page.getByRole('heading', { name: 'Đặt lại mật khẩu', exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/#account-reset$/);
+  await page
+    .getByLabel('Mật khẩu mới', { exact: true })
+    .fill('Synthetic-reset-password-2026');
+  await page
+    .getByLabel('Xác nhận mật khẩu mới', { exact: true })
+    .fill('Synthetic-reset-password-2026');
+  await page
+    .getByRole('button', { name: 'Lưu mật khẩu mới', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText(
+    'Liên kết đã dùng, hết hạn hoặc không hợp lệ',
+  );
+  expect((await page.request.get('/api/me')).status()).toBe(200);
+});

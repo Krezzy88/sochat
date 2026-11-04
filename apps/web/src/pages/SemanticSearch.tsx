@@ -1,7 +1,7 @@
 import { useFeedback } from '../Feedback.tsx';
 import { useState } from 'react';
 import { request, errorText } from '../api.ts';
-import { money } from '../api.ts';
+import { money, dateLabel } from '../api.ts';
 export default function SemanticSearch() {
   const [query, setQuery] = useState(''),
     [busy, setBusy] = useState(false),
@@ -56,6 +56,7 @@ export default function SemanticSearch() {
           e.preventDefault();
           setBusy(true);
           setMessage('');
+          setItems([]);
           void request<{ items: typeof items; indexed: number }>(
             '/assistant/search',
             'POST',
@@ -75,6 +76,7 @@ export default function SemanticSearch() {
           Tìm theo ý nghĩa
           <input
             value={query}
+            placeholder="Ví dụ: đi chơi với người yêu"
             maxLength={300}
             required
             onChange={(e) => setQuery(e.target.value)}
@@ -88,7 +90,7 @@ export default function SemanticSearch() {
       <ul>
         {items.map((i) => (
           <li key={i.id}>
-            {i.occurred_on} · {i.note} · {money(i.amount_vnd)}
+            {dateLabel(i.occurred_on)} · {i.note} · {money(i.amount_vnd)}
           </li>
         ))}
       </ul>

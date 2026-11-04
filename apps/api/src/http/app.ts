@@ -1,3 +1,14 @@
+import {
+  requestAccountEmail,
+  consumeAccountToken,
+  emailReady,
+} from './account-email.ts';
+import {
+  startGoogle,
+  finishGoogle,
+  googleAccount,
+  type GoogleFlow,
+} from './google.ts';
 import { indexNotes, semanticSearch } from './semantic.ts';
 import { instrument } from '../telemetry.ts';
 import { tenantPool, withTenant } from '../db/tenant.ts';
@@ -21,6 +32,7 @@ declare module 'express-session' {
   interface SessionData {
     userId?: string;
     csrf?: string;
+    googleFlow?: GoogleFlow;
   }
 }
 export interface ApiOptions {
@@ -126,6 +138,8 @@ export async function createApp(options: ApiOptions) {
   const now = options.now ?? (() => new Date());
   const tenantDB = tenantPool(options.pool);
   const repo = apiRepository(tenantDB, options.sessionSecret);
+  // Session storage uses the system connection; password operations retain explicit owner predicates.
+  const authRepo = apiRepository(options.pool, options.sessionSecret);
   const app = express();
   const dummyHash = await argon2.hash(randomBytes(32).toString('hex'), {
     type: argon2.argon2id,
@@ -435,6 +449,270 @@ export async function createApp(options: ApiOptions) {
       return authenticate(req, found);
     },
   );
+  route(
+    'post',
+    '/api/auth/password',
+    {
+      body: z.strictObject({
+        current_password: z.string().min(1).max(128),
+        new_password: z.string().min(12).max(128),
+      }),
+      status: 204,
+    },
+    async ({ req, res, user, body }) => {
+      await rate(req, res, 'change-password', user, user, 5, 600000);
+      const previous = await authRepo.passwordHash(user);
+      if (!(await argon2.verify(previous, body.current_password)))
+        fail(400, 'Mật khẩu hiện tại không đúng.');
+      if (body.current_password === body.new_password)
+        fail(400, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+      const next = await argon2.hash(body.new_password, {
+        type: argon2.argon2id,
+      });
+      await authRepo.changePassword(user, previous, next);
+      await new Promise<void>((resolve, reject) =>
+        req.session.destroy((error) => (error ? reject(error) : resolve())),
+      );
+      res.clearCookie('sochat.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: cookie.secure,
+        sameSite: 'lax',
+      });
+    },
+  );
+  route(
+    'get',
+    '/api/auth/options',
+    {
+      public: true,
+      response: z.strictObject({ google: z.boolean(), email: z.boolean() }),
+    },
+    async () => ({
+      email: emailReady(),
+      google: Boolean(
+        process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+      ),
+    }),
+  );
+  route(
+    'post',
+    '/api/auth/google/start',
+    {
+      public: true,
+      body: z.strictObject({ link: z.boolean().default(false) }),
+      response: z.strictObject({ url: z.string() }),
+    },
+    async ({ req, res, body }) => {
+      await rate(
+        req,
+        res,
+        'google-start',
+        req.ip ?? 'unknown',
+        null,
+        10,
+        600000,
+      );
+      if (body.link && !req.session.userId)
+        fail(401, 'Bạn cần đăng nhập để liên kết.');
+      const started = await startGoogle(
+        options.origin,
+        now(),
+        body.link ? req.session.userId! : null,
+      );
+      req.session.googleFlow = started.flow;
+      await new Promise<void>((resolve, reject) =>
+        req.session.save((e) => (e ? reject(e) : resolve())),
+      );
+      return { url: started.url };
+    },
+  );
+  route(
+    'get',
+    '/api/auth/google/callback',
+    {
+      public: true,
+      query: z.object({
+        code: z.string().max(4096).optional(),
+        state: z.string().max(128).optional(),
+        error: z.string().max(200).optional(),
+      }),
+    },
+    async ({ req, res, query }) => {
+      const flow = req.session.googleFlow;
+      delete req.session.googleFlow;
+      await new Promise<void>((resolve, reject) =>
+        req.session.save((e) => (e ? reject(e) : resolve())),
+      );
+      if (
+        !flow ||
+        flow.expires < now().getTime() ||
+        query.state !== flow.state ||
+        (flow.linkUser && req.session.userId !== flow.linkUser)
+      )
+        fail(400, 'Phiên đăng nhập Google đã hết hạn hoặc không hợp lệ.');
+      if (query.error || !query.code) {
+        res.redirect('/#chat');
+        return;
+      }
+      try {
+        const identity = await finishGoogle(options.origin, query.code, flow);
+        const user = await googleAccount(options.pool, identity, flow.linkUser);
+        await authenticate(req, user);
+        res.redirect('/#chat');
+      } catch (error) {
+        res.redirect(
+          '/#auth-error=' +
+            (error instanceof HttpProblem && error.status === 409
+              ? 'google-conflict'
+              : 'google-unavailable'),
+        );
+      }
+    },
+  );
+  route(
+    'get',
+    '/api/me/security',
+    {
+      response: z.strictObject({
+        email_verified: z.boolean(),
+        google_linked: z.boolean(),
+      }),
+    },
+    async ({ user }) => {
+      const row = (
+        await options.pool.query(
+          'SELECT email_verified_at IS NOT NULL AS email_verified,EXISTS(SELECT 1 FROM auth_identities WHERE user_id=$1 AND provider=$2) AS google_linked FROM users WHERE id=$1',
+          [user, 'google'],
+        )
+      ).rows[0];
+      return row ?? fail(401, 'Bạn cần đăng nhập.');
+    },
+  );
+  const accountToken = z.string().regex(/^[a-f0-9]{64}$/);
+  route(
+    'post',
+    '/api/auth/forgot-password',
+    {
+      public: true,
+      body: z.strictObject({
+        email: z
+          .email()
+          .max(254)
+          .transform((v) => v.toLowerCase()),
+      }),
+      status: 204,
+    },
+    async ({ req, res, body }) => {
+      await rate(req, res, 'reset-ip', req.ip ?? 'unknown', null, 5, 3600000);
+      await rate(req, res, 'reset-email', body.email, null, 3, 3600000);
+      if (
+        !(await authRepo.throttle(
+          'mail-global',
+          'all',
+          null,
+          30,
+          3600000,
+          now(),
+        ))
+      )
+        fail(429, 'Đã đạt hạn mức email. Vui lòng thử lại sau.');
+      await requestAccountEmail(
+        options.pool,
+        body.email,
+        'reset',
+        options.origin,
+        now(),
+      );
+    },
+  );
+  route(
+    'post',
+    '/api/auth/reset-password',
+    {
+      public: true,
+      body: z.strictObject({
+        token: accountToken,
+        password: z.string().min(12).max(128),
+      }),
+      status: 204,
+    },
+    async ({ req, res, body }) => {
+      await rate(
+        req,
+        res,
+        'consume-token',
+        req.ip ?? 'unknown',
+        null,
+        10,
+        600000,
+      );
+      await consumeAccountToken(
+        options.pool,
+        body.token,
+        'reset',
+        now(),
+        body.password,
+      );
+      await new Promise<void>((resolve, reject) =>
+        req.session.destroy((e) => (e ? reject(e) : resolve())),
+      );
+      res.clearCookie('sochat.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: cookie.secure,
+        sameSite: 'lax',
+      });
+    },
+  );
+  route(
+    'post',
+    '/api/me/verification-email',
+    { status: 204 },
+    async ({ req, res, user }) => {
+      await rate(req, res, 'verify-user', user, user, 3, 3600000);
+      if (
+        !(await authRepo.throttle(
+          'mail-global',
+          'all',
+          null,
+          30,
+          3600000,
+          now(),
+        ))
+      )
+        fail(429, 'Đã đạt hạn mức email. Vui lòng thử lại sau.');
+      const account = await repo.user(user);
+      await requestAccountEmail(
+        options.pool,
+        (account ?? fail(401, 'Bạn cần đăng nhập.')).email,
+        'verify',
+        options.origin,
+        now(),
+      );
+    },
+  );
+  route(
+    'post',
+    '/api/auth/verify-email',
+    {
+      public: true,
+      body: z.strictObject({ token: accountToken }),
+      status: 204,
+    },
+    async ({ req, res, body }) => {
+      await rate(
+        req,
+        res,
+        'consume-token',
+        req.ip ?? 'unknown',
+        null,
+        10,
+        600000,
+      );
+      await consumeAccountToken(options.pool, body.token, 'verify', now());
+    },
+  );
   route('post', '/api/auth/logout', { status: 204 }, async ({ req, res }) => {
     await new Promise<void>((resolve, reject) =>
       req.session.destroy((error) => (error ? reject(error) : resolve())),
@@ -515,6 +793,14 @@ export async function createApp(options: ApiOptions) {
         income_vnd: strMoney,
         expense_vnd: strMoney,
         evidence_url: z.string().nullable(),
+        comparison: z
+          .strictObject({
+            month: c.month,
+            income_vnd: strMoney,
+            expense_vnd: strMoney,
+            expense_change_vnd: z.string().regex(/^-?(?:0|[1-9]\d*)$/),
+          })
+          .nullable(),
       }),
     },
     async ({ req, res, user, body }) => {
@@ -531,34 +817,43 @@ export async function createApp(options: ApiOptions) {
         return {
           needs_clarification: true,
           question:
-            'Bạn hỏi tổng thu/chi của một tháng và tối đa một danh mục nhé.',
+            'Bạn có thể hỏi tổng thu/chi hoặc so sánh hai tháng, với tối đa một danh mục.',
           month: null,
           category: null,
           income_vnd: '0',
           expense_vnd: '0',
           evidence_url: null,
+          comparison: null,
         };
-      const report = await repo.month(
+      const totals = await repo.questionTotals(
         user,
-        intent.month + '-01',
-        c.nextMonth(intent.month),
+        [
+          ...new Set([
+            intent.month,
+            ...(intent.compare_month ? [intent.compare_month] : []),
+          ]),
+        ],
+        intent.category,
       );
-      const groups = report.by_category.filter(
-        (row) => !intent.category || row.category === intent.category,
-      );
+      const current = totals.find((r) => r.month === intent.month)!;
+      const baseline = intent.compare_month
+        ? totals.find((r) => r.month === intent.compare_month)!
+        : null;
       return {
         needs_clarification: false,
         question: 'Tổng hợp từ giao dịch đã lưu của bạn.',
         month: intent.month,
         category: intent.category,
-        income_vnd: groups
-          .filter((r) => r.type === 'income')
-          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
-          .toString(),
-        expense_vnd: groups
-          .filter((r) => r.type === 'expense')
-          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
-          .toString(),
+        income_vnd: current.income_vnd,
+        expense_vnd: current.expense_vnd,
+        comparison: baseline
+          ? {
+              ...baseline,
+              expense_change_vnd: (
+                BigInt(current.expense_vnd) - BigInt(baseline.expense_vnd)
+              ).toString(),
+            }
+          : null,
         evidence_url:
           '/api/transactions?from=' +
           intent.month +

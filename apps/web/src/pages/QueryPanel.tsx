@@ -11,6 +11,12 @@ interface Answer {
   income_vnd: string;
   expense_vnd: string;
   evidence_url: string | null;
+  comparison: {
+    month: string;
+    income_vnd: string;
+    expense_vnd: string;
+    expense_change_vnd: string;
+  } | null;
 }
 export function QueryPanel({ categories }: { categories: Category[] }) {
   const [busy, setBusy] = useState(false),
@@ -22,6 +28,7 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
     e.preventDefault();
     setBusy(true);
     setError('');
+    setAnswer(undefined);
     setRows([]);
     setCursor(null);
     try {
@@ -95,6 +102,26 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
                   Tổng thu: <strong>{money(answer.income_vnd)}</strong> · Tổng
                   chi: <strong>{money(answer.expense_vnd)}</strong>
                 </p>
+                {answer.comparison && (
+                  <p>
+                    Tháng đối chiếu {answer.comparison.month}: thu{' '}
+                    {money(answer.comparison.income_vnd)}, chi{' '}
+                    {money(answer.comparison.expense_vnd)}. Chi tiêu tháng{' '}
+                    {answer.month}{' '}
+                    {BigInt(answer.comparison.expense_change_vnd) >= 0n
+                      ? 'tăng'
+                      : 'giảm'}{' '}
+                    <strong>
+                      {money(
+                        (BigInt(answer.comparison.expense_change_vnd) < 0n
+                          ? -BigInt(answer.comparison.expense_change_vnd)
+                          : BigInt(answer.comparison.expense_change_vnd)
+                        ).toString(),
+                      )}
+                    </strong>
+                    .
+                  </p>
+                )}
                 <button
                   className="secondary"
                   disabled={busy}

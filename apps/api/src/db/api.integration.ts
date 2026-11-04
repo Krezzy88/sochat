@@ -169,6 +169,84 @@ async function goal(actor: Actor = a) {
   }).expect(201);
 }
 describe('auth/session/CSRF and validation', () => {
+  it('requests verification under RLS without exposing email or tokens', async () => {
+    vi.stubEnv('RESEND_API_KEY', 'synthetic-key');
+    vi.stubEnv('MAIL_FROM', 'accounts@example.test');
+    const send = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}'));
+    try {
+      await call(a, 'post', '/api/me/verification-email').expect(204);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(
+        (
+          await pool.query(
+            'SELECT count(*)::text AS n FROM account_tokens WHERE user_id=$1',
+            [a.id],
+          )
+        ).rows[0].n,
+      ).toBe('1');
+    } finally {
+      send.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+  it('rejects Google callbacks without a matching browser flow', async () => {
+    await a.agent
+      .get('/api/auth/google/callback?code=synthetic&state=invalid')
+      .expect(400);
+    await call(a, 'get', '/api/me').expect(200);
+  });
+
+  it('changes passwords only after verification and revokes every existing session', async () => {
+    const second = request.agent(runtime.app);
+    const csrf = await second.get('/api/auth/csrf').expect(200);
+    await second
+      .post('/api/auth/login')
+      .set('X-CSRF-Token', csrf.body.csrf_token)
+      .send({ email: a.email, password })
+      .expect(200);
+    const next = 'New-synthetic-password-2026';
+    await call(a, 'post', '/api/auth/password', {
+      current_password: 'incorrect',
+      new_password: next,
+    }).expect(400);
+    await call(a, 'get', '/api/me').expect(200);
+    await call(a, 'post', '/api/auth/password', {
+      current_password: password,
+      new_password: password,
+    }).expect(400);
+    await call(a, 'post', '/api/auth/password', {
+      current_password: password,
+      new_password: next,
+    }).expect(204);
+    await call(a, 'get', '/api/me').expect(401);
+    await second.get('/api/me').expect(401);
+    await call(b, 'get', '/api/me').expect(200);
+    expect(
+      (
+        await pool.query(
+          'SELECT count(*)::text AS n FROM sessions WHERE user_id=$1',
+          [a.id],
+        )
+      ).rows[0].n,
+    ).toBe('0');
+    // Isolate password correctness from the fixture's two-attempt login limit.
+    await pool.query('DELETE FROM api_rate_limits');
+    const fresh = request.agent(runtime.app);
+    const token = await fresh.get('/api/auth/csrf').expect(200);
+    await fresh
+      .post('/api/auth/login')
+      .set('X-CSRF-Token', token.body.csrf_token)
+      .send({ email: a.email, password })
+      .expect(401);
+    await fresh
+      .post('/api/auth/login')
+      .set('X-CSRF-Token', token.body.csrf_token)
+      .send({ email: a.email, password: next })
+      .expect(200);
+  });
+
   it('stores argon2id hashes and only an opaque httpOnly cookie', async () => {
     const hash = (
       await pool.query('SELECT password_hash FROM users WHERE id=$1', [a.id])
@@ -362,6 +440,23 @@ describe('proposal, confirmation and idempotency', () => {
       ).rows[0].count,
     ).toBe('0');
     await save(a, [transaction], key);
+  });
+  it('searches notes literally, case-insensitively and only within the owner ledger', async () => {
+    await save(a, [{ ...transaction, note: 'Cà phê 50%_ hôm nay' }]);
+    await save(b, [{ ...transaction, note: 'Cà phê private' }]);
+    const search = async (text: string) =>
+      call(
+        a,
+        'get',
+        '/api/transactions?search=' + encodeURIComponent(text),
+      ).expect(200);
+    expect((await search('CÀ PHÊ')).body.items).toHaveLength(1);
+    expect((await search('%_')).body.items).toHaveLength(1);
+    expect((await search('private')).body.items).toHaveLength(0);
+    expect((await search("' OR 1=1 --")).body.items).toHaveLength(0);
+    await call(a, 'get', '/api/transactions?search=' + 'x'.repeat(101)).expect(
+      400,
+    );
   });
   it('supports stable cursor pagination, filtering and edits/deletes', async () => {
     await save(a, [

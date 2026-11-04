@@ -128,6 +128,32 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         ).rows[0] ?? fail(500, 'Không tạo được tài khoản.')
       );
     },
+    async passwordHash(user: string) {
+      return (
+        (
+          await pool.query<{ password_hash: string }>(
+            'SELECT password_hash FROM users WHERE id=$1',
+            [user],
+          )
+        ).rows[0]?.password_hash ??
+        fail(401, 'Phiên đăng nhập không còn hợp lệ.')
+      );
+    },
+    async changePassword(user: string, previous: string, next: string) {
+      return atomic(async (client) => {
+        const updated = await client.query(
+          'UPDATE users SET password_hash=$3 WHERE id=$1 AND password_hash=$2 RETURNING id',
+          [user, previous, next],
+        );
+        if (!updated.rowCount)
+          fail(409, 'Mật khẩu đã thay đổi. Hãy đăng nhập lại.');
+        await client.query('DELETE FROM sessions WHERE user_id=$1', [user]);
+        await client.query(
+          "DELETE FROM account_tokens WHERE user_id=$1 AND purpose='reset'",
+          [user],
+        );
+      });
+    },
     async deleteUser(user: string) {
       await pool.query('DELETE FROM users WHERE id=$1', [user]);
     },
@@ -208,6 +234,8 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         values.push(value);
         where.push(sql.replace('?', `$${values.length}`));
       };
+      if (query.search)
+        add('strpos(lower(t.note), lower(?)) > 0', query.search);
       if (query.from) add('t.occurred_on >= ?', query.from);
       if (query.to) add('t.occurred_on <= ?', query.to);
       if (query.category) add('c.key = ?', query.category);
@@ -329,6 +357,31 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         expense_vnd: expense,
         net_vnd: (BigInt(income) - BigInt(expense)).toString(),
       };
+    },
+    async questionTotals(
+      user: string,
+      months: string[],
+      category: string | null,
+    ) {
+      return (
+        await pool.query<{
+          month: string;
+          income_vnd: string;
+          expense_vnd: string;
+        }>(
+          `SELECT m.month,
+          coalesce(sum(t.amount_vnd) FILTER (WHERE t.type='income'),0)::text AS income_vnd,
+          coalesce(sum(t.amount_vnd) FILTER (WHERE t.type='expense'),0)::text AS expense_vnd
+        FROM unnest($2::text[]) AS m(month)
+        LEFT JOIN transactions t ON t.user_id=$1
+          AND t.occurred_on >= (m.month || '-01')::date
+          AND t.occurred_on < ((m.month || '-01')::date + interval '1 month')
+          AND ($3::text IS NULL OR t.category_id IN
+            (SELECT id FROM categories WHERE key=$3 AND (user_id IS NULL OR user_id=$1)))
+        GROUP BY m.month ORDER BY m.month`,
+          [user, months, category],
+        )
+      ).rows;
     },
     async month(user: string, from: string, to: string) {
       const values = [user, from, to];

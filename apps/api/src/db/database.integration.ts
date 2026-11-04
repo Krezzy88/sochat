@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  readdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -45,15 +51,9 @@ describe('PostgreSQL 18 migrations and constraints', () => {
   it('rejects migration drift and rolls back a failed migration batch', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'sochat-migrations-'));
     try {
-      for (const name of [
-        '001_schema.sql',
-        '002_reporting_indexes.sql',
-        '004_llm_limits.sql',
-        '005_api_state.sql',
-        '006_ai_features.sql',
-        '007_remove_voice.sql',
-        '008_record_versions.sql',
-      ])
+      for (const name of readdirSync(
+        new URL('../../../../db/migrations/', import.meta.url),
+      ).filter((n) => /^\d{3}_[a-z_]+\.sql$/.test(n)))
         writeFileSync(
           join(directory, name),
           readFileSync(
@@ -61,7 +61,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
           ),
         );
       writeFileSync(
-        join(directory, '009_probe.sql'),
+        join(directory, '999_probe.sql'),
         'CREATE TABLE rollback_probe(id int); SELECT 1/0;',
       );
       await expect(
@@ -71,7 +71,7 @@ describe('PostgreSQL 18 migrations and constraints', () => {
         (await pool.query("SELECT to_regclass('rollback_probe') AS name"))
           .rows[0].name,
       ).toBeNull();
-      rmSync(join(directory, '009_probe.sql'));
+      rmSync(join(directory, '999_probe.sql'));
       writeFileSync(join(directory, '001_schema.sql'), '-- altered');
       await expect(
         migrate(pool, pathToFileURL(directory + '/')),
@@ -87,7 +87,13 @@ describe('PostgreSQL 18 migrations and constraints', () => {
     expect(
       (await pool.query('SELECT count(*) FROM schema_migrations')).rows[0]
         .count,
-    ).toBe('7');
+    ).toBe(
+      String(
+        readdirSync(
+          new URL('../../../../db/migrations/', import.meta.url),
+        ).filter((n) => /^\d{3}_[a-z_]+\.sql$/.test(n)).length,
+      ),
+    );
   });
   it.each([0n, -1n, 100_000_000_001n])(
     'rejects invalid money %s',
