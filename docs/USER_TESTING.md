@@ -65,7 +65,7 @@ No fabricated targets or percentages. Report numerator/denominator and small-sam
 caveats. Five sessions identify usability problems; they do not establish market
 validation, universal accessibility or statistically representative accuracy.
 
-Use release/USER_SESSION_TEMPLATE.md privately for each session. After observations,
+Use docs/release/USER_SESSION_TEMPLATE.md privately for each session. After observations,
 prioritize data loss/wrong amount/wrong ownership first, blocked tasks next, then
 copy/layout issues. Any code change means recording the new tested commit.
 
@@ -79,4 +79,4 @@ copy/layout issues. Any code change means recording the new tested commit.
 | P04         | NOT COLLECTED | —              | —                             | —               | —                    |
 | P05         | NOT COLLECTED | —              | —                             | —               | —                    |
 
-Held-out extraction evaluation is a separate process: release/HELDOUT_PROTOCOL.md.
+Held-out extraction evaluation is a separate process: docs/release/HELDOUT_PROTOCOL.md.

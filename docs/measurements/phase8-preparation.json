@@ -60,7 +60,7 @@
     "high_critical_misconfigurations": 0,
     "exit_code": 0
   },
-  "hosted_ci": "NOT VERIFIED for new candidate; prior Phase 7 draft PR is separate",
+  "hosted_ci": "Awaiting hosted rerun for guarded Compose fixture fix",
   "pending": [
     "Owner Render/Neon login and concrete publication approval",
     "Owner-confirmed Gemini Free Tier credentials entered privately",
@@ -73,5 +73,32 @@
   "final_render_origin_rehearsed": true,
   "code_commit": "0bc02c95a14bf5674c5c8448c024395c878116ba",
   "render_schema_validation_format_checks": "JSON Schema structural validation; format assertions disabled; provider provisioning not attempted",
-  "local_rehearsal_stack_removed": true
+  "local_rehearsal_stack_removed": true,
+  "publication": {
+    "pr": "https://github.com/Krezzy88/sochat/pull/13",
+    "draft": true,
+    "owner_authorized": true,
+    "main_merged": false
+  },
+  "hosted_ci_attempts": [
+    {
+      "sha": "e2fcb009326d9382256759bd2e16b5f6fc008d93",
+      "run_url": "https://github.com/Krezzy88/sochat/actions/runs/41773965546",
+      "conclusion": "cancelled",
+      "reason": "Superseded by owner MIT license synchronization"
+    },
+    {
+      "sha": "a0bb3bd4ecafec8eda7a35d52731f5f0f89a4b20",
+      "run_url": "https://github.com/Krezzy88/sochat/actions/runs/41774132561",
+      "conclusion": "failure",
+      "reason": "Expanded Compose fixture hit unchanged anonymous registration throttle after ten actors"
+    }
+  ],
+  "followup_verification": {
+    "unit_tests_passed": 252,
+    "compose_browser_journeys_passed": 18,
+    "test_fixture_only": "explicit sochat-ci opt-in, exact localhost:18080 and Compose label guard; clears anonymous test counters only",
+    "production_registration_limit_changed": false,
+    "lint_typecheck_passed": true
+  }
 }

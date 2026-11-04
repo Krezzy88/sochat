@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { collectCoverage } from './coverage.ts';
+import { resetSyntheticComposeLimiter } from './compose-fixture.ts';
 async function register(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Đăng ký ngay' }).click();
@@ -53,7 +54,8 @@ async function go(page: Page, name: string) {
     page.getByRole('heading', { name, exact: true, level: 1 }),
   ).toBeVisible();
 }
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, info) => {
+  resetSyntheticComposeLimiter(info.project.use.baseURL);
   await page.coverage.startJSCoverage({ resetOnNavigation: false });
   await register(page);
 });

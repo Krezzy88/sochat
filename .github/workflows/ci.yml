@@ -42,7 +42,7 @@ jobs:
       - run: npm run e2e
       - run: SOCHAT_WEB_PORT=18080 docker compose --env-file /dev/null -p sochat-ci up --build --wait
       - run: node docker/smoke.mjs
-      - run: npx playwright test --config playwright.compose.config.ts
+      - run: SOCHAT_COMPOSE_FIXTURE=sochat-ci npx playwright test --config playwright.compose.config.ts
       - run: docker compose --env-file /dev/null -p sochat-release-ci -f compose.release-test.yaml up --build --wait
       - run: npx playwright test --config playwright.release.config.ts
       - if: always()

@@ -133,5 +133,5 @@ or provider retention.
 Public CI/deploy and hosted HTTPS+DB smoke, owner confirmation, an untouched
 
 > =50-case held-out set, five consenting student sessions and a <=2-minute actual
-> demo recording remain. See USER_TESTING.md and release/HELDOUT_PROTOCOL.md.
+> demo recording remain. See USER_TESTING.md and docs/release/HELDOUT_PROTOCOL.md.
 > Phase 8 remains IN PROGRESS until observed evidence exists.

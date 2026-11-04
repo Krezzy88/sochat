@@ -187,3 +187,20 @@ self-signed TLS termination. It verifies browser Secure cookies and production-m
 same-origin behavior, not a real Render certificate/Neon TLS session. Test accounts
 are deleted. It runs in CI on isolated fixture services and never calls Gemini or
 loads owner .env. A real hosted URL and Free Tier account require separate acceptance.
+
+### Full Compose browser suite and registration quotas
+
+The expanded suite creates more than ten isolated synthetic accounts from one IP.
+The real app keeps its default ten-registration window; do not raise production
+limits to make tests pass. For the disposable `sochat-ci` stack on localhost:18080:
+
+```sh
+SOCHAT_COMPOSE_FIXTURE=sochat-ci npx playwright test --config playwright.compose.config.ts
+```
+
+Before each actor, a runner-only fixture clears anonymous rate counters in that
+specific test DB. It checks the exact base URL, opt-in value and Compose project
+label before executing fixed SQL. It never clears ledger/user rows or changes
+application quotas. With no opt-in it performs no Docker/DB operation. Other hosts,
+ports and projects are rejected; do not use this flag against the owner demo or
+hosted resources. Integration tests still verify real throttling independently.

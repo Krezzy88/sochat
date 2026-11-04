@@ -3327,3 +3327,31 @@ PR-triggered run for the preceding pre-deploy evidence commit; this does not pro
 latest hosted CI. New candidate publication/CI and public deployment await the
 owner's concrete approval/account access. Main was not merged and no draft PR was
 closed. Phase 8 remains IN PROGRESS until actual hosted/user/held-out evidence exists.
+
+### Phase 8 publication and CI fixture correction
+
+Owner explicitly approved pushing codex/phase-8 and creating draft PR #13:
+https://github.com/Krezzy88/sochat/pull/13. No merge or cloud deployment. The first
+run https://github.com/Krezzy88/sochat/actions/runs/41773965546 was superseded/
+cancelled when the branch synchronized the owner's already-published MIT LICENSE
+from main commit 71cd17f. README/package metadata now reflects that owner decision.
+
+Run https://github.com/Krezzy88/sochat/actions/runs/41774132561 on a0bb3bd passed
+Trivy, lint/type/unit, integration, dev evaluation and the desktop/mobile suite,
+but FAILED the expanded Compose browser stage: ten initial actors passed, then
+all eight later registrations failed. The production default limits registration
+to ten per IP/window; the expanded suite intentionally creates eighteen actors
+behind one proxy IP. Do not describe this run as successful or raise app limits.
+
+Correction is runner-only: explicit SOCHAT_COMPOSE_FIXTURE=sochat-ci resets anonymous
+rate counters before each synthetic actor. Fixed localhost:18080, project name and
+Docker label checks prevent targeting the owner demo/hosted app. No product flag,
+API reset endpoint, quota increase or ledger-row deletion was added. Without opt-in
+no Docker/DB operation occurs. Four guard regressions reject unintended targets.
+
+Follow-up local verification: **252 unit tests**, lint/typecheck and the complete
+**18 Compose browser journeys** passed; unit coverage/gates unchanged. Existing
+monetary/RLS integration and production throttle checks remain intact. Rehearsal
+used only a disposable sochat-ci stack; generated screenshots were kept privately,
+not substituted for owner-approved README images. Hosted rerun is pending for this
+fix; public HTTPS/Neon/Gemini Free Tier/held-out/student gates are still unverified.
