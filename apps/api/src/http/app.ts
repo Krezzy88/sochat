@@ -1,4 +1,9 @@
-import { indexNotes, semanticSearch } from './semantic.ts';
+import {
+  requestAccountEmail,
+  consumeAccountToken,
+  emailReady,
+} from './account-email.ts';
+import { indexNotes, semanticSearch, semanticStatus } from './semantic.ts';
 import { instrument } from '../telemetry.ts';
 import { tenantPool, withTenant } from '../db/tenant.ts';
 import { revisionInput, revise } from './revision.ts';
@@ -126,6 +131,8 @@ export async function createApp(options: ApiOptions) {
   const now = options.now ?? (() => new Date());
   const tenantDB = tenantPool(options.pool);
   const repo = apiRepository(tenantDB, options.sessionSecret);
+  // Session storage uses the system connection; password operations retain explicit owner predicates.
+  const authRepo = apiRepository(options.pool, options.sessionSecret);
   const app = express();
   const dummyHash = await argon2.hash(randomBytes(32).toString('hex'), {
     type: argon2.argon2id,
@@ -135,7 +142,11 @@ export async function createApp(options: ApiOptions) {
   app.use(helmet());
   app.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
-    if (options.production && req.path !== '/healthz' && !req.secure) {
+    if (
+      options.production &&
+      !['/healthz', '/readyz'].includes(req.path) &&
+      !req.secure
+    ) {
       next(new HttpProblem(400, 'Yêu cầu HTTPS trong môi trường production.'));
       return;
     }
@@ -367,6 +378,19 @@ export async function createApp(options: ApiOptions) {
   );
   route(
     'get',
+    '/readyz',
+    { public: true, response: z.strictObject({ status: z.literal('ready') }) },
+    async () => {
+      try {
+        await options.pool.query('SELECT 1');
+      } catch {
+        fail(503, 'Database chưa sẵn sàng.');
+      }
+      return { status: 'ready' as const };
+    },
+  );
+  route(
+    'get',
     '/api/auth/csrf',
     { public: true, response: z.strictObject({ csrf_token: z.string() }) },
     async ({ req, res }) => {
@@ -433,6 +457,191 @@ export async function createApp(options: ApiOptions) {
       }
       if (!found || !valid) fail(401, 'Email hoặc mật khẩu không đúng.');
       return authenticate(req, found);
+    },
+  );
+  route(
+    'post',
+    '/api/auth/password',
+    {
+      body: z.strictObject({
+        current_password: z.string().min(1).max(128),
+        new_password: z.string().min(12).max(128),
+      }),
+      status: 204,
+    },
+    async ({ req, res, user, body }) => {
+      await rate(req, res, 'change-password', user, user, 5, 600000);
+      const previous = await authRepo.passwordHash(user);
+      if (!(await argon2.verify(previous, body.current_password)))
+        fail(400, 'Mật khẩu hiện tại không đúng.');
+      if (body.current_password === body.new_password)
+        fail(400, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+      const next = await argon2.hash(body.new_password, {
+        type: argon2.argon2id,
+      });
+      await authRepo.changePassword(user, previous, next);
+      await new Promise<void>((resolve, reject) =>
+        req.session.destroy((error) => (error ? reject(error) : resolve())),
+      );
+      res.clearCookie('sochat.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: cookie.secure,
+        sameSite: 'lax',
+      });
+    },
+  );
+  route(
+    'get',
+    '/api/auth/options',
+    {
+      public: true,
+      response: z.strictObject({ email: z.boolean() }),
+    },
+    async () => ({
+      email: emailReady(),
+    }),
+  );
+  route(
+    'get',
+    '/api/me/security',
+    {
+      response: z.strictObject({
+        email_verified: z.boolean(),
+      }),
+    },
+    async ({ user }) => {
+      const row = (
+        await options.pool.query(
+          'SELECT email_verified_at IS NOT NULL AS email_verified FROM users WHERE id=$1',
+          [user],
+        )
+      ).rows[0];
+      return row ?? fail(401, 'Bạn cần đăng nhập.');
+    },
+  );
+  const accountToken = z.string().regex(/^[a-f0-9]{64}$/);
+  route(
+    'post',
+    '/api/auth/forgot-password',
+    {
+      public: true,
+      body: z.strictObject({
+        email: z
+          .email()
+          .max(254)
+          .transform((v) => v.toLowerCase()),
+      }),
+      status: 204,
+    },
+    async ({ req, res, body }) => {
+      await rate(req, res, 'reset-ip', req.ip ?? 'unknown', null, 5, 3600000);
+      await rate(req, res, 'reset-email', body.email, null, 3, 3600000);
+      if (
+        !(await authRepo.throttle(
+          'mail-global',
+          'all',
+          null,
+          30,
+          3600000,
+          now(),
+        ))
+      )
+        fail(429, 'Đã đạt hạn mức email. Vui lòng thử lại sau.');
+      await requestAccountEmail(
+        options.pool,
+        body.email,
+        'reset',
+        options.origin,
+        now(),
+      );
+    },
+  );
+  route(
+    'post',
+    '/api/auth/reset-password',
+    {
+      public: true,
+      body: z.strictObject({
+        token: accountToken,
+        password: z.string().min(12).max(128),
+      }),
+      status: 204,
+    },
+    async ({ req, res, body }) => {
+      await rate(
+        req,
+        res,
+        'consume-token',
+        req.ip ?? 'unknown',
+        null,
+        10,
+        600000,
+      );
+      await consumeAccountToken(
+        options.pool,
+        body.token,
+        'reset',
+        now(),
+        body.password,
+      );
+      await new Promise<void>((resolve, reject) =>
+        req.session.destroy((e) => (e ? reject(e) : resolve())),
+      );
+      res.clearCookie('sochat.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: cookie.secure,
+        sameSite: 'lax',
+      });
+    },
+  );
+  route(
+    'post',
+    '/api/me/verification-email',
+    { status: 204 },
+    async ({ req, res, user }) => {
+      await rate(req, res, 'verify-user', user, user, 3, 3600000);
+      if (
+        !(await authRepo.throttle(
+          'mail-global',
+          'all',
+          null,
+          30,
+          3600000,
+          now(),
+        ))
+      )
+        fail(429, 'Đã đạt hạn mức email. Vui lòng thử lại sau.');
+      const account = await repo.user(user);
+      await requestAccountEmail(
+        options.pool,
+        (account ?? fail(401, 'Bạn cần đăng nhập.')).email,
+        'verify',
+        options.origin,
+        now(),
+      );
+    },
+  );
+  route(
+    'post',
+    '/api/auth/verify-email',
+    {
+      public: true,
+      body: z.strictObject({ token: accountToken }),
+      status: 204,
+    },
+    async ({ req, res, body }) => {
+      await rate(
+        req,
+        res,
+        'consume-token',
+        req.ip ?? 'unknown',
+        null,
+        10,
+        600000,
+      );
+      await consumeAccountToken(options.pool, body.token, 'verify', now());
     },
   );
   route('post', '/api/auth/logout', { status: 204 }, async ({ req, res }) => {
@@ -515,6 +724,25 @@ export async function createApp(options: ApiOptions) {
         income_vnd: strMoney,
         expense_vnd: strMoney,
         evidence_url: z.string().nullable(),
+        mode: z.enum(['totals', 'largest_expenses', 'budget_usage']),
+        largest: z.array(txSchema).max(5),
+        budgets: z.array(
+          z.object({
+            category: c.category,
+            limit_vnd: strMoney,
+            spent_vnd: strMoney,
+            remaining_vnd: strMoney,
+            status: z.enum(['ok', 'warning', 'exceeded']),
+          }),
+        ),
+        comparison: z
+          .strictObject({
+            month: c.month,
+            income_vnd: strMoney,
+            expense_vnd: strMoney,
+            expense_change_vnd: z.string().regex(/^-?(?:0|[1-9]\d*)$/),
+          })
+          .nullable(),
       }),
     },
     async ({ req, res, user, body }) => {
@@ -527,38 +755,54 @@ export async function createApp(options: ApiOptions) {
         user,
         tenantDB,
       );
-      if (intent.needs_clarification)
+      if (
+        intent.needs_clarification ||
+        (intent.mode !== 'totals' && intent.compare_month)
+      )
         return {
           needs_clarification: true,
           question:
-            'Bạn hỏi tổng thu/chi của một tháng và tối đa một danh mục nhé.',
+            'Bạn có thể hỏi tổng thu/chi hoặc so sánh hai tháng, với tối đa một danh mục.',
           month: null,
           category: null,
           income_vnd: '0',
           expense_vnd: '0',
           evidence_url: null,
+          comparison: null,
+          mode: intent.mode,
+          largest: [],
+          budgets: [],
         };
-      const report = await repo.month(
+      const detail = await repo.questionAnswer(
         user,
-        intent.month + '-01',
-        c.nextMonth(intent.month),
+        intent.month,
+        intent.compare_month,
+        intent.category,
+        intent.mode,
       );
-      const groups = report.by_category.filter(
-        (row) => !intent.category || row.category === intent.category,
-      );
+      const totals = detail.totals;
+      const current = totals.find((r) => r.month === intent.month)!;
+      const baseline = intent.compare_month
+        ? totals.find((r) => r.month === intent.compare_month)!
+        : null;
       return {
         needs_clarification: false,
+        mode: intent.mode,
+        largest: detail.largest,
+        budgets: detail.budgets,
         question: 'Tổng hợp từ giao dịch đã lưu của bạn.',
         month: intent.month,
         category: intent.category,
-        income_vnd: groups
-          .filter((r) => r.type === 'income')
-          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
-          .toString(),
-        expense_vnd: groups
-          .filter((r) => r.type === 'expense')
-          .reduce((a, r) => a + BigInt(r.total_vnd), 0n)
-          .toString(),
+        income_vnd: current.income_vnd,
+        expense_vnd: current.expense_vnd,
+        comparison: baseline
+          ? {
+              ...baseline,
+              expense_change_vnd: (
+                BigInt(current.expense_vnd) - BigInt(baseline.expense_vnd)
+              ).toString(),
+            }
+          : null,
         evidence_url:
           '/api/transactions?from=' +
           intent.month +
@@ -568,7 +812,8 @@ export async function createApp(options: ApiOptions) {
           )
             .toISOString()
             .slice(0, 10) +
-          (intent.category ? '&category=' + intent.category : ''),
+          (intent.category ? '&category=' + intent.category : '') +
+          (intent.mode === 'totals' ? '' : '&type=expense'),
       };
     },
   );
@@ -614,6 +859,18 @@ export async function createApp(options: ApiOptions) {
     },
   );
   route(
+    'get',
+    '/api/assistant/search-status',
+    {
+      response: z.strictObject({
+        indexed: z.number().int().min(0).max(1000),
+        pending: z.number().int().min(0).max(1000),
+        total: z.number().int().min(0).max(1000),
+      }),
+    },
+    async ({ user }) => semanticStatus(user, tenantDB),
+  );
+  route(
     'post',
     '/api/assistant/index',
     {
@@ -623,7 +880,7 @@ export async function createApp(options: ApiOptions) {
     async ({ req, res, user }) => {
       if (options.extractor.providerName !== 'gemini')
         fail(503, 'Cần Gemini thật.');
-      await rate(req, res, 'embedding', user, user, 3);
+      await rate(req, res, 'embedding', user, user, 10);
       return indexNotes(user, tenantDB, now());
     },
   );

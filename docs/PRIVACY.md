@@ -1,7 +1,8 @@
 # Privacy and retention
 
-SổChat is a student portfolio project. The demo is for synthetic data only, not
-real personal or financial records. It has no analytics, advertising trackers,
+SổChat is a personal expense tracker developed as a portfolio project. The 1.0
+worktree is being prepared for personal use; deployment readiness requires the
+operational checks in V1_PLAN.md. It has no analytics, advertising trackers,
 bank linking or OCR. The Settings page contains the in-app privacy explanation.
 
 Stored: email/display name, argon2id password hash, server-side sessions, confirmed
@@ -45,7 +46,9 @@ start indexing or searching automatically.
 Voice was removed at the owner’s request before deployment. The UI requests no
 microphone permission and there is no audio upload/transcription endpoint.
 
-Semantic: an explicit indexing action sends up to 20 sanitized transaction notes
+Semantic: a fresh explicit preparation confirmation authorizes up to eight bounded
+requests (up to 160 notes) from the latest 1,000 nonempty ledger notes, with progress
+and a stop control. Individual requests send up to 20 sanitized transaction notes
 per request to Gemini Embedding 2. Numeric strings, email addresses, URLs and common
 API-key patterns are removed; the payload excludes transaction amounts, account IDs
 and timestamps. This is minimization, not reliable anonymization: names, locations,
@@ -82,3 +85,15 @@ uses a separate capped memory budget, never changes the web application's caps a
 never inspects the owner's saved ledger. The demo profile now explicitly defines
 bare monetary 1–999 as thousands, while dates/times/quantities remain excluded;
 all proposals require human review and no extraction writes ledger rows.
+
+## Account email
+
+Google authentication is not in current scope. Email/password accounts may request
+verification or recovery only when the mail provider is configured. Resend receives
+the recipient address and one-use link; these are never sent to Gemini. Token
+hashes and expiry are stored in PostgreSQL, not token plaintext. Expired token rows
+are purged lazily on new mail requests. New requests replace prior links. Password
+change invalidates pending reset tokens; reset revokes the account's sessions.
+Verification is recorded but does not retroactively block existing accounts.
+Provider mail delivery/storage retention must be configured and disclosed before
+activation; no promise of deletion from the provider is made.

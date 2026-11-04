@@ -829,3 +829,167 @@ test('non-JSON upstream startup response shows a friendly retry message', async 
   await page.getByRole('button', { name: 'Thử tải lại', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
+
+test('literal note search can be cleared without AI and password change returns to login', async ({
+  page,
+}) => {
+  await parse(page);
+  await save(page);
+  await go(page, 'Giao dịch');
+  await page
+    .getByLabel('Tìm ghi chú', { exact: true })
+    .fill('no-matching-note');
+  await page
+    .getByRole('button', { name: 'Lọc giao dịch', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: /^Sửa / })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Bỏ bộ lọc', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Sửa / })).toHaveCount(1);
+  const email = await page.evaluate(
+    async () => (await (await fetch('/api/me')).json()).user.email as string,
+  );
+  await go(page, 'Cài đặt');
+  await page
+    .getByLabel('Mật khẩu hiện tại', { exact: true })
+    .fill('Synthetic-browser-password-2026');
+  await page
+    .getByLabel('Mật khẩu mới', { exact: true })
+    .fill('Updated-browser-password-2026');
+  await page
+    .getByLabel('Xác nhận mật khẩu mới', { exact: true })
+    .fill('Updated-browser-password-2026');
+  await page.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Đăng nhập', exact: true }),
+  ).toBeVisible();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page
+    .getByLabel('Mật khẩu', { exact: true })
+    .fill('Updated-browser-password-2026');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Cài đặt', exact: true, level: 1 }),
+  ).toBeVisible();
+});
+
+test('expired account links show a clear error without changing the account', async ({
+  page,
+}) => {
+  await page.goto('/#account-reset=' + 'a'.repeat(64));
+  await expect(
+    page.getByRole('heading', { name: 'Đặt lại mật khẩu', exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/#account-reset$/);
+  await page
+    .getByLabel('Mật khẩu mới', { exact: true })
+    .fill('Synthetic-reset-password-2026');
+  await page
+    .getByLabel('Xác nhận mật khẩu mới', { exact: true })
+    .fill('Synthetic-reset-password-2026');
+  await page
+    .getByRole('button', { name: 'Lưu mật khẩu mới', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText(
+    'Liên kết đã dùng, hết hạn hoặc không hợp lệ',
+  );
+  expect((await page.request.get('/api/me')).status()).toBe(200);
+});
+
+test('semantic preparation requires fresh confirmation and cancel sends no notes (mocked transport)', async ({
+  page,
+}) => {
+  let preparation = 0,
+    searches = 0;
+  await page.route('**/api/assistant/search-status', (r) =>
+    r.fulfill({ json: { indexed: 0, pending: 2, total: 2 } }),
+  );
+  await page.route('**/api/assistant/index', (r) => {
+    preparation++;
+    return r.fulfill({ json: { indexed: 2 } });
+  });
+  await page.route('**/api/assistant/search', (r) => {
+    searches++;
+    return r.fulfill({ json: { indexed: 0, items: [] } });
+  });
+  await go(page, 'Giao dịch');
+  await page.getByText('Tìm theo ý nghĩa (tùy chọn)', { exact: true }).click();
+  await page.getByLabel('Tìm theo ý nghĩa', { exact: true }).fill('đi chơi');
+  await page
+    .getByRole('button', { name: 'Tìm theo ý nghĩa', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Chuẩn bị tìm theo ý nghĩa?',
+  });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Tìm theo ý nghĩa', exact: true }),
+  ).toBeEnabled();
+  expect(preparation).toBe(0);
+  expect(searches).toBe(0);
+});
+
+test('question views render largest expenses and budget usage (mocked transport)', async ({
+  page,
+}) => {
+  await page.route('**/api/assistant/query', (route) => {
+    const budget = route.request().postDataJSON().message.includes('ngân sách');
+    return route.fulfill({
+      json: {
+        needs_clarification: false,
+        question: 'Tổng hợp từ giao dịch đã lưu của bạn.',
+        month: '2026-11',
+        category: 'an_uong',
+        income_vnd: '0',
+        expense_vnd: '80000',
+        comparison: null,
+        evidence_url: '/api/transactions?type=expense',
+        mode: budget ? 'budget_usage' : 'largest_expenses',
+        largest: budget
+          ? []
+          : [
+              {
+                id: '1',
+                version: '1',
+                type: 'expense',
+                category: 'an_uong',
+                amount_vnd: '80000',
+                occurred_on: '2026-11-04',
+                note: 'Bữa tối mẫu',
+              },
+            ],
+        budgets: budget
+          ? [
+              {
+                category: 'an_uong',
+                spent_vnd: '80000',
+                limit_vnd: '100000',
+                remaining_vnd: '20000',
+                status: 'warning',
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  await page
+    .getByLabel('Câu hỏi về thu chi', { exact: true })
+    .fill('5 khoản chi lớn nhất');
+  await page.getByRole('button', { name: 'Hỏi cuốn sổ', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Tối đa 5 khoản chi lớn nhất' }),
+  ).toBeVisible();
+  await expect(page.getByText(/Bữa tối mẫu/)).toBeVisible();
+  await page
+    .getByLabel('Câu hỏi về thu chi', { exact: true })
+    .fill('ngân sách ăn uống');
+  await page.getByRole('button', { name: 'Hỏi cuốn sổ', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Mức sử dụng ngân sách' }),
+  ).toBeVisible();
+  await expect(page.getByText(/80%, làm tròn xuống/)).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Tối đa 5 khoản chi lớn nhất' }),
+  ).toHaveCount(0);
+});

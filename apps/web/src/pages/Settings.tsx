@@ -1,3 +1,4 @@
+import { VerificationEmail } from '../AccountEmail.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import AiPreferences from './AiPreferences.tsx';
 import { useEffect, useRef, useState } from 'react';
@@ -23,6 +24,32 @@ export default function Settings({
     deleteDialog.current?.showModal();
     return () => origin?.focus();
   }, [confirm]);
+  async function changePassword(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    setError('');
+    if (data.get('new_password') !== data.get('confirmation')) {
+      setError('Xác nhận mật khẩu chưa khớp.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await request('/auth/password', 'POST', {
+        current_password: data.get('current_password'),
+        new_password: data.get('new_password'),
+      });
+      form.reset();
+      setNotice(
+        'Đã đổi mật khẩu và đăng xuất tất cả thiết bị. Hãy đăng nhập lại.',
+      );
+      onDeleted();
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function download() {
     setBusy(true);
     setError('');
@@ -75,7 +102,55 @@ export default function Settings({
       <div className="settings-stack">
         <AiPreferences />
         <section className="panel settings-card">
+          <h2>Đổi mật khẩu</h2>
+          <p>
+            Mật khẩu mới từ 12 đến 128 ký tự. Sau khi đổi, mọi thiết bị sẽ đăng
+            xuất.
+          </p>
+          <form className="editor" onSubmit={changePassword}>
+            <label>
+              Mật khẩu hiện tại
+              <input
+                name="current_password"
+                type="password"
+                autoComplete="current-password"
+                required
+                maxLength={128}
+                disabled={busy}
+              />
+            </label>
+            <label>
+              Mật khẩu mới
+              <input
+                name="new_password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                maxLength={128}
+                disabled={busy}
+              />
+            </label>
+            <label>
+              Xác nhận mật khẩu mới
+              <input
+                name="confirmation"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                maxLength={128}
+                disabled={busy}
+              />
+            </label>
+            <button className="primary" disabled={busy}>
+              Đổi mật khẩu
+            </button>
+          </form>
+        </section>
+        <section className="panel settings-card">
           <h2>Tài khoản</h2>
+          <VerificationEmail />
           <dl>
             <div>
               <dt>Tên hiển thị</dt>
@@ -114,9 +189,14 @@ export default function Settings({
         <section className="panel settings-card">
           <h2>Một chút về quyền riêng tư</h2>
           <p>
-            SổChat là dự án sinh viên, chỉ dùng dữ liệu mẫu. Khi cần Gemini hỗ
-            trợ phân tích, hệ thống gửi nội dung tin nhắn và ngày hiện tại;
-            không gửi email, ID hay các giao dịch khác.
+            Khi yêu cầu email xác minh hoặc khôi phục, dịch vụ Resend nhận địa
+            chỉ email và liên kết tài khoản dùng một lần. Những liên kết này
+            không được gửi đến Gemini.
+          </p>
+          <p>
+            SổChat giúp quản lý thu chi cá nhân. Khi cần Gemini hỗ trợ phân
+            tích, hệ thống gửi nội dung tin nhắn và ngày hiện tại; không gửi
+            email, ID hay các giao dịch khác.
           </p>
           <p>
             Bạn kiểm tra và xác nhận trước khi ghi sổ. Không có phân tích hành

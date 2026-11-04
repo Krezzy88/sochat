@@ -128,6 +128,32 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         ).rows[0] ?? fail(500, 'Không tạo được tài khoản.')
       );
     },
+    async passwordHash(user: string) {
+      return (
+        (
+          await pool.query<{ password_hash: string }>(
+            'SELECT password_hash FROM users WHERE id=$1',
+            [user],
+          )
+        ).rows[0]?.password_hash ??
+        fail(401, 'Phiên đăng nhập không còn hợp lệ.')
+      );
+    },
+    async changePassword(user: string, previous: string, next: string) {
+      return atomic(async (client) => {
+        const updated = await client.query(
+          'UPDATE users SET password_hash=$3 WHERE id=$1 AND password_hash=$2 RETURNING id',
+          [user, previous, next],
+        );
+        if (!updated.rowCount)
+          fail(409, 'Mật khẩu đã thay đổi. Hãy đăng nhập lại.');
+        await client.query('DELETE FROM sessions WHERE user_id=$1', [user]);
+        await client.query(
+          "DELETE FROM account_tokens WHERE user_id=$1 AND purpose='reset'",
+          [user],
+        );
+      });
+    },
     async deleteUser(user: string) {
       await pool.query('DELETE FROM users WHERE id=$1', [user]);
     },
@@ -208,6 +234,8 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         values.push(value);
         where.push(sql.replace('?', `$${values.length}`));
       };
+      if (query.search)
+        add('strpos(lower(t.note), lower(?)) > 0', query.search);
       if (query.from) add('t.occurred_on >= ?', query.from);
       if (query.to) add('t.occurred_on <= ?', query.to);
       if (query.category) add('c.key = ?', query.category);
@@ -330,6 +358,67 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         net_vnd: (BigInt(income) - BigInt(expense)).toString(),
       };
     },
+    async questionTotals(
+      user: string,
+      months: string[],
+      category: string | null,
+      db: DB = pool,
+    ) {
+      return (
+        await db.query<{
+          month: string;
+          income_vnd: string;
+          expense_vnd: string;
+        }>(
+          `SELECT m.month,
+          coalesce(sum(t.amount_vnd) FILTER (WHERE t.type='income'),0)::text AS income_vnd,
+          coalesce(sum(t.amount_vnd) FILTER (WHERE t.type='expense'),0)::text AS expense_vnd
+        FROM unnest($2::text[]) AS m(month)
+        LEFT JOIN transactions t ON t.user_id=$1
+          AND t.occurred_on >= (m.month || '-01')::date
+          AND t.occurred_on < ((m.month || '-01')::date + interval '1 month')
+          AND ($3::text IS NULL OR t.category_id IN
+            (SELECT id FROM categories WHERE key=$3 AND (user_id IS NULL OR user_id=$1)))
+        GROUP BY m.month ORDER BY m.month`,
+          [user, months, category],
+        )
+      ).rows;
+    },
+    async questionAnswer(
+      user: string,
+      month: string,
+      compare: string | null,
+      category: string | null,
+      mode: 'totals' | 'largest_expenses' | 'budget_usage',
+    ) {
+      return atomic(async (db) => {
+        const from = month + '-01',
+          to = c.nextMonth(month);
+        const totals = await this.questionTotals(
+          user,
+          [...new Set([month, ...(compare ? [compare] : [])])],
+          category,
+          db,
+        );
+        const largest =
+          mode === 'largest_expenses'
+            ? (
+                await db.query<TxRow>(
+                  SELECT_TX +
+                    " WHERE t.user_id=$1 AND t.type='expense' AND t.occurred_on >= $2 AND t.occurred_on < $3 AND ($4::text IS NULL OR c.key=$4) ORDER BY t.amount_vnd DESC,t.occurred_on DESC,t.id DESC LIMIT 5",
+                  [user, from, to, category],
+                )
+              ).rows
+            : [];
+        const budgets =
+          mode === 'budget_usage'
+            ? (await this.budgetStatus(user, from, to, db)).filter(
+                (r) => !category || r.category === category,
+              )
+            : [];
+        return { totals, largest, budgets };
+      }, 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    },
     async month(user: string, from: string, to: string) {
       const values = [user, from, to];
       return atomic(
@@ -438,9 +527,9 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         return true;
       });
     },
-    async budgetStatus(user: string, from: string, to: string) {
+    async budgetStatus(user: string, from: string, to: string, db: DB = pool) {
       return (
-        await pool.query<{
+        await db.query<{
           category: string;
           limit_vnd: string;
           version: string;

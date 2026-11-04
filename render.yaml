@@ -8,7 +8,7 @@ services:
     dockerfilePath: ./docker/app.Dockerfile
     dockerContext: .
     autoDeployTrigger: off
-    healthCheckPath: /healthz
+    healthCheckPath: /readyz
     envVars:
       - key: NODE_ENV
         value: production

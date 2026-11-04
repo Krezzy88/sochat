@@ -1,3 +1,4 @@
+import { ForgotPassword, AccountTokenPage } from './AccountEmail.tsx';
 import { useFeedback } from './Feedback.tsx';
 import { Mascot } from './Mascot.tsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
@@ -115,6 +116,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
               ? 'Tạo tài khoản để ghi lại thu chi mỗi ngày.'
               : 'Đăng nhập để tiếp tục câu chuyện thu chi.'}
           </p>
+          <ForgotPassword />
           <form
             key={register ? 'register' : 'login'}
             onSubmit={submit}
@@ -235,7 +237,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
             </button>
           </p>
           <p className="privacy-note">
-            Dự án sinh viên · Chỉ dùng dữ liệu mẫu
+            Ghi nhanh · Kiểm tra rõ · Chủ động quản lý
             <br />
             Không liên kết ngân hàng. Không có trình theo dõi.
           </p>
@@ -341,8 +343,8 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
       </aside>
       <div className="workspace">
         <div className="demo-banner">
-          <span className="demo-pill">BẢN THỬ NGHIỆM</span>Chỉ dùng dữ liệu mẫu.
-          Đừng nhập thông tin tài chính cá nhân.
+          <span className="demo-pill">SỔ CÁ NHÂN</span>Kiểm tra số tiền, ngày và
+          danh mục trước khi xác nhận lưu.
         </div>
         <main id="main" ref={heading} tabIndex={-1} className="main-content">
           {logoutError && <Alert>{logoutError}</Alert>}
@@ -377,6 +379,35 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
   );
 }
 export function App() {
+  const [accountToken, setAccountToken] = useState(() => {
+    const match = /^#account-(reset|verify)=([a-f0-9]{64})$/.exec(
+      window.location.hash,
+    );
+    if (!match) return null;
+    return { purpose: match[1] as 'reset' | 'verify', token: match[2]! };
+  });
+  useEffect(() => {
+    const onHash = () => {
+      const match = /^#account-(reset|verify)=([a-f0-9]{64})$/.exec(
+        window.location.hash,
+      );
+      if (match)
+        setAccountToken({
+          purpose: match[1] as 'reset' | 'verify',
+          token: match[2]!,
+        });
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    if (accountToken)
+      window.history.replaceState(
+        null,
+        '',
+        '/#account-' + accountToken.purpose,
+      );
+  }, [accountToken]);
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
@@ -405,6 +436,7 @@ export function App() {
     window.addEventListener('session-expired', expired);
     return () => window.removeEventListener('session-expired', expired);
   }, []);
+  if (accountToken) return <AccountTokenPage {...accountToken} />;
   if (!ready)
     return (
       <main className="startup">

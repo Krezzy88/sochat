@@ -1,4 +1,10 @@
 import {
+  consumeAccountToken,
+  requestAccountEmail,
+  tokenHash,
+} from '../http/account-email.ts';
+import { verify } from 'argon2';
+import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
@@ -13,7 +19,13 @@ import {
   vi,
 } from 'vitest';
 import { migrate } from './migrate.ts';
-import { indexNotes, semanticSearch, embeddings } from '../http/semantic.ts';
+import { apiRepository } from '../http/repository.ts';
+import {
+  indexNotes,
+  semanticSearch,
+  semanticStatus,
+  embeddings,
+} from '../http/semantic.ts';
 let container: StartedPostgreSqlContainer,
   pool: pg.Pool,
   user: string,
@@ -333,5 +345,182 @@ it('does not return a transaction deleted during query embedding work', async ()
   expect(await semanticSearch('thuốc', user, pool, now)).toEqual({
     indexed: 0,
     items: [],
+  });
+});
+
+it('compares two monthly totals in one owner-scoped query including empty months and categories', async () => {
+  await seed();
+  await pool.query(
+    "INSERT INTO transactions(user_id,category_id,type,amount_vnd,occurred_on,note) SELECT $1,id,'expense',20000,'2026-10-01','baseline' FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    [user],
+  );
+  await pool.query(
+    "INSERT INTO transactions(user_id,category_id,type,amount_vnd,occurred_on,note) SELECT $1,id,'expense',999999,'2026-11-01','other' FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    [other],
+  );
+  const repo = apiRepository(pool, 'test-secret');
+  expect(
+    await repo.questionTotals(user, ['2026-10', '2026-11'], 'an_uong'),
+  ).toEqual([
+    { month: '2026-10', income_vnd: '0', expense_vnd: '20000' },
+    { month: '2026-11', income_vnd: '0', expense_vnd: '50000' },
+  ]);
+  expect(await repo.questionTotals(user, ['2026-12'], null)).toEqual([
+    { month: '2026-12', income_vnd: '0', expense_vnd: '0' },
+  ]);
+  expect(
+    (await repo.questionTotals(user, ['2026-11'], 'di_chuyen'))[0]?.expense_vnd,
+  ).toBe('0');
+});
+
+it('consumes reset tokens once, rejects wrong-purpose/expired tokens and revokes sessions', async () => {
+  const token = 'a'.repeat(64);
+  await pool.query("INSERT INTO account_tokens VALUES($1,$2,'reset',$3)", [
+    tokenHash(token),
+    user,
+    new Date(now.getTime() + 60000),
+  ]);
+  await pool.query(
+    "INSERT INTO sessions(sid,sess,expire) VALUES('reset-session',$1,$2)",
+    [JSON.stringify({ userId: user }), new Date(now.getTime() + 60000)],
+  );
+  await expect(
+    consumeAccountToken(pool, token, 'verify', now),
+  ).rejects.toMatchObject({ status: 400 });
+  await consumeAccountToken(pool, token, 'reset', now, 'New-password-2026');
+  expect(
+    await verify(
+      (await pool.query('SELECT password_hash FROM users WHERE id=$1', [user]))
+        .rows[0].password_hash,
+      'New-password-2026',
+    ),
+  ).toBe(true);
+  expect(
+    (
+      await pool.query(
+        'SELECT count(*)::text AS n FROM sessions WHERE user_id=$1',
+        [user],
+      )
+    ).rows[0].n,
+  ).toBe('0');
+  await expect(
+    consumeAccountToken(pool, token, 'reset', now, 'Another-password-2026'),
+  ).rejects.toMatchObject({ status: 400 });
+  await pool.query("INSERT INTO account_tokens VALUES($1,$2,'verify',$3)", [
+    tokenHash(token),
+    user,
+    now,
+  ]);
+  await expect(
+    consumeAccountToken(pool, token, 'verify', now),
+  ).rejects.toMatchObject({ status: 400 });
+});
+it('sends only an opaque one-use verification link and stores its hash', async () => {
+  vi.stubEnv('RESEND_API_KEY', 'synthetic-key');
+  vi.stubEnv('MAIL_FROM', 'SoChat <mail@example.test>');
+  const send = vi.fn(
+    async (_url: string | URL | Request, _init?: RequestInit) => {
+      void _url;
+      void _init;
+      return new Response('{}');
+    },
+  );
+  vi.stubGlobal('fetch', send);
+  await requestAccountEmail(
+    pool,
+    'a@ai.test',
+    'verify',
+    'https://app.example.test',
+    now,
+  );
+  const body = JSON.parse(String(send.mock.calls[0]?.[1]?.body));
+  const token = /#account-verify=([a-f0-9]{64})/.exec(body.text)?.[1];
+  expect(token).toBeTruthy();
+  expect(
+    (
+      await pool.query(
+        'SELECT token_hash FROM account_tokens WHERE user_id=$1',
+        [user],
+      )
+    ).rows[0].token_hash,
+  ).toBe(tokenHash(token!));
+  await consumeAccountToken(pool, token!, 'verify', now);
+  expect(
+    (
+      await pool.query('SELECT email_verified_at FROM users WHERE id=$1', [
+        user,
+      ])
+    ).rows[0].email_verified_at,
+  ).toBeTruthy();
+});
+
+it('answers largest expenses and budget usage from one owner-scoped snapshot', async () => {
+  await seed();
+  const repo = apiRepository(pool, 'test-secret');
+  const category = (
+    await pool.query(
+      "SELECT id FROM categories WHERE key='an_uong' AND user_id IS NULL",
+    )
+  ).rows[0].id;
+  await pool.query(
+    "INSERT INTO budgets(user_id,category_id,month,limit_vnd) VALUES($1,$2,'2026-11-01',40000)",
+    [user, category],
+  );
+  const largest = await repo.questionAnswer(
+    user,
+    '2026-11',
+    null,
+    null,
+    'largest_expenses',
+  );
+  expect(largest.largest).toHaveLength(1);
+  expect(largest.largest[0]?.amount_vnd).toBe('50000');
+  const budget = await repo.questionAnswer(
+    user,
+    '2026-11',
+    null,
+    'an_uong',
+    'budget_usage',
+  );
+  expect(budget.budgets[0]).toMatchObject({
+    spent_vnd: '50000',
+    limit_vnd: '40000',
+    remaining_vnd: '0',
+    status: 'exceeded',
+  });
+  expect(
+    (
+      await repo.questionAnswer(
+        other,
+        '2026-11',
+        null,
+        null,
+        'largest_expenses',
+      )
+    ).largest,
+  ).toHaveLength(0);
+  expect(
+    (await repo.questionAnswer(other, '2026-11', null, null, 'budget_usage'))
+      .budgets,
+  ).toHaveLength(0);
+});
+
+it('reports owned search preparation progress and excludes non-descriptive notes', async () => {
+  await consent();
+  await seed();
+  expect(await semanticStatus(user, pool)).toEqual({
+    indexed: 0,
+    pending: 1,
+    total: 1,
+  });
+  mockEmbedding();
+  await indexNotes(user, pool, now);
+  expect(await semanticStatus(user, pool)).toEqual({
+    indexed: 1,
+    pending: 0,
+    total: 1,
+  });
+  await expect(semanticStatus(other, pool)).rejects.toMatchObject({
+    status: 403,
   });
 });

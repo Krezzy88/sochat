@@ -96,12 +96,25 @@ export async function requireSemantic(user: string, pool: pg.Pool) {
   if (!p.rows[0]?.semantic_enabled)
     fail(403, 'Bật quyền gửi ghi chú trong Cài đặt trước nhé.');
 }
+const candidateNotes =
+  '(SELECT * FROM transactions WHERE user_id=$1 AND length(trim(note))>0 ORDER BY occurred_on DESC,id DESC LIMIT 1000)';
+export async function semanticStatus(user: string, pool: pg.Pool) {
+  await requireSemantic(user, pool);
+  const rows = (
+    await pool.query(
+      `SELECT t.note,e.transaction_id FROM ${candidateNotes} t LEFT JOIN transaction_embeddings e ON e.transaction_id=t.id AND e.user_id=t.user_id AND e.model=$2`,
+      [user, embeddingModel],
+    )
+  ).rows.filter((r) => safeNote(r.note));
+  const indexed = rows.filter((r) => r.transaction_id !== null).length;
+  return { indexed, pending: rows.length - indexed, total: rows.length };
+}
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 export async function indexNotes(user: string, pool: pg.Pool, now: Date) {
   await requireSemantic(user, pool);
   const rows = (
     await pool.query(
-      'SELECT t.id,t.note FROM transactions t LEFT JOIN transaction_embeddings e ON e.transaction_id=t.id AND e.user_id=t.user_id AND e.model=$2 WHERE t.user_id=$1 AND e.transaction_id IS NULL AND length(trim(t.note))>0 ORDER BY t.id LIMIT 1000',
+      `SELECT t.id,t.note FROM ${candidateNotes} t LEFT JOIN transaction_embeddings e ON e.transaction_id=t.id AND e.user_id=t.user_id AND e.model=$2 WHERE e.transaction_id IS NULL ORDER BY t.occurred_on DESC,t.id DESC`,
       [user, embeddingModel],
     )
   ).rows
@@ -156,7 +169,7 @@ export async function semanticSearch(
   await requireSemantic(user, pool);
   let rows = (
     await pool.query(
-      'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
+      `SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN ${candidateNotes} t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id`,
       [user, embeddingModel],
     )
   ).rows;
@@ -165,7 +178,7 @@ export async function semanticSearch(
   await requireSemantic(user, pool);
   rows = (
     await pool.query(
-      'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
+      `SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN ${candidateNotes} t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id`,
       [user, embeddingModel],
     )
   ).rows;

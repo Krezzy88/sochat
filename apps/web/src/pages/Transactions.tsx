@@ -131,6 +131,15 @@ export default function Transactions({
       <SemanticSearch />
       <form className="panel filters" onSubmit={apply}>
         <label>
+          Tìm ghi chú
+          <input
+            name="search"
+            type="search"
+            maxLength={100}
+            placeholder="Ví dụ: cà phê, tiền trọ…"
+          />
+        </label>
+        <label>
           Từ ngày
           <CalendarInput name="from" type="date" />
         </label>
@@ -159,6 +168,18 @@ export default function Transactions({
         </label>
         <button className="secondary" disabled={busy}>
           Lọc giao dịch
+        </button>
+        <button
+          className="secondary"
+          type="reset"
+          disabled={busy}
+          onClick={() => {
+            setFilter('');
+            setCursor('');
+            setHistory([]);
+          }}
+        >
+          Bỏ bộ lọc
         </button>
       </form>
       {error && !editing && <Alert>{error}</Alert>}

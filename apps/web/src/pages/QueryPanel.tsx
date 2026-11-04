@@ -4,6 +4,15 @@ import { request, errorText, money, dateLabel } from '../api.ts';
 import type { Category, Transaction } from '../api.ts';
 import { Alert } from '../ui.tsx';
 interface Answer {
+  mode: 'totals' | 'largest_expenses' | 'budget_usage';
+  largest: Transaction[];
+  budgets: {
+    category: string;
+    limit_vnd: string;
+    spent_vnd: string;
+    remaining_vnd: string;
+    status: string;
+  }[];
   needs_clarification: boolean;
   question: string;
   month: string | null;
@@ -11,6 +20,12 @@ interface Answer {
   income_vnd: string;
   expense_vnd: string;
   evidence_url: string | null;
+  comparison: {
+    month: string;
+    income_vnd: string;
+    expense_vnd: string;
+    expense_change_vnd: string;
+  } | null;
 }
 export function QueryPanel({ categories }: { categories: Category[] }) {
   const [busy, setBusy] = useState(false),
@@ -22,6 +37,7 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
     e.preventDefault();
     setBusy(true);
     setError('');
+    setAnswer(undefined);
     setRows([]);
     setCursor(null);
     try {
@@ -71,7 +87,7 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
             name="question"
             maxLength={500}
             required
-            placeholder="Tháng này chi ăn uống bao nhiêu?"
+            placeholder="Ví dụ: 5 khoản chi lớn nhất tháng này?"
           />
         </label>
         <button className="primary" disabled={busy}>
@@ -95,6 +111,69 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
                   Tổng thu: <strong>{money(answer.income_vnd)}</strong> · Tổng
                   chi: <strong>{money(answer.expense_vnd)}</strong>
                 </p>
+                {answer.mode === 'largest_expenses' && (
+                  <div>
+                    <h3>Tối đa 5 khoản chi lớn nhất</h3>
+                    {answer.largest.length ? (
+                      <ol>
+                        {answer.largest.map((r) => (
+                          <li key={r.id}>
+                            {dateLabel(r.occurred_on)} ·{' '}
+                            {r.note || 'Không có ghi chú'} ·{' '}
+                            <strong>{money(r.amount_vnd)}</strong>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p>Chưa có khoản chi trong kỳ này.</p>
+                    )}
+                  </div>
+                )}
+                {answer.mode === 'budget_usage' && (
+                  <div>
+                    <h3>Mức sử dụng ngân sách</h3>
+                    {answer.budgets.length ? (
+                      <ul>
+                        {answer.budgets.map((b) => (
+                          <li key={b.category}>
+                            {categories.find((c) => c.key === b.category)
+                              ?.name_vi ?? b.category}
+                            : đã chi <strong>{money(b.spent_vnd)}</strong> /{' '}
+                            {money(b.limit_vnd)} (
+                            {(
+                              (BigInt(b.spent_vnd) * 100n) /
+                              BigInt(b.limit_vnd)
+                            ).toString()}
+                            %, làm tròn xuống). Còn trong hạn mức:{' '}
+                            {money(b.remaining_vnd)}.
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>Bạn chưa đặt ngân sách phù hợp trong kỳ này.</p>
+                    )}
+                  </div>
+                )}
+                {answer.comparison && (
+                  <p>
+                    Tháng đối chiếu {answer.comparison.month}: thu{' '}
+                    {money(answer.comparison.income_vnd)}, chi{' '}
+                    {money(answer.comparison.expense_vnd)}. Chi tiêu tháng{' '}
+                    {answer.month}{' '}
+                    {BigInt(answer.comparison.expense_change_vnd) >= 0n
+                      ? 'tăng'
+                      : 'giảm'}{' '}
+                    <strong>
+                      {money(
+                        (BigInt(answer.comparison.expense_change_vnd) < 0n
+                          ? -BigInt(answer.comparison.expense_change_vnd)
+                          : BigInt(answer.comparison.expense_change_vnd)
+                        ).toString(),
+                      )}
+                    </strong>
+                    .
+                  </p>
+                )}
                 <button
                   className="secondary"
                   disabled={busy}

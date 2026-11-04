@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-04",
+  "scope": "local 1.0 implementation candidate, not deployed",
+  "unit_tests_passed": 253,
+  "postgres_integration_tests_passed": 108,
+  "desktop_mobile_browser_tests_passed": 42,
+  "real_gemini_synthetic_question_checks": {
+    "attempted": 3,
+    "passed": 3,
+    "representative_accuracy": false
+  },
+  "backup_restore": {
+    "synthetic_disposable_pg18": "passed; selected table counts and transaction sum matched",
+    "hosted_neon": "not performed"
+  },
+  "typecheck": "passed",
+  "lint": "passed",
+  "production_build": "passed",
+  "google_auth": "removed",
+  "email_delivery": "provider not activated",
+  "publication": "not pushed or deployed",
+  "additional_question_ui_checks_passed": 2,
+  "integration_coverage": {
+    "statements_percent": 91.24,
+    "branches_percent": 83.74,
+    "functions_percent": 94.44,
+    "lines_percent": 91.89
+  }
+}

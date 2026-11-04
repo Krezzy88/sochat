@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-04",
+  "scope": "local worktree, Google removed by owner request",
+  "unit_tests_passed": 252,
+  "postgres_integration_tests_passed": 103,
+  "focused_browser_tests_passed": 6,
+  "typecheck": "passed",
+  "lint": "passed",
+  "web_build": "passed",
+  "deployed": false,
+  "notes": [
+    "Historical Google migration remains unchanged to preserve migration checksums; its identity table is unused.",
+    "Email verification/recovery remains implemented but provider activation is pending."
+  ]
+}

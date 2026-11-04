@@ -10,6 +10,7 @@ it('accepts bounded monthly filters and rejects invented categories, dates, SQL 
   ).toBe(true);
   for (const patch of [
     { month: '2026-13' },
+    { compare_month: '2026-13' },
     { month: '9999-12' },
     { category: 'DROP TABLE users' },
     { user_id: '2' },
