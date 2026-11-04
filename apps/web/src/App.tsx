@@ -1,5 +1,4 @@
 import { ForgotPassword, AccountTokenPage } from './AccountEmail.tsx';
-import { GoogleLogin } from './GoogleLogin.tsx';
 import { useFeedback } from './Feedback.tsx';
 import { Mascot } from './Mascot.tsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
@@ -25,13 +24,7 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
   const [register, setRegister] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(() =>
-    window.location.hash === '#auth-error=google-conflict'
-      ? 'Email đã có tài khoản hoặc Google đã được liên kết. Hãy đăng nhập bằng mật khẩu rồi kiểm tra liên kết trong Cài đặt.'
-      : window.location.hash === '#auth-error=google-unavailable'
-        ? 'Chưa đăng nhập được bằng Google. Vui lòng thử lại hoặc dùng email và mật khẩu.'
-        : '',
-  );
+  const [error, setError] = useState('');
   const notify = useFeedback().success;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -123,7 +116,6 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
               ? 'Tạo tài khoản để ghi lại thu chi mỗi ngày.'
               : 'Đăng nhập để tiếp tục câu chuyện thu chi.'}
           </p>
-          <GoogleLogin />
           <ForgotPassword />
           <form
             key={register ? 'register' : 'login'}

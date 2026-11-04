@@ -138,17 +138,12 @@ sessions including the current one; the client must return to login. Wrong curre
 password returns 400, concurrent password replacement returns 409, and repeated
 attempts are rate limited. This endpoint does not provide emailed recovery.
 
-### Google and account email
+### Account email
 
-`GET /api/auth/options` advertises configured Google/email capabilities.
-`POST /api/auth/google/start` accepts `{link:false}` for login or `{link:true}`
-for explicit signed-in linking, with normal CSRF protection. The browser navigates
-to the returned Google URL; `GET /api/auth/google/callback` consumes the session
-flow. Existing emails are never automatically linked.
-
+`GET /api/auth/options` advertises configured email capability.
 `POST /api/auth/forgot-password` accepts `{email}`; its uniform 204 is not proof of
 recipient existence or successful delivery. `POST /api/auth/reset-password`
 accepts `{token,password}`. `POST /api/me/verification-email` requests verification
 for the signed-in account; `POST /api/auth/verify-email` accepts `{token}`.
 All POSTs require CSRF. `GET /api/me/security` returns only the current user's
-`email_verified` and `google_linked` flags. See [provider setup](release/AUTH_SETUP.md).
+`email_verified` flag. See [provider setup](release/AUTH_SETUP.md).

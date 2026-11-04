@@ -191,10 +191,10 @@ describe('auth/session/CSRF and validation', () => {
       vi.unstubAllEnvs();
     }
   });
-  it('rejects Google callbacks without a matching browser flow', async () => {
+  it('does not expose Google login routes', async () => {
     await a.agent
       .get('/api/auth/google/callback?code=synthetic&state=invalid')
-      .expect(400);
+      .expect(404);
     await call(a, 'get', '/api/me').expect(200);
   });
 

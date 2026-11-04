@@ -11,10 +11,10 @@ Release work, in order:
       obtain fresh explicit consent before any automatic note processing.
 - [ ] Questions: bounded comparisons, largest expenses and budget usage with SQL
       calculations and inspectable evidence; no free-form financial advice.
-- [x] Authentication implementation: password change/recovery, Google login/linking,
+- [x] Authentication implementation: password change/recovery,
       verification, revocation and abuse controls.
-- [ ] Authentication activation: configure Google and verified mail sender; confirm
-      real login/linking and actual inbox delivery before production release.
+- [ ] Authentication activation: configure a verified mail sender; confirm
+      actual inbox delivery before production release.
 - [ ] Operations: validate hosted backup/restore in an isolated destination, migration
       rollback procedure, health/error visibility, provider failure and cost controls.
 - [ ] Privacy: reconcile synthetic-demo documentation with real-data operation and
@@ -120,3 +120,17 @@ open. See measurements/v1-account-checks.json; do not call this a production rel
 
 Final focused auth/browser rerun after CSS/privacy changes: all four passed.
 Provider setup remains the required external activation step.
+
+## Owner scope correction: Google removed — 2026-11-04
+
+Owner withdrew Google login/linking. Removed endpoints, UI, library and local OAuth
+credentials. Keep email/password login, password change, verification and recovery
+from the pre-OAuth 1.0 plan. Email delivery remains pending provider setup. Earlier
+Google checkpoints are historical evidence, not current features. Migration 009
+is preserved unchanged to avoid checksum drift for any previously migrated DB;
+its unused auth_identities table grants no login capability and is not queried.
+No cloud configuration or live database was changed.
+
+Google removal verification: typecheck, lint, production web build, 252 unit tests,
+103 PostgreSQL tests and six focused desktop/mobile auth journeys passed.
+No public push, cloud configuration change or production migration was performed.

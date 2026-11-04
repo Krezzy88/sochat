@@ -1,4 +1,3 @@
-import { googleAccount } from '../http/google.ts';
 import {
   consumeAccountToken,
   requestAccountEmail,
@@ -369,30 +368,6 @@ it('compares two monthly totals in one owner-scoped query including empty months
   ).toBe('0');
 });
 
-it('never auto-links Google by email, links explicitly, and preserves stable subject identity', async () => {
-  const identity = {
-    subject: 'google-subject',
-    email: 'a@ai.test',
-    name: 'Google A',
-  };
-  await expect(googleAccount(pool, identity, null)).rejects.toMatchObject({
-    status: 409,
-  });
-  expect((await googleAccount(pool, identity, user)).id).toBe(user);
-  expect(
-    (await googleAccount(pool, { ...identity, email: 'changed@ai.test' }, null))
-      .id,
-  ).toBe(user);
-  await expect(googleAccount(pool, identity, other)).rejects.toMatchObject({
-    status: 409,
-  });
-  const created = await googleAccount(
-    pool,
-    { subject: 'new-subject', email: 'new@ai.test', name: 'New' },
-    null,
-  );
-  expect(created.email).toBe('new@ai.test');
-});
 it('consumes reset tokens once, rejects wrong-purpose/expired tokens and revokes sessions', async () => {
   const token = 'a'.repeat(64);
   await pool.query("INSERT INTO account_tokens VALUES($1,$2,'reset',$3)", [

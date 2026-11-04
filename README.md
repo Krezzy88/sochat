@@ -12,7 +12,7 @@ Ghi thu chi bằng tin nhắn tiếng Việt, kiểm tra trước khi lưu và x
 - Tìm, lọc, sửa và xóa giao dịch; báo cáo tháng/năm, ngân sách và quỹ mục tiêu.
 - Hỏi thu chi và so sánh hai tháng, có giao dịch để kiểm chứng.
 - Xuất CSV, xóa tài khoản và đổi mật khẩu kèm thu hồi phiên đăng nhập.
-- Google login, xác minh email và khôi phục mật khẩu đã có code; cần [cấu hình nhà cung cấp](docs/release/AUTH_SETUP.md) trước khi bật.
+- Xác minh email và khôi phục mật khẩu đã có code; cần [cấu hình nhà cung cấp](docs/release/AUTH_SETUP.md) trước khi bật.
 - Tìm theo ý nghĩa là tùy chọn, mặc định tắt và cần đồng ý gửi ghi chú đến Gemini.
 
 ![Giao diện](docs/screenshots/chat-desktop-chromium.png)

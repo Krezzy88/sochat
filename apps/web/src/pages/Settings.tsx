@@ -1,5 +1,4 @@
 import { VerificationEmail } from '../AccountEmail.tsx';
-import { GoogleLogin } from '../GoogleLogin.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import AiPreferences from './AiPreferences.tsx';
 import { useEffect, useRef, useState } from 'react';
@@ -151,7 +150,6 @@ export default function Settings({
         </section>
         <section className="panel settings-card">
           <h2>Tài khoản</h2>
-          <GoogleLogin link />
           <VerificationEmail />
           <dl>
             <div>
@@ -191,10 +189,9 @@ export default function Settings({
         <section className="panel settings-card">
           <h2>Một chút về quyền riêng tư</h2>
           <p>
-            Khi bạn chọn Google, Google xử lý đăng nhập và SổChat nhận định
-            danh, email và tên hồ sơ. Khi yêu cầu email xác minh hoặc khôi phục,
-            dịch vụ Resend nhận địa chỉ email và liên kết tài khoản dùng một
-            lần. Những liên kết này không được gửi đến Gemini.
+            Khi yêu cầu email xác minh hoặc khôi phục, dịch vụ Resend nhận địa
+            chỉ email và liên kết tài khoản dùng một lần. Những liên kết này
+            không được gửi đến Gemini.
           </p>
           <p>
             SổChat là dự án sinh viên, chỉ dùng dữ liệu mẫu. Khi cần Gemini hỗ

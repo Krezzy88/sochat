@@ -3,12 +3,6 @@ import {
   consumeAccountToken,
   emailReady,
 } from './account-email.ts';
-import {
-  startGoogle,
-  finishGoogle,
-  googleAccount,
-  type GoogleFlow,
-} from './google.ts';
 import { indexNotes, semanticSearch } from './semantic.ts';
 import { instrument } from '../telemetry.ts';
 import { tenantPool, withTenant } from '../db/tenant.ts';
@@ -32,7 +26,6 @@ declare module 'express-session' {
   interface SessionData {
     userId?: string;
     csrf?: string;
-    googleFlow?: GoogleFlow;
   }
 }
 export interface ApiOptions {
@@ -486,89 +479,11 @@ export async function createApp(options: ApiOptions) {
     '/api/auth/options',
     {
       public: true,
-      response: z.strictObject({ google: z.boolean(), email: z.boolean() }),
+      response: z.strictObject({ email: z.boolean() }),
     },
     async () => ({
       email: emailReady(),
-      google: Boolean(
-        process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-      ),
     }),
-  );
-  route(
-    'post',
-    '/api/auth/google/start',
-    {
-      public: true,
-      body: z.strictObject({ link: z.boolean().default(false) }),
-      response: z.strictObject({ url: z.string() }),
-    },
-    async ({ req, res, body }) => {
-      await rate(
-        req,
-        res,
-        'google-start',
-        req.ip ?? 'unknown',
-        null,
-        10,
-        600000,
-      );
-      if (body.link && !req.session.userId)
-        fail(401, 'Bạn cần đăng nhập để liên kết.');
-      const started = await startGoogle(
-        options.origin,
-        now(),
-        body.link ? req.session.userId! : null,
-      );
-      req.session.googleFlow = started.flow;
-      await new Promise<void>((resolve, reject) =>
-        req.session.save((e) => (e ? reject(e) : resolve())),
-      );
-      return { url: started.url };
-    },
-  );
-  route(
-    'get',
-    '/api/auth/google/callback',
-    {
-      public: true,
-      query: z.object({
-        code: z.string().max(4096).optional(),
-        state: z.string().max(128).optional(),
-        error: z.string().max(200).optional(),
-      }),
-    },
-    async ({ req, res, query }) => {
-      const flow = req.session.googleFlow;
-      delete req.session.googleFlow;
-      await new Promise<void>((resolve, reject) =>
-        req.session.save((e) => (e ? reject(e) : resolve())),
-      );
-      if (
-        !flow ||
-        flow.expires < now().getTime() ||
-        query.state !== flow.state ||
-        (flow.linkUser && req.session.userId !== flow.linkUser)
-      )
-        fail(400, 'Phiên đăng nhập Google đã hết hạn hoặc không hợp lệ.');
-      if (query.error || !query.code) {
-        res.redirect('/#chat');
-        return;
-      }
-      try {
-        const identity = await finishGoogle(options.origin, query.code, flow);
-        const user = await googleAccount(options.pool, identity, flow.linkUser);
-        await authenticate(req, user);
-        res.redirect('/#chat');
-      } catch (error) {
-        res.redirect(
-          '/#auth-error=' +
-            (error instanceof HttpProblem && error.status === 409
-              ? 'google-conflict'
-              : 'google-unavailable'),
-        );
-      }
-    },
   );
   route(
     'get',
@@ -576,14 +491,13 @@ export async function createApp(options: ApiOptions) {
     {
       response: z.strictObject({
         email_verified: z.boolean(),
-        google_linked: z.boolean(),
       }),
     },
     async ({ user }) => {
       const row = (
         await options.pool.query(
-          'SELECT email_verified_at IS NOT NULL AS email_verified,EXISTS(SELECT 1 FROM auth_identities WHERE user_id=$1 AND provider=$2) AS google_linked FROM users WHERE id=$1',
-          [user, 'google'],
+          'SELECT email_verified_at IS NOT NULL AS email_verified FROM users WHERE id=$1',
+          [user],
         )
       ).rows[0];
       return row ?? fail(401, 'Bạn cần đăng nhập.');

@@ -198,3 +198,10 @@ phụ thuộc cấu hình được chủ dự án duyệt, không suy ra từ te
 Hỏi cuốn sổ được mở rộng sang so sánh hai tháng. Gemini bóc tách ý định; SQL/code
 truy vấn, tính toán và phân quyền. Không thay đổi các mục ngoài phạm vi về OCR,
 liên kết ngân hàng, nhiều tiền tệ hoặc tư vấn tài chính AI.
+
+
+### Điều chỉnh của chủ dự án — 04/11/2026
+
+Tạm bỏ đăng nhập/liên kết Google và quay lại phạm vi tài khoản trước OAuth:
+email/mật khẩu, đổi mật khẩu, xác minh email và khôi phục mật khẩu. Phần Google
+ở mục bổ sung phía trên là lịch sử quyết định, không còn trong phạm vi phát hành.
