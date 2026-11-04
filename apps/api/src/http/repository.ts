@@ -35,10 +35,11 @@ async function ownedCategory(
 export function apiRepository(pool: pg.Pool, secret: string) {
   async function atomic<T>(
     work: (client: pg.PoolClient) => Promise<T>,
+    begin = 'BEGIN',
   ): Promise<T> {
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query(begin);
       const result = await work(client);
       await client.query('COMMIT');
       return result;
@@ -274,9 +275,9 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         )
       ).rows;
     },
-    async report(user: string, from: string, to: string) {
+    async report(user: string, from: string, to: string, db: DB = pool) {
       const totals = (
-        await pool.query<{ type: 'income' | 'expense'; total_vnd: string }>(
+        await db.query<{ type: 'income' | 'expense'; total_vnd: string }>(
           'SELECT type,sum(amount_vnd)::text AS total_vnd FROM transactions WHERE user_id=$1 AND occurred_on >= $2 AND occurred_on < $3 GROUP BY type',
           [user, from, to],
         )
@@ -292,38 +293,44 @@ export function apiRepository(pool: pg.Pool, secret: string) {
     },
     async month(user: string, from: string, to: string) {
       const values = [user, from, to];
-      return {
-        totals: await this.report(user, from, to),
-        by_category: (
-          await pool.query(
-            `SELECT c.key AS category,c.name_vi,t.type,sum(t.amount_vnd)::text AS total_vnd FROM transactions t JOIN categories c ON c.id=t.category_id WHERE t.user_id=$1 AND t.occurred_on >= $2 AND t.occurred_on < $3 GROUP BY c.key,c.name_vi,t.type ORDER BY c.key,t.type`,
-            values,
-          )
-        ).rows,
-        daily: (
-          await pool.query(
-            'SELECT occurred_on::text,type,sum(amount_vnd)::text AS total_vnd FROM transactions WHERE user_id=$1 AND occurred_on >= $2 AND occurred_on < $3 GROUP BY occurred_on,type ORDER BY occurred_on,type',
-            values,
-          )
-        ).rows,
-        top_notes: (
-          await pool.query(
-            "SELECT note,sum(amount_vnd)::text AS total_vnd FROM transactions WHERE user_id=$1 AND type='expense' AND occurred_on >= $2 AND occurred_on < $3 GROUP BY note ORDER BY sum(amount_vnd) DESC,note LIMIT 5",
-            values,
-          )
-        ).rows,
-      };
+      return atomic(
+        async (client) => ({
+          totals: await this.report(user, from, to, client),
+          by_category: (
+            await client.query(
+              `SELECT c.key AS category,c.name_vi,t.type,sum(t.amount_vnd)::text AS total_vnd FROM transactions t JOIN categories c ON c.id=t.category_id WHERE t.user_id=$1 AND t.occurred_on >= $2 AND t.occurred_on < $3 GROUP BY c.key,c.name_vi,t.type ORDER BY c.key,t.type`,
+              values,
+            )
+          ).rows,
+          daily: (
+            await client.query(
+              'SELECT occurred_on::text,type,sum(amount_vnd)::text AS total_vnd FROM transactions WHERE user_id=$1 AND occurred_on >= $2 AND occurred_on < $3 GROUP BY occurred_on,type ORDER BY occurred_on,type',
+              values,
+            )
+          ).rows,
+          top_notes: (
+            await client.query(
+              "SELECT note,sum(amount_vnd)::text AS total_vnd FROM transactions WHERE user_id=$1 AND type='expense' AND occurred_on >= $2 AND occurred_on < $3 GROUP BY note ORDER BY sum(amount_vnd) DESC,note LIMIT 5",
+              values,
+            )
+          ).rows,
+        }),
+        'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY',
+      );
     },
     async year(user: string, from: string, to: string) {
-      return {
-        totals: await this.report(user, from, to),
-        months: (
-          await pool.query(
-            "SELECT to_char(occurred_on,'YYYY-MM') AS month,type,sum(amount_vnd)::text AS total_vnd FROM transactions WHERE user_id=$1 AND occurred_on >= $2 AND occurred_on < $3 GROUP BY 1,type ORDER BY 1,type",
-            [user, from, to],
-          )
-        ).rows,
-      };
+      return atomic(
+        async (client) => ({
+          totals: await this.report(user, from, to, client),
+          months: (
+            await client.query(
+              "SELECT to_char(occurred_on,'YYYY-MM') AS month,type,sum(amount_vnd)::text AS total_vnd FROM transactions WHERE user_id=$1 AND occurred_on >= $2 AND occurred_on < $3 GROUP BY 1,type ORDER BY 1,type",
+              [user, from, to],
+            )
+          ).rows,
+        }),
+        'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY',
+      );
     },
     async budgets(user: string, month: string) {
       return (
@@ -439,17 +446,44 @@ export function apiRepository(pool: pg.Pool, secret: string) {
       id: string,
       input: z.infer<typeof c.contribution>,
     ) {
-      const row = await pool.query(
-        'INSERT INTO goal_contributions(user_id,goal_id,amount_vnd,contributed_on,note) SELECT $1,id,$3,$4,$5 FROM goals WHERE user_id=$1 AND id=$2 RETURNING id,amount_vnd::text,contributed_on::text,note',
-        [
-          user,
-          id,
-          input.amount_vnd.toString(),
-          input.contributed_on,
-          input.note,
-        ],
-      );
-      return row.rows[0] ?? fail(404, 'Không tìm thấy quỹ.');
+      return atomic(async (client) => {
+        const hash = createHash('sha256')
+          .update(
+            c.stableJson({ kind: 'goal_contribution', goal_id: id, ...input }),
+          )
+          .digest('hex');
+        const inserted = await client.query(
+          'INSERT INTO batch_requests(user_id,key,request_hash) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING key',
+          [user, input.idempotency_key, hash],
+        );
+        if (!inserted.rowCount) {
+          const old = (
+            await client.query(
+              'SELECT request_hash,response FROM batch_requests WHERE user_id=$1 AND key=$2',
+              [user, input.idempotency_key],
+            )
+          ).rows[0];
+          if (old?.request_hash !== hash)
+            fail(409, 'Idempotency key đã dùng với nội dung khác.');
+          return old.response;
+        }
+        const row = await client.query(
+          'INSERT INTO goal_contributions(user_id,goal_id,amount_vnd,contributed_on,note) SELECT $1,id,$3,$4,$5 FROM goals WHERE user_id=$1 AND id=$2 RETURNING id,amount_vnd::text,contributed_on::text,note',
+          [
+            user,
+            id,
+            input.amount_vnd.toString(),
+            input.contributed_on,
+            input.note,
+          ],
+        );
+        const response = row.rows[0] ?? fail(404, 'Không tìm thấy quỹ.');
+        await client.query(
+          'UPDATE batch_requests SET response=$3 WHERE user_id=$1 AND key=$2',
+          [user, input.idempotency_key, JSON.stringify(response)],
+        );
+        return response;
+      });
     },
   };
 }

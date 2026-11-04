@@ -294,3 +294,44 @@ it.each(['http', 'network', 'envelope', 'json', 'schema'])(
     ).rejects.toMatchObject({ status: 503 });
   },
 );
+
+it('reports only committed embeddings if a note changes during provider work', async () => {
+  await consent();
+  await seed();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      await pool.query(
+        "UPDATE transactions SET note='changed during request' WHERE user_id=$1",
+        [user],
+      );
+      return new Response(
+        JSON.stringify({ embeddings: [{ values: vector() }] }),
+      );
+    }),
+  );
+  expect(await indexNotes(user, pool, now)).toEqual({ indexed: 0 });
+  expect(
+    (await pool.query('SELECT count(*) FROM transaction_embeddings')).rows[0]
+      .count,
+  ).toBe('0');
+});
+it('does not return a transaction deleted during query embedding work', async () => {
+  await consent();
+  await seed();
+  mockEmbedding();
+  await indexNotes(user, pool, now);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      await pool.query('DELETE FROM transactions WHERE user_id=$1', [user]);
+      return new Response(
+        JSON.stringify({ embeddings: [{ values: vector() }] }),
+      );
+    }),
+  );
+  expect(await semanticSearch('thuốc', user, pool, now)).toEqual({
+    indexed: 0,
+    items: [],
+  });
+});

@@ -116,3 +116,15 @@ limit for the authenticated user. Returns 204, or 404 if no owned matching budge
 exists. Requires CSRF; invalid month/category is rejected. It never deletes ledger
 transactions or another month's budget. PUT continues to upsert a limit by the
 same owner/category/month identity.
+
+Business audit update (2026-11-03): POST /api/goals/:id/contributions now requires
+an `idempotency_key` UUID alongside amount/date/note. Replays for the same owner,
+key, goal and normalized payload return the original response without another
+contribution. Changed payloads return 409; failed transactions do not consume keys.
+The web client snapshots and retries an uncertain contribution with the same key;
+this pending intent is memory-only and does not survive page reload/navigation.
+Future-dated contributions count immediately by explicit owner policy.
+
+Each month/year report uses one read-only REPEATABLE READ transaction so totals and
+breakdowns describe the same snapshot. Separate report requests may naturally
+observe different commits. CSV export retains its documented streaming semantics.

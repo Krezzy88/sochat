@@ -64,20 +64,26 @@ export function guardAmounts(
   message: string,
   items: LlmOutput['items'],
 ): ProposalItem[] {
-  const present = new Set(
-    extractAmounts(fold(message))
-      .map((a) => a.value)
-      .filter((v) => v !== null),
-  );
+  const mentions = extractAmounts(fold(message))
+    .map((a) => a.value)
+    .filter((v): v is number => v !== null);
+  const remaining = new Map<number, number>();
+  for (const amount of mentions)
+    remaining.set(amount, (remaining.get(amount) ?? 0) + 1);
+  const present = new Set(mentions);
   return items.map((item) => {
     const flags: string[] = [];
+    const available = remaining.get(item.amount_vnd) ?? 0;
     if (!present.has(item.amount_vnd)) flags.push('llm_amount_not_in_message');
+    else if (available === 0) flags.push('llm_amount_reused');
+    remaining.set(item.amount_vnd, Math.max(0, available - 1));
     if (item.confidence < 0.8) flags.push('low_confidence');
     if (item.amount_vnd < 1000) flags.push('tiny_amount');
     // Never trust model-authored notes as free-form instructions or explanations.
     return {
       ...item,
       ...({ type: item.type, category: item.category } as Classification),
+      amount_vnd: available > 0 ? item.amount_vnd : null,
       note: message.normalize('NFC').slice(0, 120),
       flags,
       needs_confirmation: true,
@@ -161,12 +167,31 @@ export class HybridExtractor {
     ): ExtractionResult | null => {
       const parsed = LlmResult.safeParse(value);
       if (!parsed.success) return null;
-      const items =
-        mode === 'hybrid' && rules.reasons.includes('multiple_amounts')
-          ? base.items
-          : parsed.data.items.length
-            ? guardAmounts(message, parsed.data.items)
+      const modelItems = guardAmounts(message, parsed.data.items);
+      const candidates =
+        mode === 'hybrid' &&
+        rules.reasons.some((r) =>
+          [
+            'multiple_amounts',
+            'bare_small_number',
+            'negative_amount',
+            'zero_amount',
+            'malformed_amount',
+            'amount_out_of_range',
+          ].includes(r),
+        )
+          ? base.items.map((i) => ({
+              ...i,
+              flags: [
+                ...new Set([...i.flags, ...modelItems.flatMap((m) => m.flags)]),
+              ],
+            }))
+          : modelItems.length
+            ? modelItems
             : base.items;
+      const items = rules.reasons.includes('invalid_date')
+        ? candidates.map((i) => ({ ...i, occurred_on: null }))
+        : candidates;
       // Rules-derived safety ambiguities cannot be erased by a model's confidence.
       const unresolved =
         rules.needs_clarification ||

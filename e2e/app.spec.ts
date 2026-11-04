@@ -656,3 +656,44 @@ test('month popup applies selected period, Escape cancels, and years are selecta
     'date',
   );
 });
+
+test('lost contribution response retries the same intent without double counting', async ({
+  page,
+}) => {
+  await go(page, 'Quỹ mục tiêu');
+  await page.getByLabel('Tên quỹ', { exact: true }).fill('Quỹ chống trùng');
+  await page.getByLabel('Số tiền mục tiêu (đ)').fill('100000');
+  await page.getByLabel('Ngày mục tiêu').fill('2027-12-31');
+  await page.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
+  await page.getByRole('button', { name: '+ Đóng góp', exact: true }).click();
+  await page.getByLabel('Số tiền đóng góp (đ)').fill('30000');
+  await page.route(
+    '**/api/goals/*/contributions',
+    async (route) => {
+      const actual = await route.fetch();
+      expect(actual.status()).toBe(201);
+      await route.abort();
+    },
+    { times: 1 },
+  );
+  await page
+    .getByRole('button', { name: 'Ghi nhận đóng góp', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Thử ghi lại', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Số tiền đóng góp (đ)')).toBeDisabled();
+  await page.getByRole('button', { name: 'Thử ghi lại', exact: true }).click();
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Đã ghi nhận đóng góp vào quỹ.' }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get('/api/goals')).json()).items[0]
+      .contributed_vnd,
+  ).toBe('30000');
+  expect(
+    (await (await page.request.get('/api/transactions')).json()).items,
+  ).toHaveLength(0);
+});

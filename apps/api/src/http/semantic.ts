@@ -25,9 +25,9 @@ export function cosine(a: number[], b: number[]) {
 }
 export function keyword(query: string, note: string) {
   const words = [...new Set(fold(query).split(/\W+/).filter(Boolean))];
-  const text = fold(note);
+  const text = new Set(fold(note).split(/\W+/).filter(Boolean));
   return words.length
-    ? words.filter((w) => text.includes(w)).length / words.length
+    ? words.filter((w) => text.has(w)).length / words.length
     : 0;
 }
 export async function embeddings(
@@ -44,6 +44,8 @@ export async function embeddings(
     fail(503, 'Tìm kiếm ngữ nghĩa cần Gemini thật.');
   if (!texts.length || texts.length > 20)
     fail(400, 'Mỗi lượt tối đa 20 ghi chú.');
+  if (texts.some((t) => !safeNote(t)))
+    fail(400, 'Nhập nội dung mô tả, không chỉ số tiền hoặc thông tin liên hệ.');
   const day = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Ho_Chi_Minh',
   }).format(now);
@@ -121,8 +123,9 @@ export async function indexNotes(user: string, pool: pg.Pool, now: Date) {
       [user],
     );
     if (!p.rows[0]?.semantic_enabled) fail(403, 'Quyền tìm kiếm đã được tắt.');
-    for (let i = 0; i < rows.length; i++)
-      await client.query(
+    let indexed = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const inserted = await client.query(
         'INSERT INTO transaction_embeddings(user_id,transaction_id,model,note_hash,embedding) SELECT $1,id,$3,$4,$5 FROM transactions WHERE user_id=$1 AND id=$2 AND note=$6 ON CONFLICT DO NOTHING',
         [
           user,
@@ -133,8 +136,10 @@ export async function indexNotes(user: string, pool: pg.Pool, now: Date) {
           rows[i]!.note,
         ],
       );
+      indexed += inserted.rowCount ?? 0;
+    }
     await client.query('COMMIT');
-    return { indexed: rows.length };
+    return { indexed };
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;
@@ -149,7 +154,7 @@ export async function semanticSearch(
   now: Date,
 ) {
   await requireSemantic(user, pool);
-  const rows = (
+  let rows = (
     await pool.query(
       'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
       [user, embeddingModel],
@@ -158,6 +163,12 @@ export async function semanticSearch(
   if (!rows.length) return { items: [], indexed: 0 };
   const vector = (await embeddings([query], now, user, pool))[0]!;
   await requireSemantic(user, pool);
+  rows = (
+    await pool.query(
+      'SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,e.embedding FROM transaction_embeddings e JOIN transactions t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id LIMIT 1000',
+      [user, embeddingModel],
+    )
+  ).rows;
   return {
     indexed: rows.length,
     items: rows

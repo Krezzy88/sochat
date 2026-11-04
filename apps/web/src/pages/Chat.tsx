@@ -300,19 +300,27 @@ export function Chat({ categories }: { categories: Category[] }) {
                       })}
                     </fieldset>
                     <div className="confirmation-total">
-                      <span>Tổng các khoản đang xác nhận</span>
-                      <strong>
-                        {money(
-                          drafts.reduce(
-                            (sum, item) =>
-                              sum +
-                              (/^[1-9]\d*$/.test(item.amount_vnd)
-                                ? BigInt(item.amount_vnd)
-                                : 0n),
-                            0n,
-                          ),
-                        )}
-                      </strong>
+                      {(['expense', 'income'] as const).map((type) => (
+                        <div key={type}>
+                          <span>
+                            {type === 'expense' ? 'Tổng chi' : 'Tổng thu'}
+                          </span>
+                          <strong>
+                            {money(
+                              drafts
+                                .filter((i) => i.type === type)
+                                .reduce(
+                                  (sum, i) =>
+                                    sum +
+                                    (/^[1-9]\d*$/.test(i.amount_vnd)
+                                      ? BigInt(i.amount_vnd)
+                                      : 0n),
+                                  0n,
+                                ),
+                            )}
+                          </strong>
+                        </div>
+                      ))}
                     </div>
                     <button className="primary full" disabled={saving || busy}>
                       {saving

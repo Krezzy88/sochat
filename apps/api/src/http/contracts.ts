@@ -95,6 +95,7 @@ export const goalPatch = goal
   .partial()
   .refine((v) => Object.keys(v).length > 0);
 export const contribution = z.strictObject({
+  idempotency_key: z.uuid(),
   amount_vnd: money,
   contributed_on: day,
   note: note.default(''),

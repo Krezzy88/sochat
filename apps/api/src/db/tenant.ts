@@ -45,12 +45,16 @@ export function tenantPool(
               if (k === 'query')
                 return async (text: string, values?: unknown[]) => {
                   const command = text.trim().toUpperCase();
-                  if (command === 'BEGIN') {
+                  if (
+                    command === 'BEGIN' ||
+                    command ===
+                      'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY'
+                  ) {
                     if (transaction)
                       throw new Error(
                         'Nested tenant transaction is not supported',
                       );
-                    await c.query('BEGIN');
+                    await c.query(text);
                     try {
                       await scope(c, user);
                       transaction = true;

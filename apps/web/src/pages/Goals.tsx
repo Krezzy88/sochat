@@ -2,7 +2,14 @@ import { CalendarInput } from '../DateControls.tsx';
 import { useFeedback } from '../Feedback.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { dateLabel, errorText, money, request, today } from '../api.ts';
+import {
+  ApiError,
+  dateLabel,
+  errorText,
+  money,
+  request,
+  today,
+} from '../api.ts';
 import type { Goal } from '../api.ts';
 import {
   Alert,
@@ -49,18 +56,44 @@ export default function Goals() {
       setBusy(false);
     }
   }
+  const pendingContribution = useRef<{
+    goal: string;
+    data: Record<string, FormDataEntryValue>;
+  } | null>(null);
+  const [contributionLocked, setContributionLocked] = useState(false);
   async function contribute(e: FormEvent<HTMLFormElement>, id: string) {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.currentTarget));
+    pendingContribution.current ??= {
+      goal: id,
+      data: {
+        ...Object.fromEntries(new FormData(e.currentTarget)),
+        idempotency_key: crypto.randomUUID(),
+      },
+    };
+    const pending = pendingContribution.current;
+    setContributionLocked(true);
     setBusy(true);
     setError('');
     try {
-      await request('/goals/' + id + '/contributions', 'POST', data);
+      await request(
+        '/goals/' + pending.goal + '/contributions',
+        'POST',
+        pending.data,
+      );
+      pendingContribution.current = null;
+      setContributionLocked(false);
       setContributing(undefined);
       setNotice('Đã ghi nhận đóng góp vào quỹ.');
       state.reload();
     } catch (e) {
-      setError(errorText(e));
+      if (e instanceof ApiError && [400, 404, 415].includes(e.status)) {
+        pendingContribution.current = null;
+        setContributionLocked(false);
+      }
+      setError(
+        errorText(e) +
+          ' Nếu chưa rõ kết quả, bấm Thử ghi lại để tránh đóng góp trùng.',
+      );
     } finally {
       setBusy(false);
     }
@@ -101,7 +134,7 @@ export default function Goals() {
           <Icon name="goal" size={30} />
         </span>
       </header>
-      {error && <Alert>{error}</Alert>}
+      {error && !contributing && <Alert>{error}</Alert>}
       <div className="split-layout">
         <section>
           {state.loading ? (
@@ -151,7 +184,7 @@ export default function Goals() {
                   <div className="actions">
                     <button
                       className="secondary"
-                      disabled={busy}
+                      disabled={busy || contributionLocked}
                       onClick={() =>
                         setContributing(
                           contributing === g.id ? undefined : g.id,
@@ -162,7 +195,7 @@ export default function Goals() {
                     </button>
                     <button
                       className="text-button"
-                      disabled={busy}
+                      disabled={busy || contributionLocked}
                       onClick={() => setEditing(g)}
                       aria-label={'Sửa quỹ ' + g.name}
                     >
@@ -170,7 +203,7 @@ export default function Goals() {
                     </button>
                     <button
                       className="text-button danger-text"
-                      disabled={busy}
+                      disabled={busy || contributionLocked}
                       onClick={() => void remove(g)}
                       aria-label={'Xóa quỹ ' + g.name}
                     >
@@ -182,25 +215,36 @@ export default function Goals() {
                       className="contribution-form"
                       onSubmit={(e) => void contribute(e, g.id)}
                     >
-                      <MoneyInput label="Số tiền đóng góp (đ)" />
-                      <label>
-                        Ngày đóng góp
-                        <CalendarInput
-                          name="contributed_on"
-                          type="date"
-                          defaultValue={today()}
-                          required
-                        />
-                      </label>
-                      <label>
-                        Ghi chú đóng góp
-                        <input name="note" maxLength={300} />
-                      </label>
+                      <fieldset
+                        disabled={busy || contributionLocked}
+                        className="editor-fields"
+                      >
+                        <MoneyInput label="Số tiền đóng góp (đ)" />
+                        <label>
+                          Ngày đóng góp
+                          <CalendarInput
+                            name="contributed_on"
+                            type="date"
+                            defaultValue={today()}
+                            required
+                          />
+                        </label>
+                        <label>
+                          Ghi chú đóng góp
+                          <input name="note" maxLength={300} />
+                        </label>
+                      </fieldset>
+                      {error && <Alert>{error}</Alert>}
                       <button className="primary" disabled={busy}>
-                        {busy ? 'Đang lưu…' : 'Ghi nhận đóng góp'}
+                        {busy
+                          ? 'Đang lưu…'
+                          : contributionLocked
+                            ? 'Thử ghi lại'
+                            : 'Ghi nhận đóng góp'}
                       </button>
                       <p className="muted">
                         Chỉ cập nhật tiến độ quỹ, không tạo giao dịch thu chi.
+                        Ngày tương lai vẫn được cộng ngay vào tiến độ.
                       </p>
                     </form>
                   )}
@@ -216,44 +260,49 @@ export default function Goals() {
         <section ref={editor} className="panel side-form">
           <h2>{editing ? 'Chỉnh sửa quỹ' : 'Tạo quỹ mới'}</h2>
           <form key={editing?.id ?? 'new'} onSubmit={save}>
-            <label>
-              Tên quỹ
-              <input
-                name="name"
-                maxLength={100}
-                defaultValue={editing?.name ?? ''}
-                placeholder="Ví dụ: Chuyến đi Đà Lạt"
-                required
+            <fieldset
+              disabled={busy || contributionLocked}
+              className="editor-fields"
+            >
+              <label>
+                Tên quỹ
+                <input
+                  name="name"
+                  maxLength={100}
+                  defaultValue={editing?.name ?? ''}
+                  placeholder="Ví dụ: Chuyến đi Đà Lạt"
+                  required
+                />
+              </label>
+              <MoneyInput
+                name="target_vnd"
+                label="Số tiền mục tiêu (đ)"
+                defaultValue={editing?.target_vnd ?? ''}
               />
-            </label>
-            <MoneyInput
-              name="target_vnd"
-              label="Số tiền mục tiêu (đ)"
-              defaultValue={editing?.target_vnd ?? ''}
-            />
 
-            <label>
-              Ngày mục tiêu
-              <CalendarInput
-                name="deadline"
-                type="date"
-                defaultValue={editing?.deadline ?? ''}
-                required
-              />
-            </label>
-            <button className="primary full" disabled={busy}>
-              {busy ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo quỹ'}
-            </button>
-            {editing && (
-              <button
-                type="button"
-                className="text-button full"
-                disabled={busy}
-                onClick={() => setEditing(undefined)}
-              >
-                Hủy chỉnh sửa quỹ
+              <label>
+                Ngày mục tiêu
+                <CalendarInput
+                  name="deadline"
+                  type="date"
+                  defaultValue={editing?.deadline ?? ''}
+                  required
+                />
+              </label>
+              <button className="primary full" disabled={busy}>
+                {busy ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo quỹ'}
               </button>
-            )}
+              {editing && (
+                <button
+                  type="button"
+                  className="text-button full"
+                  disabled={busy}
+                  onClick={() => setEditing(undefined)}
+                >
+                  Hủy chỉnh sửa quỹ
+                </button>
+              )}
+            </fieldset>
           </form>
           <p className="form-foot">
             Mức chia mỗi ngày là phép tính đơn giản từ số còn thiếu và số ngày

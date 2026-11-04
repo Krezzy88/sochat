@@ -376,7 +376,11 @@ describe('two-user endpoint isolation', () => {
     [
       'post',
       '/api/goals/ID/contributions',
-      { amount_vnd: '1', contributed_on: '2026-11-03' },
+      {
+        idempotency_key: randomUUID(),
+        amount_vnd: '1',
+        contributed_on: '2026-11-03',
+      },
     ],
   ] as const)(
     'returns 404 for B attempting %s %s on A data',
@@ -481,6 +485,7 @@ describe('reports, budgets, goals, export and account deletion', () => {
     await call(a, 'post', '/api/goals/' + g.id + '/contributions', {
       amount_vnd: '1',
       contributed_on: '2026-11-03',
+      idempotency_key: randomUUID(),
     }).expect(201);
     const partial = await call(a, 'get', '/api/goals/' + g.id).expect(200);
     expect(partial.body.remaining_vnd).toBe('99999');
@@ -520,6 +525,7 @@ describe('reports, budgets, goals, export and account deletion', () => {
     await call(a, 'post', '/api/goals/' + g.id + '/contributions', {
       amount_vnd: '1',
       contributed_on: '2026-11-03',
+      idempotency_key: randomUUID(),
     }).expect(201);
     await call(a, 'put', '/api/budgets?month=2026-11', {
       items: [{ category: 'an_uong', limit_vnd: '1' }],
@@ -826,4 +832,191 @@ it('updates and deletes only the owned budget in the selected month, preserving 
     .delete('/api/budgets/an_uong?month=2026-12')
     .set('Origin', origin)
     .expect(403);
+});
+
+it('contribution retries are idempotent, owner scoped and reject changed payloads', async () => {
+  const g = (await goal(a)).body,
+    other = (await goal(b)).body,
+    key = randomUUID();
+  const data = {
+    amount_vnd: '30000',
+    contributed_on: '2026-11-03',
+    note: 'retry fixture',
+    idempotency_key: key,
+  };
+  const [one, two] = await Promise.all([
+    call(a, 'post', `/api/goals/${g.id}/contributions`, data),
+    call(a, 'post', `/api/goals/${g.id}/contributions`, data),
+  ]);
+  expect(one.status).toBe(201);
+  expect(two.status).toBe(201);
+  expect(one.body).toEqual(two.body);
+  expect(
+    (await call(a, 'get', `/api/goals/${g.id}`)).body.contributed_vnd,
+  ).toBe('30000');
+  await call(a, 'post', `/api/goals/${g.id}/contributions`, {
+    ...data,
+    amount_vnd: '40000',
+  }).expect(409);
+  await call(b, 'post', `/api/goals/${other.id}/contributions`, data).expect(
+    201,
+  );
+  expect((await call(a, 'get', '/api/transactions')).body.items).toEqual([]);
+  const failedKey = randomUUID();
+  await call(a, 'post', `/api/goals/${other.id}/contributions`, {
+    ...data,
+    idempotency_key: failedKey,
+  }).expect(404);
+  expect(
+    (
+      await pool.query(
+        'SELECT count(*) FROM batch_requests WHERE user_id=$1 AND key=$2',
+        [a.id, failedKey],
+      )
+    ).rows[0].count,
+  ).toBe('0');
+  await call(a, 'post', `/api/goals/${g.id}/contributions`, {
+    ...data,
+    idempotency_key: failedKey,
+  }).expect(201);
+});
+
+import { apiRepository } from '../http/repository.ts';
+import { tenantPool, withTenant } from './tenant.ts';
+it.each(['month', 'year'] as const)(
+  'keeps %s totals and breakdowns on one snapshot during a concurrent edit',
+  async (kind) => {
+    const txn = (await save(a)).body.items[0];
+    let edited = false;
+    const wrapped = new Proxy(tenantPool(pool, true), {
+      get(target, key) {
+        if (key === 'connect')
+          return async () => {
+            const client = await target.connect();
+            return new Proxy(client, {
+              get(c, k) {
+                if (k === 'query')
+                  return async (text: string, values?: unknown[]) => {
+                    const result = await c.query(text, values);
+                    if (
+                      !edited &&
+                      text.startsWith('SELECT type,sum(amount_vnd)')
+                    ) {
+                      edited = true;
+                      await pool.query(
+                        'UPDATE transactions SET amount_vnd=900000 WHERE id=$1 AND user_id=$2',
+                        [txn.id, a.id],
+                      );
+                    }
+                    return result;
+                  };
+                const value = Reflect.get(c, k);
+                return typeof value === 'function' ? value.bind(c) : value;
+              },
+            });
+          };
+        const value = Reflect.get(target, key);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const repo = apiRepository(wrapped, 'synthetic-snapshot-secret');
+    await withTenant(a.id, async () => {
+      if (kind === 'month') {
+        const report = await repo.month(a.id, '2026-11-01', '2026-12-01');
+        expect(report.totals.expense_vnd).toBe('50000');
+        expect(report.by_category[0].total_vnd).toBe('50000');
+        expect(report.daily[0].total_vnd).toBe('50000');
+        expect(report.top_notes[0].total_vnd).toBe('50000');
+      } else {
+        const report = await repo.year(a.id, '2026-01-01', '2027-01-01');
+        expect(report.totals.expense_vnd).toBe('50000');
+        expect(report.months[0].total_vnd).toBe('50000');
+      }
+    });
+    expect(edited).toBe(true);
+    expect(
+      (await call(a, 'get', '/api/transactions')).body.items.find(
+        (item: { id: string }) => item.id === txn.id,
+      )?.amount_vnd,
+    ).toBe('900000');
+  },
+);
+
+it('recalculates reports and budgets after changing transaction type, amount and month', async () => {
+  const id = (await save(a)).body.items[0].id;
+  await call(a, 'put', '/api/budgets?month=2026-11', {
+    items: [{ category: 'an_uong', limit_vnd: '62500' }],
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets/status?month=2026-11')).body.items[0]
+      .status,
+  ).toBe('warning');
+  await call(a, 'patch', `/api/transactions/${id}`, {
+    amount_vnd: '62500',
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets/status?month=2026-11')).body.items[0]
+      .status,
+  ).toBe('exceeded');
+  await call(a, 'patch', `/api/transactions/${id}`, {
+    occurred_on: '2026-12-01',
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/budgets/status?month=2026-11')).body.items[0]
+      .spent_vnd,
+  ).toBe('0');
+  await call(a, 'patch', `/api/transactions/${id}`, {
+    type: 'income',
+    category: 'luong',
+    amount_vnd: '100000',
+  }).expect(200);
+  expect(
+    (await call(a, 'get', '/api/reports/month?month=2026-12')).body.totals,
+  ).toEqual({ income_vnd: '100000', expense_vnd: '0', net_vnd: '100000' });
+  await call(a, 'delete', `/api/transactions/${id}`).expect(204);
+  expect(
+    (await call(a, 'get', '/api/reports/year?year=2026')).body.totals,
+  ).toEqual({ income_vnd: '0', expense_vnd: '0', net_vnd: '0' });
+});
+
+it('counts future contributions immediately, caps progress and handles deadline boundaries', async () => {
+  const g = (
+    await call(a, 'post', '/api/goals', {
+      name: 'Boundary goal',
+      target_vnd: '100',
+      deadline: '2026-11-06',
+    }).expect(201)
+  ).body;
+  expect(g.suggested_daily_saving_vnd).toBe('34');
+  await call(a, 'post', `/api/goals/${g.id}/contributions`, {
+    idempotency_key: randomUUID(),
+    amount_vnd: '30',
+    contributed_on: '2026-12-01',
+  }).expect(201);
+  const progress = (await call(a, 'get', `/api/goals/${g.id}`)).body;
+  expect(progress.contributed_vnd).toBe('30');
+  expect(progress.remaining_vnd).toBe('70');
+  expect(progress.progress_basis_points).toBe(3000);
+  expect(progress.suggested_daily_saving_vnd).toBe('24');
+  const funded = (
+    await call(a, 'patch', `/api/goals/${g.id}`, {
+      target_vnd: '20',
+      deadline: '2026-11-01',
+    })
+  ).body;
+  expect(funded.remaining_vnd).toBe('0');
+  expect(funded.progress_basis_points).toBe(10000);
+  expect(funded.suggested_daily_saving_vnd).toBe('0');
+  const due = (
+    await call(a, 'post', '/api/goals', {
+      name: 'Due today',
+      target_vnd: '100',
+      deadline: '2026-11-03',
+    })
+  ).body;
+  expect(due.days_left).toBe(0);
+  expect(due.suggested_daily_saving_vnd).toBeNull();
+  expect((await call(a, 'get', '/api/transactions')).body.items).toHaveLength(
+    0,
+  );
 });

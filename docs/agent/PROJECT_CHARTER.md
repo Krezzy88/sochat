@@ -123,3 +123,11 @@ real local model testing; ask before high-risk disclosure, bulk mutation or publ
 deployment. Read-only question interpretation extends extraction to typed query
 filters, while all SQL/calculation/authorization remain server-owned. Additional
 stages are explicitly planned and must not be represented as already implemented.
+
+## 15. Owner-confirmed contribution timing — 2026-11-03
+
+Goal contributions count immediately toward progress, including contributions with
+future dates. This is an explicit recorded contribution, not a scheduled transfer.
+Contributions remain independent of income/expense ledger entries. Owner selected
+“Giữ cộng ngay như hiện tại” during the business-rule audit. Monetary mutations must
+remain exact, human-confirmed, owner scoped, and safe to retry after lost responses.

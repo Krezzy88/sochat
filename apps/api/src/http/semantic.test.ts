@@ -13,3 +13,7 @@ it('computes cosine and lexical scores locally, including zero vectors', () => {
   expect(cosine([0, 0], [1, 1])).toBe(0);
   expect(keyword('cà phê', 'Mua cà phê')).toBe(1);
 });
+it('does not treat partial words as keyword matches', () => {
+  expect(keyword('phí', 'vé xem phim')).toBe(0);
+  expect(keyword('phí', 'học phí tiếng Anh')).toBe(1);
+});
