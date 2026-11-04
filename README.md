@@ -68,4 +68,20 @@ React + Vite, Express + TypeScript, PostgreSQL 18, Gemini; triển khai Web/API 
 Không OCR, liên kết ngân hàng, nhiều tiền tệ hoặc tư vấn tài chính AI.
 Dự án được phát triển với hỗ trợ AI; quyết định kỹ thuật và kết quả kiểm tra được lưu trong repository.
 
-[Lịch sử tài liệu và các phase](docs/release/README_HISTORY.md). Giấy phép [MIT](LICENSE).
+[Lịch sử tài liệu và các phase](docs/archive/README_HISTORY.md). Giấy phép [MIT](LICENSE).
+
+## Repository layout
+
+| Directory                 | Purpose                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| `apps/`, `packages/`      | Application code and shared parser                                 |
+| `config/testing/`, `e2e/` | Test configuration and browser journeys                            |
+| `db/`                     | Migrations, seed and database tools                                |
+| `docker/`                 | Container build and smoke checks                                   |
+| `scripts/`                | Development and operations utilities                               |
+| `docs/`                   | [Documentation index](docs/README.md), evidence and release guides |
+| `eval/`                   | Extraction evaluation tooling and recorded datasets/results        |
+| `.local/`                 | Ignored private files and backups; not deployment input            |
+
+`npm run clean` removes generated build/test outputs while preserving local
+credentials, dependencies, recorded evidence and private backups.

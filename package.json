@@ -19,11 +19,11 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test": "vitest run --config config/testing/vitest.config.ts",
+    "test:coverage": "vitest run --config config/testing/vitest.config.ts --coverage",
     "eval": "node --experimental-strip-types eval/run_eval.ts",
     "db:migrate": "node --env-file=.env --experimental-strip-types apps/api/src/db/migrate.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration": "vitest run --config config/testing/vitest.integration.config.ts",
     "eval:llm": "node --env-file=.env --experimental-strip-types eval/run_eval.ts --provider gemini",
     "api:start": "node --env-file=.env --experimental-strip-types apps/api/src/server.ts",
     "api:openapi": "node --experimental-strip-types apps/api/src/openapi.ts",
@@ -34,7 +34,8 @@
     "e2e:serve": "node --experimental-strip-types e2e/server.ts",
     "web:audit": "node --experimental-strip-types e2e/audit.ts",
     "check:gemini:live": "node --env-file=.env --experimental-strip-types scripts/check-gemini-live.ts",
-    "test:gemini:ui": "playwright test --config playwright.live.config.ts"
+    "test:gemini:ui": "playwright test --config config/testing/playwright.live.config.ts",
+    "clean": "node scripts/clean.mjs"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "13.1.0",
