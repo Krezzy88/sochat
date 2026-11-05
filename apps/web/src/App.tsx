@@ -1,6 +1,13 @@
 import { useFeedback } from './Feedback.tsx';
 import { Mascot } from './Mascot.tsx';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, errorText, request } from './api.ts';
 import type { Category, User } from './api.ts';
@@ -259,7 +266,7 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.title = `${routes.find((r) => r[0] === page)?.[1]} · SổChat`;
     if (initialPage.current) initialPage.current = false;
     else heading.current?.focus();
@@ -340,10 +347,6 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
         </div>
       </aside>
       <div className="workspace">
-        <div className="demo-banner">
-          <span className="demo-pill">SỔ CÁ NHÂN</span>Kiểm tra số tiền, ngày và
-          danh mục trước khi xác nhận lưu.
-        </div>
         <main id="main" ref={heading} tabIndex={-1} className="main-content">
           {logoutError && <Alert>{logoutError}</Alert>}
           {categories.loading ? (

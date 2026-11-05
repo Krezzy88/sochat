@@ -185,6 +185,7 @@ export default function Goals({ userId }: { userId: string }) {
     if (
       !(await confirmAction({
         title: 'Xóa quỹ?',
+        destructive: true,
         message:
           'Xóa quỹ “' + g.name + '” và toàn bộ đóng góp? Không thể hoàn tác.',
         accept: 'Xóa quỹ',

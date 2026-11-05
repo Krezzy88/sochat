@@ -41,7 +41,7 @@ test('real Gemini, grouped money, accessible auth and responsive playful UI', as
     .click();
   try {
     await expect(
-      page.getByText('✦ Gemini thật đã bật', { exact: true }),
+      page.getByLabel('Gemini đang bật', { exact: true }),
     ).toBeVisible();
     const status = await (await page.request.get('/api/chat/status')).json();
     expect(status.money_profile).toBe('owner-confirmed-v2');

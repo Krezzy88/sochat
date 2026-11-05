@@ -181,7 +181,10 @@ export default function Settings({
             <button
               className="danger-button"
               disabled={busy}
-              onClick={() => setConfirm(true)}
+              onClick={(event) => {
+                event.currentTarget.focus({ preventScroll: true });
+                setConfirm(true);
+              }}
             >
               Xóa tài khoản của tôi
             </button>

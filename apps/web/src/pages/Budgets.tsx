@@ -40,6 +40,7 @@ export default function Budgets({ categories }: { categories: Category[] }) {
     if (
       !(await confirm({
         title: 'Xóa ngân sách?',
+        destructive: true,
         message:
           'Xóa hạn mức ' +
           (categories.find((c) => c.key === item.category)?.name_vi ??
