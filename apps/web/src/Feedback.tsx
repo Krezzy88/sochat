@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-type Question = { title: string; message: string; accept?: string };
+type Question = {
+  title: string;
+  message: string;
+  accept?: string;
+  destructive?: boolean;
+};
 const Context = createContext<{
   success: (text: string) => void;
   confirm: (q: Question) => Promise<boolean>;
@@ -59,9 +64,32 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null),
     resolver = useRef<((answer: boolean) => void) | null>(null),
     serial = useRef(0);
+  const pointerOrigin = useRef<HTMLElement | null>(null),
+    restoreFocus = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    // Safari does not focus buttons on pointer activation. Remember the actual
+    // invoker; keyboard activation continues to use the focused element.
+    const pointer = (event: PointerEvent) => {
+      pointerOrigin.current =
+        event.target instanceof Element
+          ? event.target.closest<HTMLElement>(
+              'button, a, input, select, summary',
+            )
+          : null;
+    };
+    const keyboard = () => {
+      pointerOrigin.current = null;
+    };
+    document.addEventListener('pointerdown', pointer, true);
+    document.addEventListener('keydown', keyboard, true);
+    return () => {
+      document.removeEventListener('pointerdown', pointer, true);
+      document.removeEventListener('keydown', keyboard, true);
+    };
+  }, []);
   useEffect(() => {
     if (!question) return;
-    const origin = document.activeElement as HTMLElement | null;
+    const origin = restoreFocus.current;
     dialog.current?.showModal();
     return () => origin?.focus();
   }, [question]);
@@ -71,11 +99,13 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     setQuestion(null);
   }
   const success = (text: string) => {
-    if (text)
-      setToasts((old) => [...old.slice(-2), { id: ++serial.current, text }]);
+    if (text) setToasts([{ id: ++serial.current, text }]);
   };
   const confirm = (q: Question) => {
     if (resolver.current) return Promise.resolve(false);
+    restoreFocus.current =
+      pointerOrigin.current ?? (document.activeElement as HTMLElement | null);
+    pointerOrigin.current = null;
     return new Promise<boolean>((resolve) => {
       resolver.current = resolve;
       setQuestion(q);
@@ -122,7 +152,10 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
                 >
                   Hủy
                 </button>
-                <button className="danger-button" onClick={() => finish(true)}>
+                <button
+                  className={question.destructive ? 'danger-button' : 'primary'}
+                  onClick={() => finish(true)}
+                >
                   {question.accept ?? 'Xác nhận'}
                 </button>
               </div>

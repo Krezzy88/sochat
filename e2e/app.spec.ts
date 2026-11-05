@@ -210,13 +210,15 @@ test('transaction edit/delete and budget warning use persisted data', async ({
 });
 test('session survives reload; keyboard navigation and logout work', async ({
   page,
+  browserName,
 }) => {
   const email = (await (await page.request.get('/api/me')).json()).user.email;
   await page.reload();
   await expect(
     page.getByRole('heading', { name: 'Hôm nay bạn chi gì?' }),
   ).toBeVisible();
-  await page.keyboard.press('Tab');
+  // macOS WebKit uses Option-Tab to include links under its default settings.
+  await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
   await expect(
     page.getByRole('link', { name: 'Đến nội dung chính' }),
   ).toBeFocused();
@@ -499,9 +501,7 @@ test('toasts dismiss, themed cancel preserves data, reporting boxes are equal', 
   const period = await page
       .getByLabel('Kỳ báo cáo', { exact: true })
       .boundingBox(),
-    month = await page
-      .getByLabel('Tháng báo cáo', { exact: true })
-      .boundingBox();
+    month = await page.getByLabel(/^Tháng báo cáo: /).boundingBox();
   expect(period).not.toBeNull();
   expect(month).not.toBeNull();
   expect(Math.abs(period!.width - month!.width)).toBeLessThanOrEqual(1);
@@ -622,8 +622,8 @@ test('month popup applies selected period, Escape cancels, and years are selecta
   page,
 }) => {
   await go(page, 'Tổng quan');
-  const control = page.getByLabel('Tháng báo cáo', { exact: true }),
-    previous = await control.inputValue();
+  const control = page.getByLabel(/^Tháng báo cáo: /),
+    previous = (await control.textContent())!;
   await control.click();
   const popup = page.getByRole('dialog', {
     name: 'Chọn tháng báo cáo',
@@ -633,7 +633,7 @@ test('month popup applies selected period, Escape cancels, and years are selecta
   await popup.getByLabel('Chọn tháng', { exact: true }).selectOption('12');
   await page.keyboard.press('Escape');
   await expect(popup).toHaveCount(0);
-  await expect(control).toHaveValue(previous);
+  await expect(control).toHaveText(previous);
   await expect(control).toBeFocused();
   await control.click();
   await popup.getByLabel('Chọn tháng', { exact: true }).selectOption('12');
@@ -643,7 +643,7 @@ test('month popup applies selected period, Escape cancels, and years are selecta
   );
   await popup.getByRole('button', { name: 'Áp dụng', exact: true }).click();
   expect((await response).status()).toBe(200);
-  await expect(control).toHaveValue('12/2027');
+  await expect(control).toHaveText('12/2027');
   await page.getByLabel('Kỳ báo cáo', { exact: true }).selectOption('year');
   await page.getByLabel('Năm báo cáo', { exact: true }).selectOption('2027');
   await expect(page.getByLabel('Năm báo cáo', { exact: true })).toHaveValue(
@@ -963,5 +963,246 @@ test('all main pages stay within narrow phone, tablet and laptop widths', async 
         `${name} at ${width}px`,
       ).toBeLessThanOrEqual(width + 1);
     }
+  }
+});
+
+test('quiet Gemini indicator distinguishes configured, disabled and unavailable states', async ({
+  page,
+}) => {
+  await expect(page.locator('.demo-banner')).toHaveCount(0);
+  await expect(page.locator('.engine-status')).toHaveCount(0);
+  for (const state of ['on', 'off', 'unknown'] as const) {
+    await page.route('**/api/chat/status', async (route) => {
+      if (state === 'unknown') return route.fulfill({ status: 503, json: {} });
+      return route.fulfill({
+        json: { provider: state === 'on' ? 'gemini' : 'fake' },
+      });
+    });
+    await page.reload();
+    const label =
+      state === 'on'
+        ? 'Gemini đang bật'
+        : state === 'off'
+          ? 'Gemini đang tắt'
+          : 'Chưa xác định trạng thái Gemini';
+    const indicator = page.getByLabel(label, { exact: true });
+    await expect(indicator).toBeVisible();
+    const iconOffset = await indicator.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const icon = el.querySelector('svg')!.getBoundingClientRect();
+      return (
+        Math.abs(box.x + box.width / 2 - icon.x - icon.width / 2) +
+        Math.abs(box.y + box.height / 2 - icon.y - icon.height / 2)
+      );
+    });
+    expect(iconOffset).toBeLessThanOrEqual(1);
+    await expect(page.locator('.ai-status')).toHaveAttribute(
+      'data-state',
+      state,
+    );
+    await indicator.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.ai-status-popover')).toBeVisible();
+    await expect(page.locator('.ai-status-popover')).toContainText(label);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.ai-status-popover')).toBeHidden();
+    await expect(indicator).toBeFocused();
+    await indicator.click();
+    if (state === 'unknown') {
+      await page.unroute('**/api/chat/status');
+      await page
+        .getByRole('button', { name: 'Kiểm tra lại', exact: true })
+        .click();
+      await expect(
+        page.getByLabel('Gemini đang tắt', { exact: true }),
+      ).toBeVisible();
+    }
+    await page.unroute('**/api/chat/status');
+  }
+});
+
+test('populated workspace, editors and period popup remain usable across screen sizes', async ({
+  page,
+}, info) => {
+  await parse(page, 'ăn phở 50k, cà phê 25k');
+  await save(page);
+  await go(page, 'Ngân sách');
+  await page.getByLabel('Giới hạn tháng (đ)', { exact: true }).fill('2000000');
+  await page
+    .getByRole('button', { name: 'Lưu ngân sách', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: /^Sửa ngân sách/ }),
+  ).toBeVisible();
+  await go(page, 'Quỹ mục tiêu');
+  await page
+    .getByLabel('Tên quỹ', { exact: true })
+    .fill('Chuyến đi dài cùng gia đình và những người bạn thân');
+  await page.getByLabel('Số tiền mục tiêu (đ)').fill('100000000000');
+  await page.getByLabel('Ngày mục tiêu').fill('2027-12-31');
+  await page.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
+  await expect(page.locator('.goal-card')).toBeVisible();
+  test.setTimeout(60000);
+  await page
+    .getByRole('button', { name: 'Đóng thông báo', exact: true })
+    .click();
+  const folder = '.local/release/ui-polish';
+  mkdirSync(folder, { recursive: true });
+  for (const [width, height] of [
+    [320, 800],
+    [768, 800],
+    [1366, 800],
+    [1024, 500],
+    [800, 450],
+    [640, 400],
+    [390, 500],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    for (const [route, name] of [
+      ['chat', ''],
+      ['transactions', 'Giao dịch'],
+      ['dashboard', 'Tổng quan'],
+      ['budgets', 'Ngân sách'],
+      ['goals', 'Quỹ mục tiêu'],
+      ['settings', 'Cài đặt'],
+    ]) {
+      if (name) await go(page, name);
+      else {
+        await page
+          .getByRole('navigation')
+          .getByRole('link', { name: 'Ghi chép', exact: true })
+          .click();
+        await expect(
+          page.getByRole('heading', { name: 'Hôm nay bạn chi gì?' }),
+        ).toBeVisible();
+      }
+      await expect(page.locator('.loading')).toHaveCount(0);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+        `${name} ${width}px`,
+      ).toBeLessThanOrEqual(width + 1);
+      for (const height of await page
+        .locator('main select:visible')
+        .evaluateAll((els) =>
+          els.map((el) => el.getBoundingClientRect().height),
+        )) {
+        expect(
+          height,
+          `${route}: select has a usable touch height`,
+        ).toBeGreaterThanOrEqual(46);
+      }
+      if (route === 'transactions') {
+        const heights = await page
+          .locator('.filters :is(input, select)')
+          .evaluateAll((els) =>
+            els.map((el) => el.getBoundingClientRect().height),
+          );
+        expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(
+          1,
+        );
+      }
+      if (route === 'budgets' || route === 'goals') {
+        const gap = await page
+          .locator('.side-form .editor-fields')
+          .evaluate((el) => parseFloat(getComputedStyle(el).rowGap));
+        expect(gap).toBeGreaterThanOrEqual(12);
+      }
+      if (route === 'dashboard') {
+        const controls = page.locator('.page-header .period-controls');
+        const sizes = await controls
+          .locator(':scope > label > :is(input, select, button)')
+          .evaluateAll((els) =>
+            els.map((el) => ({
+              width: el.getBoundingClientRect().width,
+              height: el.getBoundingClientRect().height,
+              radius: getComputedStyle(el).borderRadius,
+            })),
+          );
+        expect(Math.abs(sizes[0]!.width - sizes[1]!.width)).toBeLessThanOrEqual(
+          1,
+        );
+        expect(sizes[0]!.height).toBe(sizes[1]!.height);
+        expect(sizes[0]!.radius).toBe(sizes[1]!.radius);
+        await page.getByLabel(/^Tháng báo cáo: /).click();
+        const dialog = page.getByRole('dialog', { name: 'Chọn tháng báo cáo' });
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+        await expect(page.getByLabel(/^Tháng báo cáo: /)).toBeFocused();
+      }
+      if (route === 'chat' && height >= 800) {
+        await expect(page.getByLabel('Tin nhắn thu chi')).toBeInViewport();
+      }
+      const lastAction = page
+        .locator('main')
+        .locator(
+          'button:visible, input:visible, select:visible, summary:visible',
+        )
+        .last();
+      await lastAction.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      await expect(lastAction).toBeInViewport();
+      expect(
+        await lastAction.evaluate((el) => {
+          const box = el.getBoundingClientRect();
+          return el.contains(
+            document.elementFromPoint(
+              box.x + box.width / 2,
+              box.y + box.height / 2,
+            ),
+          );
+        }),
+        `${route} action is not covered at ${width}x${height}`,
+      ).toBe(true);
+      await page.locator('.app-footer').scrollIntoViewIfNeeded();
+      await expect(page.locator('.app-footer')).toBeInViewport();
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: `${folder}/${route}-${width}-${height}-${info.project.name}.png`,
+        fullPage: true,
+        animations: 'disabled',
+      });
+    }
+  }
+});
+
+test('rapid navigation and late AI status preserve chat input and focus', async ({
+  page,
+}) => {
+  for (let i = 0; i < 5; i++) {
+    await go(page, 'Giao dịch');
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/chat/status', async (route) => {
+      await pending;
+      await route.fulfill({
+        json: { provider: 'fake', money_profile: 'standard' },
+      });
+    });
+    await page
+      .getByRole('navigation')
+      .getByRole('link', { name: 'Ghi chép', exact: true })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Hôm nay bạn chi gì?' }),
+    ).toBeVisible();
+    const input = page.getByLabel('Tin nhắn thu chi');
+    const text = `ăn phở ${50 + i}k`;
+    try {
+      await input.fill(text);
+      await expect(input).toHaveValue(text);
+      await expect(input).toBeFocused();
+    } finally {
+      release();
+    }
+    await expect(
+      page.getByLabel('Gemini đang tắt', { exact: true }),
+    ).toBeVisible();
+    await expect(input).toHaveValue(text);
+    await expect(input).toBeFocused();
+    await expect(
+      page.getByRole('button', { name: 'Phân tích', exact: true }),
+    ).toBeEnabled();
+    await page.unroute('**/api/chat/status');
   }
 });

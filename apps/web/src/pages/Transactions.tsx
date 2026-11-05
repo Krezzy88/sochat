@@ -77,6 +77,7 @@ export default function Transactions({
     if (
       !(await confirmAction({
         title: 'Xóa giao dịch?',
+        destructive: true,
         message:
           'Xóa giao dịch “' + t.note + '”? Thao tác này không thể hoàn tác.',
         accept: 'Xóa giao dịch',
@@ -347,7 +348,8 @@ export default function Transactions({
                         <button
                           className="text-button"
                           disabled={busy}
-                          onClick={() => {
+                          onClick={(event) => {
+                            event.currentTarget.focus({ preventScroll: true });
                             setEditing(t);
                             setConflict(false);
                             setError('');

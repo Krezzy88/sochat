@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { InputHTMLAttributes, SelectHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import { today } from './api.ts';
@@ -52,7 +52,8 @@ export function MonthPicker({
   const [open, setOpen] = useState(false),
     [draft, setDraft] = useState(value);
   const dialog = useRef<HTMLDialogElement>(null),
-    trigger = useRef<HTMLInputElement>(null);
+    trigger = useRef<HTMLButtonElement>(null);
+  const popupId = useId();
   useEffect(() => {
     if (open) {
       dialog.current?.showModal();
@@ -65,25 +66,29 @@ export function MonthPicker({
   };
   return (
     <>
-      <input
+      <button
         ref={trigger}
-        aria-label={label}
-        readOnly
-        value={value.split('-').reverse().join('/')}
+        type="button"
+        className="month-trigger"
+        aria-label={`${label}: ${value.split('-').reverse().join('/')}`}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-controls={open ? popupId : undefined}
         onClick={show}
         onKeyDown={(e) => {
-          if (['Enter', ' ', 'ArrowDown'].includes(e.key)) {
+          if (e.key === 'ArrowDown') {
             e.preventDefault();
             show();
           }
         }}
-      />
+      >
+        {value.split('-').reverse().join('/')}
+      </button>
       {open &&
         createPortal(
           <dialog
             ref={dialog}
+            id={popupId}
             className="panel confirm-dialog"
             aria-label={'Chọn ' + label.toLowerCase()}
             onCancel={() => setOpen(false)}

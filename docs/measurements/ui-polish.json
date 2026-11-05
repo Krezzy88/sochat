@@ -1,0 +1,71 @@
+{
+  "recorded_at": "2026-11-05T02:48:58.847845+00:00",
+  "branch": "codex/ui-consistency-polish",
+  "base_commit": "b630b75bf9f7599d6354c8968a2ae81deccee6e3",
+  "scope": "Local production Vite build, isolated synthetic PostgreSQL fixture; no production data or Gemini calls.",
+  "checks": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "web_build": "passed",
+    "chromium_full": {
+      "passed": 60,
+      "failed": 0,
+      "profiles": ["desktop-chromium", "mobile-chromium"]
+    },
+    "webkit_full_after_followup": {
+      "passed": 60,
+      "failed": 0,
+      "profiles": ["webkit-desktop", "webkit-mobile"]
+    },
+    "webkit_navigation_stress": {
+      "passed": 12,
+      "failed": 0,
+      "repeat_each": 3
+    },
+    "final_controls_after_input_height_normalization": {
+      "passed": 4,
+      "failed": 0,
+      "scope": "Populated six-route resize/editor/popup test across all four browser profiles after the final CSS-only input-height change."
+    }
+  },
+  "authenticated_viewports": [
+    [320, 800],
+    [768, 800],
+    [1366, 800],
+    [1024, 500],
+    [800, 450],
+    [640, 400],
+    [390, 500]
+  ],
+  "auth_viewports": [
+    [1366, 768],
+    [1280, 720],
+    [390, 844],
+    [320, 568],
+    [667, 375]
+  ],
+  "lighthouse": [
+    {
+      "page": "chat",
+      "performance": 1,
+      "accessibility": 1,
+      "failed_accessibility": []
+    },
+    {
+      "page": "dashboard",
+      "performance": 1,
+      "accessibility": 1,
+      "failed_accessibility": []
+    }
+  ],
+  "local_root_assets": [
+    "/assets/index-BdTnQ5sw.js",
+    "/assets/index-CQoJ-Aqj.css"
+  ],
+  "caveats": [
+    "Earlier WebKit failures and targeted follow-ups are documented in docs/release/UI_REVIEW.md; no automatic retry was enabled.",
+    "WebKit profiles are emulation, not physical Safari/iPhone certification.",
+    "Lighthouse covers Chat and Dashboard locally; it does not certify hosted performance or manual accessibility.",
+    "Remote CI, publication and hosted deployment have not been performed for this branch."
+  ]
+}

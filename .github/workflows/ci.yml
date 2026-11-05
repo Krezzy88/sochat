@@ -38,8 +38,12 @@ jobs:
       - run: npm run test:integration -- --coverage
       - run: npm run eval -- --config rules --split dev
       - run: npm run eval -- --config hybrid --provider fake --split dev
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - run: npm run e2e
+      - name: WebKit workspace and modal regressions
+        run: >-
+          npx playwright test --config config/testing/playwright.webkit.config.ts
+          --grep 'quiet Gemini|populated workspace|rapid navigation|month popup|toasts dismiss|editing a scrolled'
       - run: SOCHAT_WEB_PORT=18080 docker compose --env-file /dev/null -p sochat-ci up --build --wait
       - run: node docker/smoke.mjs
       - run: SOCHAT_COMPOSE_FIXTURE=sochat-ci npx playwright test --config config/testing/playwright.compose.config.ts

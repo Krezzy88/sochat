@@ -3,7 +3,7 @@ import { useFeedback } from '../Feedback.tsx';
 import DraftRevision from './DraftRevision.tsx';
 import { QueryPanel } from './QueryPanel.tsx';
 import { Mascot } from '../Mascot.tsx';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, errorText, money, request } from '../api.ts';
 import type { Category, Draft, Proposal } from '../api.ts';
@@ -17,6 +17,38 @@ export function Chat({ categories }: { categories: Category[] }) {
       }>('/chat/status'),
     [],
   );
+  const statusMenu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (!statusMenu.current?.contains(event.target as Node))
+        statusMenu.current?.removeAttribute('open');
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && statusMenu.current?.open) {
+        statusMenu.current.open = false;
+        statusMenu.current.querySelector('summary')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
+  const engineState = engine.loading
+    ? 'loading'
+    : engine.error
+      ? 'unknown'
+      : engine.data?.provider === 'gemini'
+        ? 'on'
+        : 'off';
+  const engineLabel = {
+    on: 'Gemini đang bật',
+    off: 'Gemini đang tắt',
+    loading: 'Đang kiểm tra trạng thái Gemini',
+    unknown: 'Chưa xác định trạng thái Gemini',
+  }[engineState];
   const [message, setMessage] = useState('');
   const [source, setSource] = useState('');
   const [proposal, setProposal] = useState<Proposal>();
@@ -118,25 +150,34 @@ export function Chat({ categories }: { categories: Category[] }) {
           </button>
           <p>Cứ kể tự nhiên. SổChat giúp bạn ghi lại.</p>
         </div>
-        <span className="header-stamp">
-          <Icon name="chat" size={30} />
-        </span>
+        <details
+          ref={statusMenu}
+          className="ai-status"
+          data-state={engineState}
+        >
+          <summary aria-label={engineLabel} title={engineLabel}>
+            <Icon name="spark" size={24} />
+            <span className="ai-status-light" aria-hidden="true" />
+          </summary>
+          <div className="ai-status-popover" role="status">
+            <strong>{engineLabel}</strong>
+            <p>
+              {engineState === 'on'
+                ? 'Gemini hỗ trợ khi cần. Bạn luôn kiểm tra và xác nhận trước khi lưu.'
+                : engineState === 'off'
+                  ? 'Gemini hiện không được bật. Bạn vẫn có thể ghi và kiểm tra các khoản thu chi.'
+                  : engineState === 'loading'
+                    ? 'Đang tải cấu hình hỗ trợ AI.'
+                    : 'Không tải được trạng thái. Bạn có thể thử kiểm tra lại.'}
+            </p>
+            {engine.error && (
+              <button className="secondary" onClick={engine.reload}>
+                Kiểm tra lại
+              </button>
+            )}
+          </div>
+        </details>
       </header>
-      <div className="engine-status" role="status">
-        <strong>
-          {engine.data?.provider === 'gemini'
-            ? '✦ Gemini thật đã bật'
-            : engine.loading
-              ? 'Đang kiểm tra bộ phân tích…'
-              : engine.error
-                ? 'Không kiểm tra được kết nối bộ phân tích'
-                : 'Bản kiểm thử · Không gọi Gemini'}
-        </strong>
-        <span>
-          Tự nhận diện câu rõ ràng → Gemini hỗ trợ khi cần → bạn xác nhận trước
-          khi lưu.
-        </span>
-      </div>
       <div className="chat-layout">
         <section className="chat-panel panel">
           <div className="panel-heading">
