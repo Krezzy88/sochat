@@ -134,20 +134,23 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
                     <h3>Mức sử dụng ngân sách</h3>
                     {answer.budgets.length ? (
                       <ul>
-                        {answer.budgets.map((b) => (
-                          <li key={b.category}>
-                            {categories.find((c) => c.key === b.category)
-                              ?.name_vi ?? b.category}
-                            : đã chi <strong>{money(b.spent_vnd)}</strong> /{' '}
-                            {money(b.limit_vnd)} (
-                            {(
-                              (BigInt(b.spent_vnd) * 100n) /
-                              BigInt(b.limit_vnd)
-                            ).toString()}
-                            %, làm tròn xuống). Còn trong hạn mức:{' '}
-                            {money(b.remaining_vnd)}.
-                          </li>
-                        ))}
+                        {answer.budgets.map((b) => {
+                          const limit = BigInt(b.limit_vnd || '0');
+                          const percent =
+                            limit > 0n
+                              ? (BigInt(b.spent_vnd) * 100n) / limit
+                              : 0n;
+                          return (
+                            <li key={b.category}>
+                              {categories.find((c) => c.key === b.category)
+                                ?.name_vi ?? b.category}
+                              : đã chi <strong>{money(b.spent_vnd)}</strong> /{' '}
+                              {money(b.limit_vnd)} ({percent.toString()}%, làm
+                              tròn xuống). Còn trong hạn mức:{' '}
+                              {money(b.remaining_vnd)}.
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : (
                       <p>Bạn chưa đặt ngân sách phù hợp trong kỳ này.</p>

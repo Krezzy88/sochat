@@ -49,10 +49,20 @@ export function Chat({ categories }: { categories: Category[] }) {
     loading: 'Đang kiểm tra trạng thái Gemini',
     unknown: 'Chưa xác định trạng thái Gemini',
   }[engineState];
+  type DraftItem = Draft & { _id: string };
+  function toDraft(item: DraftItem): Draft {
+    return {
+      type: item.type,
+      category: item.category,
+      amount_vnd: item.amount_vnd,
+      note: item.note,
+      occurred_on: item.occurred_on,
+    };
+  }
   const [message, setMessage] = useState('');
   const [source, setSource] = useState('');
   const [proposal, setProposal] = useState<Proposal>();
-  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -73,6 +83,7 @@ export function Chat({ categories }: { categories: Category[] }) {
       setSource(message);
       setDrafts(
         data.items.map((i) => ({
+          _id: crypto.randomUUID(),
           type: i.type,
           category: i.category,
           amount_vnd: i.amount_vnd === null ? '' : String(i.amount_vnd),
@@ -104,9 +115,10 @@ export function Chat({ categories }: { categories: Category[] }) {
     e.preventDefault();
     setError('');
     setSaving(true);
+    const sanitizedDrafts: Draft[] = drafts.map(toDraft);
     pending.current ??= {
       idempotency_key: crypto.randomUUID(),
-      items: drafts.map((i) => ({ ...i })),
+      items: sanitizedDrafts,
     };
     setLocked(true);
     try {
@@ -236,11 +248,13 @@ export function Chat({ categories }: { categories: Category[] }) {
                   <span className="count-pill">{drafts.length} khoản</span>
                 </div>
                 <DraftRevision
-                  items={drafts}
+                  items={drafts.map(toDraft)}
                   onBusy={setBusy}
                   disabled={saving || locked}
                   onChange={(items) => {
-                    setDrafts(items);
+                    setDrafts(
+                      items.map((i) => ({ ...i, _id: crypto.randomUUID() })),
+                    );
                     pending.current = undefined;
                   }}
                 />
@@ -273,7 +287,7 @@ export function Chat({ categories }: { categories: Category[] }) {
                             className={
                               'draft-card' + (uncertain ? ' uncertain' : '')
                             }
-                            key={index}
+                            key={item._id}
                           >
                             <div className="draft-title">
                               <strong>Khoản {index + 1}</strong>

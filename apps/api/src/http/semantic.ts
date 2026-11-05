@@ -167,7 +167,7 @@ export async function semanticSearch(
   now: Date,
 ) {
   await requireSemantic(user, pool);
-  let rows = (
+  const rows = (
     await pool.query(
       `SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN ${candidateNotes} t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id`,
       [user, embeddingModel],
@@ -176,12 +176,6 @@ export async function semanticSearch(
   if (!rows.length) return { items: [], indexed: 0 };
   const vector = (await embeddings([query], now, user, pool))[0]!;
   await requireSemantic(user, pool);
-  rows = (
-    await pool.query(
-      `SELECT t.id,t.note,t.amount_vnd::text,t.occurred_on::text,t.type,t.version::text,e.embedding FROM transaction_embeddings e JOIN ${candidateNotes} t ON t.id=e.transaction_id AND t.user_id=e.user_id WHERE e.user_id=$1 AND e.model=$2 ORDER BY t.id`,
-      [user, embeddingModel],
-    )
-  ).rows;
   return {
     indexed: rows.length,
     items: rows

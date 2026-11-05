@@ -382,12 +382,15 @@ export async function createApp(options: ApiOptions) {
       return { status: 'ready' as const };
     },
   );
+  function clientIp(req: Request): string {
+    return req.ip || req.socket.remoteAddress || '127.0.0.1';
+  }
   route(
     'get',
     '/api/auth/csrf',
     { public: true, response: z.strictObject({ csrf_token: z.string() }) },
     async ({ req, res }) => {
-      await rate(req, res, 'csrf', req.ip ?? 'unknown', null, 60);
+      await rate(req, res, 'csrf', clientIp(req), null, 60);
       req.session.csrf ??= randomBytes(32).toString('hex');
       return { csrf_token: req.session.csrf };
     },
@@ -401,7 +404,7 @@ export async function createApp(options: ApiOptions) {
         req,
         res,
         'register',
-        req.ip ?? 'unknown',
+        clientIp(req),
         null,
         options.limits?.register ?? 10,
         600000,
@@ -419,11 +422,12 @@ export async function createApp(options: ApiOptions) {
     { public: true, body: c.login, response: authResponse },
     async ({ req, res, body }) => {
       const found = await repo.findUser(body.email);
+      const ip = clientIp(req);
       await rate(
         req,
         res,
         'login-ip',
-        req.ip ?? 'unknown',
+        ip,
         null,
         options.limits?.authIp ?? 50,
         600000,
@@ -432,7 +436,7 @@ export async function createApp(options: ApiOptions) {
         req,
         res,
         'login-pair',
-        JSON.stringify([req.ip, body.email]),
+        JSON.stringify([ip, body.email]),
         found?.id ?? null,
         options.limits?.login ?? 10,
         600000,
@@ -589,9 +593,17 @@ export async function createApp(options: ApiOptions) {
         intent.mode,
       );
       const totals = detail.totals;
-      const current = totals.find((r) => r.month === intent.month)!;
+      const current = totals.find((r) => r.month === intent.month) ?? {
+        month: intent.month,
+        income_vnd: '0',
+        expense_vnd: '0',
+      };
       const baseline = intent.compare_month
-        ? totals.find((r) => r.month === intent.compare_month)!
+        ? (totals.find((r) => r.month === intent.compare_month) ?? {
+            month: intent.compare_month,
+            income_vnd: '0',
+            expense_vnd: '0',
+          })
         : null;
       return {
         needs_clarification: false,

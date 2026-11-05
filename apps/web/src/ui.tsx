@@ -69,10 +69,27 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     </svg>
   );
 }
-export function Alert({ children }: { children: ReactNode }) {
+export function Alert({
+  children,
+  onDismiss,
+}: {
+  children: ReactNode;
+  onDismiss?: () => void;
+}) {
   return (
     <div className="alert" role="alert">
-      {children}
+      <span>{children}</span>
+      {onDismiss && (
+        <button
+          type="button"
+          className="text-button alert-dismiss"
+          onClick={onDismiss}
+          aria-label="Đóng thông báo"
+          title="Đóng thông báo"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

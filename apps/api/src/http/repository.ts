@@ -59,12 +59,11 @@ export function apiRepository(pool: pg.Pool, secret: string) {
     id: string,
     version: string,
   ) {
-    const row = (
-      await client.query(
-        `SELECT version::text FROM ${table} WHERE user_id=$1 AND id=$2 FOR UPDATE`,
-        [user, id],
-      )
-    ).rows[0];
+    const query =
+      table === 'transactions'
+        ? 'SELECT version::text FROM transactions WHERE user_id=$1 AND id=$2 FOR UPDATE'
+        : 'SELECT version::text FROM goals WHERE user_id=$1 AND id=$2 FOR UPDATE';
+    const row = (await client.query(query, [user, id])).rows[0];
     if (!row) fail(404, 'Không tìm thấy dữ liệu.');
     if (row.version !== version)
       fail(

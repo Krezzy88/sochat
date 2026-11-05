@@ -140,19 +140,34 @@ export async function downloadCsv() {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export const money = (value: string | bigint | number) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(typeof value === 'bigint' ? value : BigInt(value));
-export const today = () =>
-  new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+const moneyFormatter = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+});
+
+export const money = (value: string | bigint | number) => {
+  try {
+    const big =
+      typeof value === 'bigint'
+        ? value
+        : typeof value === 'number'
+          ? BigInt(Math.round(value))
+          : BigInt(value || '0');
+    return moneyFormatter.format(big);
+  } catch {
+    return '0 ₫';
+  }
+};
+
+const todayFormatter = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+export const today = () => todayFormatter.format(new Date());
 export const dateLabel = (date: string) => date.split('-').reverse().join('/');
 export const errorText = (e: unknown) =>
   e instanceof Error ? e.message : 'Có lỗi xảy ra. Vui lòng thử lại.';

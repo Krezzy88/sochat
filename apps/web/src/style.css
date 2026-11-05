@@ -206,6 +206,10 @@ progress::-moz-progress-bar {
   margin-bottom: 16px;
 }
 .alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   background: #fff0ec;
   border: 1px solid #e2b19e;
   color: #8c3022;
@@ -215,6 +219,20 @@ progress::-moz-progress-bar {
   margin: 16px 0;
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+.alert-dismiss {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  line-height: 1;
+  font-size: 14px;
+  color: inherit;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.alert-dismiss:hover {
+  opacity: 1;
 }
 .success {
   display: flex;
@@ -1056,17 +1074,6 @@ details summary {
   overflow-wrap: anywhere;
   margin-bottom: 5px;
 }
-.period-controls {
-  display: flex;
-  align-items: end;
-  gap: 12px;
-}
-.period-controls > select {
-  width: 130px;
-}
-.period-controls label {
-  font-size: 10px;
-}
 .split-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -1308,11 +1315,7 @@ details summary {
   .report-grid {
     grid-template-columns: 1fr;
   }
-  .period-controls {
-    align-items: stretch;
-    flex-wrap: wrap;
-    max-width: 200px;
-  }
+
   .page-header {
     align-items: flex-start;
   }
@@ -1539,12 +1542,7 @@ details summary {
   .stat-card > span {
     font-size: 11px;
   }
-  .period-controls {
-    max-width: none;
-  }
-  .period-controls > select {
-    width: 130px;
-  }
+
   .chart {
     padding-right: 10px;
     height: 250px;
@@ -2070,20 +2068,6 @@ th {
 .report-grid {
   margin-top: 24px;
 }
-.period-controls {
-  align-items: flex-end;
-}
-.period-controls label {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-.period-controls input,
-.period-controls select {
-  width: 100%;
-  min-width: 0;
-  min-height: 48px;
-}
 .semantic-options form {
   display: grid;
   gap: 14px;
@@ -2098,11 +2082,6 @@ th {
   }
   .transaction-dialog .actions {
     flex-wrap: wrap;
-  }
-  .period-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 100%;
   }
 }
 /* Unified action feedback. Results and validation stay in their own context. */

@@ -266,14 +266,15 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
   }, []);
+  const [logoutError, setLogoutError] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
+  const notify = useFeedback().success;
   useLayoutEffect(() => {
+    setLogoutError('');
     document.title = `${routes.find((r) => r[0] === page)?.[1]} · SổChat`;
     if (initialPage.current) initialPage.current = false;
     else heading.current?.focus();
   }, [page]);
-  const notify = useFeedback().success;
-  const [logoutError, setLogoutError] = useState('');
-  const [loggingOut, setLoggingOut] = useState(false);
   async function logout() {
     setLoggingOut(true);
     try {
@@ -348,7 +349,9 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
       </aside>
       <div className="workspace">
         <main id="main" ref={heading} tabIndex={-1} className="main-content">
-          {logoutError && <Alert>{logoutError}</Alert>}
+          {logoutError && (
+            <Alert onDismiss={() => setLogoutError('')}>{logoutError}</Alert>
+          )}
           {categories.loading ? (
             <Loading />
           ) : categories.error ? (

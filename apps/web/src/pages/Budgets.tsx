@@ -194,8 +194,9 @@ export default function Budgets({ categories }: { categories: Category[] }) {
           ) : state.data?.items.length ? (
             <div className="budget-list">
               {state.data.items.map((item) => {
+                const limit = BigInt(item.limit_vnd || '0');
                 const percent =
-                  (BigInt(item.spent_vnd) * 100n) / BigInt(item.limit_vnd);
+                  limit > 0n ? (BigInt(item.spent_vnd) * 100n) / limit : 0n;
                 return (
                   <article
                     className={'panel budget-card ' + item.status}

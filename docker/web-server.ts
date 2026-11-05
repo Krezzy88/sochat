@@ -38,7 +38,9 @@ app.use('/api', (req, res) => {
       });
     else res.destroy();
   });
-  req.on('aborted', () => upstream.destroy());
+  req.on('close', () => {
+    if (req.destroyed) upstream.destroy();
+  });
   req.pipe(upstream);
 });
 app.use(express.static(path.resolve('apps/web/dist')));
