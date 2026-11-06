@@ -251,7 +251,15 @@ function Auth({ onAuth }: { onAuth: (user: User) => void }) {
     </main>
   );
 }
-function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
+function Workspace({
+  user,
+  onUserChange,
+  onExit,
+}: {
+  user: User;
+  onUserChange: (user: User) => void;
+  onExit: () => void;
+}) {
   const readPage = () =>
     routes.find((r) => r[0] === location.hash.slice(1))?.[0] ?? 'chat';
   const [page, setPage] = useState(readPage);
@@ -263,8 +271,21 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
   );
   useEffect(() => {
     const change = () => setPage(readPage());
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        const idx = Number(e.key) - 1;
+        if (idx >= 0 && idx < routes.length) {
+          e.preventDefault();
+          location.hash = '#' + routes[idx]![0];
+        }
+      }
+    };
     window.addEventListener('hashchange', change);
-    return () => window.removeEventListener('hashchange', change);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('hashchange', change);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
@@ -308,10 +329,11 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
         </a>
         <p className="nav-caption">CUỐN SỔ CỦA BẠN</p>
         <nav aria-label="Điều hướng chính">
-          {routes.map(([key, label, icon]) => (
+          {routes.map(([key, label, icon], idx) => (
             <a
               key={key}
               href={'#' + key}
+              title={`${label} (Alt+${idx + 1})`}
               aria-current={page === key ? 'page' : undefined}
             >
               <Icon name={icon} />
@@ -369,7 +391,11 @@ function Workspace({ user, onExit }: { user: User; onExit: () => void }) {
               ) : page === 'goals' ? (
                 <Goals userId={user.id} />
               ) : (
-                <Settings user={user} onDeleted={onExit} />
+                <Settings
+                  user={user}
+                  onUpdated={onUserChange}
+                  onDeleted={onExit}
+                />
               )}
             </Suspense>
           )}
@@ -425,7 +451,12 @@ export function App() {
       </main>
     );
   return user ? (
-    <Workspace key={user.id} user={user} onExit={() => setUser(null)} />
+    <Workspace
+      key={user.id}
+      user={user}
+      onUserChange={setUser}
+      onExit={() => setUser(null)}
+    />
   ) : (
     <Auth onAuth={setUser} />
   );

@@ -2216,3 +2216,144 @@ th {
   display: grid;
   gap: 4px;
 }
+.draft-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.draft-remove {
+  padding: 2px 8px;
+  min-height: 32px;
+  font-size: 13px;
+}
+.draft-add {
+  margin-top: 8px;
+}
+.category-share {
+  height: 6px;
+  background: #e4ece3;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.category-share-fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+}
+.category-share-fill.expense {
+  background: #a95234;
+}
+.category-share-fill.income {
+  background: #216b50;
+}
+.account-edit {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1.5px dashed #9db6a3;
+  border-radius: 12px;
+  background: #f9fcf7;
+}
+.account-edit summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.account-edit form {
+  margin-top: 14px;
+}
+.semantic-options ul li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+.prompt-chip {
+  padding: 6px 12px;
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1.5px solid #8ea894;
+  background: #f4f9f1;
+  color: #1d4638;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.prompt-chip:hover:not(:disabled) {
+  background: #e1f0d8;
+}
+.assistant-chat-thread {
+  display: block;
+}
+.assistant-chat-content {
+  display: grid;
+  gap: 10px;
+}
+.user-question-bubble {
+  justify-self: end;
+  background: #fffcf4;
+  border: 1.5px solid #243e34;
+  border-radius: 14px 14px 4px 14px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+.assistant-reply-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.assistant-narrative {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #18382c;
+}
+.overview-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  background: #f5fbf2;
+  font-size: 14px;
+}
+.example-chips {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.example-chips button {
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+tbody tr {
+  transition: background-color 0.14s ease;
+}
+tbody tr:hover {
+  background-color: rgb(255 248 228 / 65%);
+}
+button,
+a.primary,
+a.secondary {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background-color 0.14s ease,
+    border-color 0.14s ease;
+}
+button:active:not(:disabled),
+a.primary:active {
+  transform: translate(1px, 1px);
+}

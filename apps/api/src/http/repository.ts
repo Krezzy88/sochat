@@ -117,6 +117,31 @@ export function apiRepository(pool: pg.Pool, secret: string) {
         ).rows[0] ?? null
       );
     },
+    async userWithHash(user: string) {
+      return (
+        (
+          await pool.query<{
+            id: string;
+            email: string;
+            display_name: string;
+            password_hash: string;
+          }>(
+            'SELECT id,email,display_name,password_hash FROM users WHERE id=$1',
+            [user],
+          )
+        ).rows[0] ?? null
+      );
+    },
+    async updateUser(user: string, name?: string, hash?: string) {
+      return (
+        (
+          await pool.query<{ id: string; email: string; display_name: string }>(
+            'UPDATE users SET display_name=COALESCE($2,display_name),password_hash=COALESCE($3,password_hash) WHERE id=$1 RETURNING id,email,display_name',
+            [user, name ?? null, hash ?? null],
+          )
+        ).rows[0] ?? fail(404, 'Không tìm thấy tài khoản.')
+      );
+    },
     async register(email: string, hash: string, name: string) {
       return (
         (

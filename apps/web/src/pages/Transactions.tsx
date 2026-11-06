@@ -3,7 +3,14 @@ import { useFeedback } from '../Feedback.tsx';
 import SemanticSearch from './SemanticSearch.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError, dateLabel, errorText, money, request } from '../api.ts';
+import {
+  ApiError,
+  dateLabel,
+  errorText,
+  money,
+  request,
+  today,
+} from '../api.ts';
 import type { Category, Transaction } from '../api.ts';
 import {
   MoneyInput,
@@ -19,6 +26,7 @@ export default function Transactions({
   categories: Category[];
 }) {
   const editor = useRef<HTMLDialogElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState('');
   const [cursor, setCursor] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -57,12 +65,32 @@ export default function Transactions({
     setBusy(true);
     setError('');
     try {
-      await request('/transactions/' + editing.id, 'PATCH', {
-        ...Object.fromEntries(new FormData(e.currentTarget)),
-        version: editing.version,
-      });
-      setEditing(undefined);
-      setNotice('Đã cập nhật giao dịch.');
+      const formValues = Object.fromEntries(new FormData(e.currentTarget));
+      if (!editing.id) {
+        await request('/transactions/batch', 'POST', {
+          idempotency_key: crypto.randomUUID(),
+          items: [
+            {
+              type: String(formValues.type ?? editing.type),
+              category: String(formValues.category ?? editing.category),
+              amount_vnd: String(formValues.amount_vnd ?? editing.amount_vnd),
+              note: String(formValues.note ?? editing.note),
+              occurred_on: String(
+                formValues.occurred_on ?? editing.occurred_on,
+              ),
+            },
+          ],
+        });
+        setEditing(undefined);
+        setNotice('Đã thêm giao dịch mới.');
+      } else {
+        await request('/transactions/' + editing.id, 'PATCH', {
+          ...formValues,
+          version: editing.version,
+        });
+        setEditing(undefined);
+        setNotice('Đã cập nhật giao dịch.');
+      }
       state.reload();
     } catch (e) {
       if (e instanceof ApiError && [404, 409].includes(e.status))
@@ -125,15 +153,51 @@ export default function Transactions({
           <h1>Giao dịch</h1>
           <p>Nhìn lại, chỉnh sửa và giữ cuốn sổ đúng ý bạn.</p>
         </div>
-        <a className="primary" href="#chat">
-          + Ghi khoản mới
-        </a>
+        <div className="actions">
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              setEditing({
+                id: '',
+                version: '1',
+                type: 'expense',
+                category:
+                  categories.find((c) => c.type === 'expense')?.key ??
+                  'an_uong',
+                amount_vnd: '',
+                note: '',
+                occurred_on: today(),
+              });
+              setConflict(false);
+              setError('');
+            }}
+          >
+            + Nhập tay
+          </button>
+          <a className="primary" href="#chat">
+            + Ghi khoản mới
+          </a>
+        </div>
       </header>
-      <SemanticSearch />
+      <SemanticSearch
+        onSelectNote={(note) => {
+          const p = new URLSearchParams();
+          const trimmed = note.slice(0, 100);
+          p.set('search', trimmed);
+          if (searchInput.current) searchInput.current.value = trimmed;
+          setFilter('&' + p);
+          setCursor('');
+          setHistory([]);
+        }}
+      />
       <form className="panel filters" onSubmit={apply}>
         <label>
           Tìm ghi chú
           <input
+            ref={searchInput}
             name="search"
             type="search"
             maxLength={100}
@@ -199,7 +263,9 @@ export default function Transactions({
             else setEditing(undefined);
           }}
         >
-          <h2 id="edit-transaction-title">Sửa giao dịch</h2>
+          <h2 id="edit-transaction-title">
+            {editing.id ? 'Sửa giao dịch' : 'Thêm giao dịch mới'}
+          </h2>
           {error && <Alert>{error}</Alert>}
           {conflict && (
             <button
@@ -282,7 +348,7 @@ export default function Transactions({
             </fieldset>
             <div className="actions">
               <button className="primary" disabled={busy}>
-                Lưu thay đổi
+                {editing.id ? 'Lưu thay đổi' : 'Thêm giao dịch'}
               </button>
               <button
                 type="button"
@@ -304,7 +370,10 @@ export default function Transactions({
         <section className="panel">
           <div className="section-heading">
             <h2>Trong cuốn sổ</h2>
-            <span className="muted">Trang {history.length + 1}</span>
+            <span className="muted">
+              {filter ? 'Đang lọc · ' : ''}
+              {state.data.items.length} khoản · Trang {history.length + 1}
+            </span>
           </div>
           <div className="table-scroll">
             <table>

@@ -28,22 +28,31 @@ interface Answer {
   } | null;
 }
 export function QueryPanel({ categories }: { categories: Category[] }) {
+  const [questionInput, setQuestionInput] = useState('');
+  const [askedQuestion, setAskedQuestion] = useState('');
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [answer, setAnswer] = useState<Answer>();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
-  async function ask(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const quickQuestions = [
+    'Tháng này chi tiêu bao nhiêu?',
+    '5 khoản chi lớn nhất tháng này?',
+    'Ngân sách ăn uống tháng này?',
+    'So sánh chi tiêu tháng này với tháng trước',
+  ];
+  async function runQuery(q: string) {
+    if (!q.trim() || busy) return;
     setBusy(true);
     setError('');
+    setAskedQuestion(q.trim());
     setAnswer(undefined);
     setRows([]);
     setCursor(null);
     try {
       setAnswer(
         await request<Answer>('/assistant/query', 'POST', {
-          message: new FormData(e.currentTarget).get('question'),
+          message: q.trim(),
         }),
       );
     } catch (e) {
@@ -52,6 +61,13 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
     } finally {
       setBusy(false);
     }
+  }
+  async function ask(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formQuestion = String(
+      new FormData(e.currentTarget).get('question') ?? questionInput,
+    );
+    await runQuery(formQuestion);
   }
   async function evidence(next = false) {
     if (!answer?.evidence_url?.startsWith('/api/transactions?')) return;
@@ -80,6 +96,22 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
         Gemini chỉ nhận câu hỏi và ngày hiện tại. Giao dịch được truy vấn, tính
         toán ở máy chủ; không gửi lịch sử chi tiêu lên model.
       </p>
+      <div className="quick-prompts" aria-label="Gợi ý câu hỏi nhanh">
+        {quickQuestions.map((q) => (
+          <button
+            key={q}
+            type="button"
+            className="prompt-chip"
+            disabled={busy}
+            onClick={() => {
+              setQuestionInput(q);
+              void runQuery(q);
+            }}
+          >
+            ✦ {q}
+          </button>
+        ))}
+      </div>
       <form onSubmit={ask}>
         <label>
           Câu hỏi về thu chi
@@ -87,6 +119,8 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
             name="question"
             maxLength={500}
             required
+            value={questionInput}
+            onChange={(e) => setQuestionInput(e.target.value)}
             placeholder="Ví dụ: 5 khoản chi lớn nhất tháng này?"
           />
         </label>
@@ -96,9 +130,42 @@ export function QueryPanel({ categories }: { categories: Category[] }) {
       </form>
       {error && <Alert>{error}</Alert>}
       {answer && (
-        <div className="success" role="status">
-          <div>
-            <strong>{answer.question}</strong>
+        <div className="success assistant-chat-thread" role="status">
+          <div className="assistant-chat-content">
+            {askedQuestion && (
+              <div className="user-question-bubble">
+                <span>Bạn hỏi:</span> <strong>“{askedQuestion}”</strong>
+              </div>
+            )}
+            <div className="assistant-reply-header">
+              <span className="assistant-avatar">S</span>
+              <div>
+                <strong>{answer.question}</strong>
+                {!answer.needs_clarification && (
+                  <p className="assistant-narrative">
+                    {(() => {
+                      const catName =
+                        categories.find((c) => c.key === answer.category)
+                          ?.name_vi ?? null;
+                      const net =
+                        BigInt(answer.income_vnd || '0') -
+                        BigInt(answer.expense_vnd || '0');
+                      if (
+                        answer.mode === 'largest_expenses' &&
+                        answer.largest.length > 0
+                      ) {
+                        const top = answer.largest[0]!;
+                        return `Trong tháng ${answer.month}${catName ? ` (mục ${catName})` : ''}, bạn đã chi tổng cộng ${money(answer.expense_vnd)}. Khoản chi đứng đầu trị giá ${money(top.amount_vnd)} vào ngày ${dateLabel(top.occurred_on)}.`;
+                      }
+                      if (answer.mode === 'budget_usage') {
+                        return `Trong tháng ${answer.month}, tổng chi tiêu${catName ? ` mục ${catName}` : ''} của bạn là ${money(answer.expense_vnd)}. Dưới đây là chi tiết hạn mức ngân sách đã đối chiếu từ sổ:`;
+                      }
+                      return `Trong tháng ${answer.month}${catName ? ` (mục ${catName})` : ''}, bạn ghi nhận tổng thu ${money(answer.income_vnd)} và tổng chi ${money(answer.expense_vnd)} (chênh lệch thu trừ chi: ${money(net)}).`;
+                    })()}
+                  </p>
+                )}
+              </div>
+            </div>
             {!answer.needs_clarification && (
               <>
                 <p>

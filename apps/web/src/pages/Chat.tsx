@@ -5,7 +5,7 @@ import { QueryPanel } from './QueryPanel.tsx';
 import { Mascot } from '../Mascot.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError, errorText, money, request } from '../api.ts';
+import { ApiError, errorText, money, request, today } from '../api.ts';
 import type { Category, Draft, Proposal } from '../api.ts';
 import { Alert, Icon, MoneyInput, useLoad } from '../ui.tsx';
 export function Chat({ categories }: { categories: Category[] }) {
@@ -101,6 +101,7 @@ export function Chat({ categories }: { categories: Category[] }) {
     }
   }
   function edit(index: number, key: keyof Draft, value: string) {
+    pending.current = undefined;
     setDrafts((items) =>
       items.map((item, i) => {
         if (i !== index) return item;
@@ -110,6 +111,26 @@ export function Chat({ categories }: { categories: Category[] }) {
         return next;
       }),
     );
+  }
+  function removeDraft(index: number) {
+    pending.current = undefined;
+    setDrafts((items) => items.filter((_, i) => i !== index));
+  }
+  function addDraft() {
+    if (drafts.length >= 10) return;
+    pending.current = undefined;
+    setDrafts((items) => [
+      ...items,
+      {
+        _id: crypto.randomUUID(),
+        type: 'expense',
+        category:
+          categories.find((c) => c.type === 'expense')?.key ?? 'an_uong',
+        amount_vnd: '',
+        note: '',
+        occurred_on: today(),
+      },
+    ]);
   }
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -291,7 +312,19 @@ export function Chat({ categories }: { categories: Category[] }) {
                           >
                             <div className="draft-title">
                               <strong>Khoản {index + 1}</strong>
-                              {!!uncertain && <span>Cần kiểm tra</span>}
+                              <div className="draft-title-actions">
+                                {!!uncertain && <span>Cần kiểm tra</span>}
+                                {drafts.length > 1 && !locked && (
+                                  <button
+                                    type="button"
+                                    className="text-button danger-text draft-remove"
+                                    onClick={() => removeDraft(index)}
+                                    aria-label={`Xóa khoản ${index + 1}`}
+                                  >
+                                    ✕ Xóa khoản
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <div className="form-grid">
                               <label>
@@ -357,6 +390,15 @@ export function Chat({ categories }: { categories: Category[] }) {
                           </section>
                         );
                       })}
+                      {!locked && drafts.length < 10 && (
+                        <button
+                          type="button"
+                          className="secondary full draft-add"
+                          onClick={addDraft}
+                        >
+                          + Thêm khoản vào bản nháp
+                        </button>
+                      )}
                     </fieldset>
                     <div className="confirmation-total">
                       {(['expense', 'income'] as const).map((type) => (
@@ -420,13 +462,26 @@ export function Chat({ categories }: { categories: Category[] }) {
               maxLength={500}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (
+                  e.key === 'Enter' &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing
+                ) {
+                  e.preventDefault();
+                  if (message.trim() && !busy && !saving && !locked) {
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }
+              }}
               required
               placeholder="Ví dụ: trưa nay ăn phở 50k, cà phê 25k"
               disabled={busy || saving || locked}
             />
             <div className="composer-bottom">
               <span>
-                {Array.from(message).length}/500 · Không lưu khi chưa xác nhận
+                {Array.from(message).length}/500 · Enter để phân tích · Không
+                lưu khi chưa xác nhận
               </span>
               <button
                 className="primary"
@@ -491,6 +546,22 @@ export function Chat({ categories }: { categories: Category[] }) {
               <br />
               cà phê 25k” <span>↗</span>
             </button>
+            <div className="example-chips">
+              <button
+                type="button"
+                disabled={locked || busy}
+                onClick={() => setMessage('Đổ xăng 70k, gửi xe 5k')}
+              >
+                + Đổ xăng 70k, gửi xe 5k
+              </button>
+              <button
+                type="button"
+                disabled={locked || busy}
+                onClick={() => setMessage('Nhận lương 8tr, thưởng 500k')}
+              >
+                + Nhận lương 8tr, thưởng 500k
+              </button>
+            </div>
             <p>Chạm để điền thử. Bạn vẫn tự xác nhận.</p>
           </section>
           <p className="aside-foot">

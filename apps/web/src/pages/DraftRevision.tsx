@@ -28,6 +28,23 @@ export default function DraftRevision({
   return (
     <details className="draft-revision">
       <summary>Sửa bản nháp bằng câu nói</summary>
+      <div className="quick-prompts">
+        {[
+          'tăng khoản 1 thêm 20k',
+          'đổi sang ngày hôm qua',
+          'đổi danh mục sang mua sắm',
+        ].map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            className="prompt-chip"
+            disabled={disabled || busy}
+            onClick={() => setText(chip)}
+          >
+            ✦ {chip}
+          </button>
+        ))}
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault();

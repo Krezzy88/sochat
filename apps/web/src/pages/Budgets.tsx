@@ -192,87 +192,115 @@ export default function Budgets({ categories }: { categories: Category[] }) {
           ) : state.error ? (
             <LoadError error={state.error} retry={state.reload} />
           ) : state.data?.items.length ? (
-            <div className="budget-list">
-              {state.data.items.map((item) => {
-                const limit = BigInt(item.limit_vnd || '0');
-                const percent =
-                  limit > 0n ? (BigInt(item.spent_vnd) * 100n) / limit : 0n;
-                return (
-                  <article
-                    className={'panel budget-card ' + item.status}
-                    key={item.category}
-                  >
-                    <div className="section-heading">
-                      <h2>
-                        {categories.find((c) => c.key === item.category)
-                          ?.name_vi ?? item.category}
-                      </h2>
-                      <span className="status-chip">
-                        {item.status === 'exceeded'
-                          ? 'Đã chạm / vượt giới hạn'
-                          : item.status === 'warning'
-                            ? 'Đã dùng từ 80%'
-                            : 'Trong ngân sách'}
-                      </span>
-                    </div>
-                    <p className="budget-amount">
-                      <strong>{money(item.spent_vnd)}</strong>
-                      <span> / {money(item.limit_vnd)}</span>
-                    </p>
-                    <progress
-                      value={Number(percent > 100n ? 100n : percent)}
-                      max="100"
-                      aria-label={
-                        'Ngân sách ' +
-                        (categories.find((c) => c.key === item.category)
-                          ?.name_vi ?? item.category)
-                      }
-                    />
-                    <div className="budget-meta">
-                      <span>Đã dùng {percent.toString()}%</span>
-                      <span>Còn {money(item.remaining_vnd)}</span>
-                    </div>
-                    <div className="actions budget-actions">
-                      <button
-                        className="secondary"
-                        disabled={busy}
-                        onClick={() => {
-                          setEditing(item);
-                          setError('');
-                          requestAnimationFrame(() => {
-                            editor.current?.scrollIntoView({ block: 'center' });
-                            editor.current
-                              ?.querySelector<HTMLInputElement>(
-                                'input[inputmode="numeric"]',
-                              )
-                              ?.focus();
-                          });
-                        }}
+            <>
+              {state.data.items.length > 1 && (
+                <div className="overview-strip">
+                  <span>
+                    Tổng {state.data.items.length} danh mục:{' '}
+                    <strong>
+                      {money(
+                        state.data.items.reduce(
+                          (s, i) => s + BigInt(i.spent_vnd || '0'),
+                          0n,
+                        ),
+                      )}
+                    </strong>{' '}
+                    đã chi trên hạn mức{' '}
+                    <strong>
+                      {money(
+                        state.data.items.reduce(
+                          (s, i) => s + BigInt(i.limit_vnd || '0'),
+                          0n,
+                        ),
+                      )}
+                    </strong>
+                  </span>
+                </div>
+              )}
+              <div className="budget-list">
+                {state.data.items.map((item) => {
+                  const limit = BigInt(item.limit_vnd || '0');
+                  const percent =
+                    limit > 0n ? (BigInt(item.spent_vnd) * 100n) / limit : 0n;
+                  return (
+                    <article
+                      className={'panel budget-card ' + item.status}
+                      key={item.category}
+                    >
+                      <div className="section-heading">
+                        <h2>
+                          {categories.find((c) => c.key === item.category)
+                            ?.name_vi ?? item.category}
+                        </h2>
+                        <span className="status-chip">
+                          {item.status === 'exceeded'
+                            ? 'Đã chạm / vượt giới hạn'
+                            : item.status === 'warning'
+                              ? 'Đã dùng từ 80%'
+                              : 'Trong ngân sách'}
+                        </span>
+                      </div>
+                      <p className="budget-amount">
+                        <strong>{money(item.spent_vnd)}</strong>
+                        <span> / {money(item.limit_vnd)}</span>
+                      </p>
+                      <progress
+                        value={Number(percent > 100n ? 100n : percent)}
+                        max="100"
                         aria-label={
-                          'Sửa ngân sách ' +
+                          'Ngân sách ' +
                           (categories.find((c) => c.key === item.category)
                             ?.name_vi ?? item.category)
                         }
-                      >
-                        Sửa hạn mức
-                      </button>
-                      <button
-                        className="text-button danger-text"
-                        disabled={busy}
-                        onClick={() => void remove(item)}
-                        aria-label={
-                          'Xóa ngân sách ' +
-                          (categories.find((c) => c.key === item.category)
-                            ?.name_vi ?? item.category)
-                        }
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                      />
+                      <div className="budget-meta">
+                        <span>Đã dùng {percent.toString()}%</span>
+                        <span>Còn {money(item.remaining_vnd)}</span>
+                      </div>
+                      <div className="actions budget-actions">
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => {
+                            setEditing(item);
+                            setError('');
+                            requestAnimationFrame(() => {
+                              editor.current?.scrollIntoView({
+                                block: 'center',
+                              });
+                              editor.current
+                                ?.querySelector<HTMLInputElement>(
+                                  'input[inputmode="numeric"]',
+                                )
+                                ?.focus();
+                            });
+                          }}
+                          aria-label={
+                            'Sửa ngân sách ' +
+                            (categories.find((c) => c.key === item.category)
+                              ?.name_vi ?? item.category)
+                          }
+                        >
+                          Sửa hạn mức
+                        </button>
+                        <button
+                          className="text-button danger-text"
+                          disabled={busy}
+                          onClick={() => void remove(item)}
+                          aria-label={
+                            'Xóa ngân sách ' +
+                            (categories.find((c) => c.key === item.category)
+                              ?.name_vi ?? item.category)
+                          }
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <Empty title="Chưa đặt ngân sách tháng này">
               Chọn danh mục và giới hạn đầu tiên của bạn.

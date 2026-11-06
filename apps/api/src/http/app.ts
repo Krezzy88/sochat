@@ -476,6 +476,30 @@ export async function createApp(options: ApiOptions) {
       csrf_token: req.session.csrf,
     }),
   );
+  route(
+    'patch',
+    '/api/me',
+    { body: c.profileUpdate, response: authResponse },
+    async ({ req, user, body }) => {
+      let newHash: string | undefined;
+      if (body.current_password && body.new_password) {
+        const account = await repo.userWithHash(user);
+        if (!account) fail(404, 'Không tìm thấy tài khoản.');
+        const valid = await argon2.verify(
+          account.password_hash,
+          body.current_password,
+        );
+        if (!valid) fail(400, 'Mật khẩu hiện tại không đúng.');
+        newHash = await argon2.hash(body.new_password, {
+          type: argon2.argon2id,
+        });
+      }
+      return {
+        user: await repo.updateUser(user, body.display_name, newHash),
+        csrf_token: req.session.csrf,
+      };
+    },
+  );
   route('delete', '/api/me', { status: 204 }, async ({ req, res, user }) => {
     await repo.deleteUser(user);
     await new Promise<void>((resolve, reject) =>

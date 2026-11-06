@@ -267,135 +267,161 @@ export default function Goals({ userId }: { userId: string }) {
           ) : state.error ? (
             <LoadError error={state.error} retry={state.reload} />
           ) : state.data?.items.length ? (
-            <div className="goal-list">
-              {state.data.items.map((g) => (
-                <article className="panel goal-card" key={g.id}>
-                  <div className="section-heading">
-                    <span className="round-icon">
-                      <Icon name="goal" />
-                    </span>
-                    <h2>{g.name}</h2>
-                    <span className="goal-percent">
-                      {g.progress_basis_points / 100}%
-                    </span>
-                  </div>
-                  <p className="goal-amount">
-                    <strong>{money(g.contributed_vnd)}</strong>
-                    <span> / {money(g.target_vnd)}</span>
-                  </p>
-                  <progress
-                    value={g.progress_basis_points}
-                    max="10000"
-                    aria-label={'Tiến độ ' + g.name}
-                  />
-                  <div className="budget-meta">
-                    <span>Hạn {dateLabel(g.deadline)}</span>
-                    <span>Còn {money(g.remaining_vnd)}</span>
-                  </div>
-                  <p className="goal-suggestion">
-                    {g.remaining_vnd === '0' ? (
-                      'Đã đạt mục tiêu. Chúc mừng bạn!'
-                    ) : g.suggested_daily_saving_vnd === null ? (
-                      'Đã đến hạn. Bạn có thể cập nhật ngày mục tiêu.'
-                    ) : (
-                      <>
-                        Chia đều {g.days_left} ngày còn lại:{' '}
-                        <strong>
-                          {money(g.suggested_daily_saving_vnd)}/ngày
-                        </strong>
-                      </>
-                    )}
-                  </p>
-                  <div className="actions">
-                    <button
-                      className="secondary"
-                      disabled={
-                        busy ||
-                        contributionLocked ||
-                        goalLocked ||
-                        checkingCreation
-                      }
-                      onClick={() =>
-                        setContributing(
-                          contributing === g.id ? undefined : g.id,
-                        )
-                      }
-                    >
-                      + Đóng góp
-                    </button>
-                    <button
-                      className="text-button"
-                      disabled={
-                        busy ||
-                        contributionLocked ||
-                        goalLocked ||
-                        checkingCreation
-                      }
-                      onClick={() => setEditing(g)}
-                      aria-label={'Sửa quỹ ' + g.name}
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      className="text-button danger-text"
-                      disabled={
-                        busy ||
-                        contributionLocked ||
-                        goalLocked ||
-                        checkingCreation
-                      }
-                      onClick={() => void remove(g)}
-                      aria-label={'Xóa quỹ ' + g.name}
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                  {contributing === g.id && (
-                    <form
-                      className="contribution-form"
-                      onSubmit={(e) => void contribute(e, g.id)}
-                    >
-                      <fieldset
+            <>
+              {state.data.items.length > 1 && (
+                <div className="overview-strip">
+                  <span>
+                    Tổng {state.data.items.length} quỹ:{' '}
+                    <strong>
+                      {money(
+                        state.data.items.reduce(
+                          (s, g) => s + BigInt(g.contributed_vnd || '0'),
+                          0n,
+                        ),
+                      )}
+                    </strong>{' '}
+                    đã tích lũy trên mục tiêu{' '}
+                    <strong>
+                      {money(
+                        state.data.items.reduce(
+                          (s, g) => s + BigInt(g.target_vnd || '0'),
+                          0n,
+                        ),
+                      )}
+                    </strong>
+                  </span>
+                </div>
+              )}
+              <div className="goal-list">
+                {state.data.items.map((g) => (
+                  <article className="panel goal-card" key={g.id}>
+                    <div className="section-heading">
+                      <span className="round-icon">
+                        <Icon name="goal" />
+                      </span>
+                      <h2>{g.name}</h2>
+                      <span className="goal-percent">
+                        {g.progress_basis_points / 100}%
+                      </span>
+                    </div>
+                    <p className="goal-amount">
+                      <strong>{money(g.contributed_vnd)}</strong>
+                      <span> / {money(g.target_vnd)}</span>
+                    </p>
+                    <progress
+                      value={g.progress_basis_points}
+                      max="10000"
+                      aria-label={'Tiến độ ' + g.name}
+                    />
+                    <div className="budget-meta">
+                      <span>Hạn {dateLabel(g.deadline)}</span>
+                      <span>Còn {money(g.remaining_vnd)}</span>
+                    </div>
+                    <p className="goal-suggestion">
+                      {g.remaining_vnd === '0' ? (
+                        'Đã đạt mục tiêu. Chúc mừng bạn!'
+                      ) : g.suggested_daily_saving_vnd === null ? (
+                        'Đã đến hạn. Bạn có thể cập nhật ngày mục tiêu.'
+                      ) : (
+                        <>
+                          Chia đều {g.days_left} ngày còn lại:{' '}
+                          <strong>
+                            {money(g.suggested_daily_saving_vnd)}/ngày
+                          </strong>
+                        </>
+                      )}
+                    </p>
+                    <div className="actions">
+                      <button
+                        className="secondary"
                         disabled={
                           busy ||
                           contributionLocked ||
                           goalLocked ||
                           checkingCreation
                         }
-                        className="editor-fields"
+                        onClick={() =>
+                          setContributing(
+                            contributing === g.id ? undefined : g.id,
+                          )
+                        }
                       >
-                        <MoneyInput label="Số tiền đóng góp (đ)" />
-                        <label>
-                          Ngày đóng góp
-                          <CalendarInput
-                            name="contributed_on"
-                            type="date"
-                            defaultValue={today()}
-                            required
-                          />
-                        </label>
-                        <label>
-                          Ghi chú đóng góp
-                          <input name="note" maxLength={300} />
-                        </label>
-                      </fieldset>
-                      {error && <Alert>{error}</Alert>}
-                      <button className="primary" disabled={busy}>
-                        {busy
-                          ? 'Đang lưu…'
-                          : contributionLocked
-                            ? 'Thử ghi lại'
-                            : 'Ghi nhận đóng góp'}
+                        + Đóng góp
                       </button>
-                      <p className="muted">
-                        Chỉ cập nhật tiến độ quỹ, không tạo giao dịch thu chi.
-                        Ngày tương lai vẫn được cộng ngay vào tiến độ.
-                      </p>
-                    </form>
-                  )}
-                </article>
-              ))}
-            </div>
+                      <button
+                        className="text-button"
+                        disabled={
+                          busy ||
+                          contributionLocked ||
+                          goalLocked ||
+                          checkingCreation
+                        }
+                        onClick={() => setEditing(g)}
+                        aria-label={'Sửa quỹ ' + g.name}
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        className="text-button danger-text"
+                        disabled={
+                          busy ||
+                          contributionLocked ||
+                          goalLocked ||
+                          checkingCreation
+                        }
+                        onClick={() => void remove(g)}
+                        aria-label={'Xóa quỹ ' + g.name}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                    {contributing === g.id && (
+                      <form
+                        className="contribution-form"
+                        onSubmit={(e) => void contribute(e, g.id)}
+                      >
+                        <fieldset
+                          disabled={
+                            busy ||
+                            contributionLocked ||
+                            goalLocked ||
+                            checkingCreation
+                          }
+                          className="editor-fields"
+                        >
+                          <MoneyInput label="Số tiền đóng góp (đ)" />
+                          <label>
+                            Ngày đóng góp
+                            <CalendarInput
+                              name="contributed_on"
+                              type="date"
+                              defaultValue={today()}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Ghi chú đóng góp
+                            <input name="note" maxLength={300} />
+                          </label>
+                        </fieldset>
+                        {error && <Alert>{error}</Alert>}
+                        <button className="primary" disabled={busy}>
+                          {busy
+                            ? 'Đang lưu…'
+                            : contributionLocked
+                              ? 'Thử ghi lại'
+                              : 'Ghi nhận đóng góp'}
+                        </button>
+                        <p className="muted">
+                          Chỉ cập nhật tiến độ quỹ, không tạo giao dịch thu chi.
+                          Ngày tương lai vẫn được cộng ngay vào tiến độ.
+                        </p>
+                      </form>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </>
           ) : (
             <Empty title="Bạn đang ấp ủ điều gì?">
               Tạo một quỹ để ghi nhận từng bước dành dụm.
