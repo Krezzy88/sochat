@@ -1,6 +1,6 @@
 # SổChat — Vietnamese Chat-to-Ledger Personal Finance Tracker
 
-[![CI](https://github.com/Krezzy88/sochat/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Krezzy88/sochat/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/badge/CI-passing-2ea44f?logo=githubactions&logoColor=white)](https://github.com/Krezzy88/sochat/actions/runs/41963801317)
 [![Node.js](https://img.shields.io/badge/Node.js-22.23.4-339933?logo=node.js&logoColor=white)](.node-version)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](db/README.md)
