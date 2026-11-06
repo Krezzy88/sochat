@@ -1335,3 +1335,22 @@ it('serves the production dashboard and assets through the same HTTPS origin wit
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+it('updates owned display name and password with current password verification', async () => {
+  const renamed = await call(a, 'patch', '/api/me', {
+    display_name: 'Tên mới của A',
+  }).expect(200);
+  expect(renamed.body.user.display_name).toBe('Tên mới của A');
+  await call(a, 'patch', '/api/me', {
+    current_password: 'wrong-password-123',
+    new_password: 'new-valid-password-123',
+  }).expect(400);
+  await call(a, 'patch', '/api/me', {
+    current_password: password,
+    new_password: 'new-valid-password-123',
+  }).expect(200);
+  await call(a, 'patch', '/api/me', {
+    current_password: 'new-valid-password-123',
+    new_password: password,
+  }).expect(200);
+});

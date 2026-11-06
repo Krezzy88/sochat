@@ -74,5 +74,8 @@ export const errorHandler: ErrorRequestHandler = (
     sendProblem(res, status, 'Nội dung yêu cầu không hợp lệ hoặc quá lớn.');
     return;
   }
+  if (process.env.NODE_ENV !== 'test') {
+    console.error('Unhandled server error:', error);
+  }
   sendProblem(res, 500, 'Không thể xử lý yêu cầu lúc này.');
 };

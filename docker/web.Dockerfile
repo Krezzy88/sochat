@@ -28,5 +28,5 @@ COPY --chown=node:node package.json ./
 COPY --chown=node:node docker/web-server.ts docker/web-server.ts
 USER node
 EXPOSE 8080
-HEALTHCHECK --interval=10s --timeout=3s CMD node -e "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "--experimental-strip-types", "docker/web-server.ts"]

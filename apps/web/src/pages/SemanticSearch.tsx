@@ -1,17 +1,22 @@
 import { useFeedback } from '../Feedback.tsx';
 import { useRef, useState, useEffect } from 'react';
-import { request, errorText, money, dateLabel } from '../api.ts';
+import { ApiError, request, errorText, money, dateLabel } from '../api.ts';
 import { Alert } from '../ui.tsx';
 interface SearchStatus {
   indexed: number;
   pending: number;
   total: number;
 }
-export default function SemanticSearch() {
+export default function SemanticSearch({
+  onSelectNote,
+}: {
+  onSelectNote?: (note: string) => void;
+}) {
   const [query, setQuery] = useState(''),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [needsConsent, setNeedsConsent] = useState(false);
   const [status, setStatus] = useState<SearchStatus>();
   const [items, setItems] = useState<
     {
@@ -29,11 +34,40 @@ export default function SemanticSearch() {
     },
     [],
   );
-  const confirm = useFeedback().confirm;
+  const feedback = useFeedback();
+  const confirm = feedback.confirm;
+  const sampleQueries = [
+    'bữa ăn sáng trưa',
+    'đồ uống giải khát',
+    'chi phí đi lại',
+  ];
+  async function enableConsentInline() {
+    if (
+      !(await confirm({
+        title: 'Cho phép tìm kiếm bằng AI?',
+        message:
+          'Ghi chú bạn chủ động lập chỉ mục và nội dung tìm kiếm sẽ được gửi đến Gemini. Ghi chú vẫn có thể chứa thông tin cá nhân. Bạn có thể tắt và xóa embedding bất cứ lúc nào trong Cài đặt.',
+        accept: 'Bật tính năng',
+      }))
+    )
+      return;
+    setBusy(true);
+    setError('');
+    try {
+      await request('/me/ai-preferences', 'PUT', { semantic_enabled: true });
+      setNeedsConsent(false);
+      feedback.success('Đã bật quyền tìm kiếm AI. Bạn có thể tìm ngay!');
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function search() {
     if (busy) return;
     setBusy(true);
     setError('');
+    setNeedsConsent(false);
     setMessage('');
     setItems([]);
     stopped.current = false;
@@ -80,7 +114,10 @@ export default function SemanticSearch() {
           : 'Chưa có ghi chú sẵn sàng. Cho phép chuẩn bị dữ liệu khi tìm để bắt đầu.',
       );
     } catch (e) {
-      if (!stopped.current) setError(errorText(e));
+      if (!stopped.current) {
+        if (e instanceof ApiError && e.status === 403) setNeedsConsent(true);
+        setError(errorText(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -89,11 +126,24 @@ export default function SemanticSearch() {
     <details className="panel semantic-options">
       <summary>Tìm theo ý nghĩa (tùy chọn)</summary>
       <p>
-        Dùng khi bạn không nhớ đúng từ đã ghi, ví dụ “đi chơi với người yêu”.
-        Cần bật quyền trong <a href="#settings">Cài đặt</a>. Tìm tối đa 1.000
-        giao dịch có ghi chú gần nhất. Tìm từ khóa ở bộ lọc bên dưới luôn dùng
-        được mà không cần AI.
+        Dùng Vector Embedding (<code>gemini-embedding-2</code>) để tìm giao dịch
+        tương đồng về ngữ cảnh ngay cả khi khác từ khóa (ví dụ tìm “đồ uống giải
+        khát” sẽ khớp với “cà phê, trà sữa”). Cần bật quyền trong{' '}
+        <a href="#settings">Cài đặt</a> hoặc bật nhanh khi được hỏi.
       </p>
+      <div className="quick-prompts">
+        {sampleQueries.map((s) => (
+          <button
+            key={s}
+            type="button"
+            className="prompt-chip"
+            disabled={busy}
+            onClick={() => setQuery(s)}
+          >
+            ✦ Thử: “{s}”
+          </button>
+        ))}
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -137,11 +187,35 @@ export default function SemanticSearch() {
       )}
       {message && <p role="status">{message}</p>}
       {error && <Alert>{error}</Alert>}
+      {needsConsent && (
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy}
+          onClick={() => void enableConsentInline()}
+        >
+          Bật quyền tìm kiếm AI ngay
+        </button>
+      )}
       <ul>
         {items.map((i) => (
           <li key={i.id}>
-            {dateLabel(i.occurred_on)} · {i.note} ·{' '}
-            <strong>{money(i.amount_vnd)}</strong>
+            <span>
+              {dateLabel(i.occurred_on)} · {i.note} ·{' '}
+              <strong>{money(i.amount_vnd)}</strong>{' '}
+              <span className="status-chip">
+                Độ khớp {Math.max(1, Math.min(100, Math.round(i.score * 100)))}%
+              </span>
+            </span>
+            {onSelectNote && i.note && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => onSelectNote(i.note)}
+              >
+                Lọc xem →
+              </button>
+            )}
           </li>
         ))}
       </ul>

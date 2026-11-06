@@ -38,10 +38,12 @@ export async function generateStructured<S extends z.ZodType>(
   schema: S,
   system: string,
 ): Promise<z.output<S>> {
+  const model = process.env.GEMINI_MODEL?.trim();
   if (
     process.env.LLM_PROVIDER !== 'gemini' ||
     !process.env.GEMINI_API_KEY ||
-    !process.env.GEMINI_MODEL
+    !model ||
+    !/^[a-zA-Z0-9_.-]+$/.test(model)
   )
     fail(503, 'Hỏi cuốn sổ cần cấu hình Gemini thật.');
   if (process.env.CI) fail(503, 'Không gọi Gemini thật trong CI.');
@@ -58,7 +60,7 @@ export async function generateStructured<S extends z.ZodType>(
   let response: Response;
   try {
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
         method: 'POST',
         headers: {

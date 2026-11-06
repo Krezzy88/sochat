@@ -52,6 +52,17 @@ export const login = z.strictObject({
     .transform((v) => v.toLowerCase()),
   password: z.string().min(1).max(128),
 });
+export const profileUpdate = z
+  .strictObject({
+    display_name: z.string().trim().min(1).max(80).optional(),
+    current_password: z.string().min(1).max(128).optional(),
+    new_password: z.string().min(12).max(128).optional(),
+  })
+  .refine(
+    (v) =>
+      (v.current_password === undefined) === (v.new_password === undefined) &&
+      (v.display_name !== undefined || v.new_password !== undefined),
+  );
 export const batch = z.strictObject({
   items: z.array(transaction).min(1).max(10),
   idempotency_key: z.uuid(),

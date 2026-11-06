@@ -198,7 +198,7 @@ export class HybridExtractor {
         mode === 'hybrid' &&
         rules.reasons.length === 1 &&
         rules.reasons[0] === 'multiple_amounts' &&
-        !/\b(giam|con|gia|cu|moi|thay|hoac|hay|tong|chia|moi|share)\b/.test(
+        !/\b(giam|con|gia|cu|moi|thay|hoac|hay|tong|chia|share)\b/.test(
           fold(message),
         ) &&
         modelItems.length > base.items.length &&

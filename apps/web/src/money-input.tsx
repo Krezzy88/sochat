@@ -52,6 +52,20 @@ export function MoneyInput({
         value={grouped(raw)}
         placeholder="Ví dụ: 50.000"
         aria-describedby={id + '-hint'}
+        onKeyDown={(e) => {
+          const key = e.key.toLowerCase();
+          if ((key === 'k' || key === 'm') && /^[1-9]\d*$/.test(raw)) {
+            const zeros = key === 'k' ? '000' : '000000';
+            const next = raw + zeros;
+            if (next.length <= 12 && BigInt(next) <= 100000000000n) {
+              e.preventDefault();
+              caret.current = next.length;
+              setLocal(next);
+              onChange?.(next);
+              e.currentTarget.setCustomValidity('');
+            }
+          }
+        }}
         onChange={(e) => {
           const next = digitsOnly(e.target.value);
           if (!/^\d{0,12}$/.test(next)) return;
@@ -72,7 +86,7 @@ export function MoneyInput({
       />
       <input type="hidden" name={name} value={raw} />
       <small id={id + '-hint'} className="money-hint">
-        Đơn vị đồng · Ví dụ 50.000 = năm mươi nghìn
+        Đơn vị đồng · Gõ phím k (+000) hoặc m (+000.000) để nhập nhanh
       </small>
     </div>
   );

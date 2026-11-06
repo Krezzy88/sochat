@@ -60,7 +60,9 @@ try {
         if (!res.headersSent) res.writeHead(502);
         res.end();
       });
-      req.on('aborted', () => upstream.destroy());
+      req.on('close', () => {
+        if (req.destroyed) upstream.destroy();
+      });
       res.on('close', () => upstream.destroy());
       req.pipe(upstream);
     },

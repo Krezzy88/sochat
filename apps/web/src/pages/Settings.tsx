@@ -7,16 +7,55 @@ import type { User } from '../api.ts';
 import { Alert, Icon } from '../ui.tsx';
 export default function Settings({
   user,
+  onUpdated,
   onDeleted,
 }: {
   user: User;
+  onUpdated: (user: User) => void;
   onDeleted: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const setNotice = useFeedback().success;
   const [confirm, setConfirm] = useState(false);
+  const [displayName, setDisplayName] = useState(user.display_name);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const deleteDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    setDisplayName(user.display_name);
+  }, [user.display_name]);
+  async function updateProfile(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const payload: {
+        display_name?: string;
+        current_password?: string;
+        new_password?: string;
+      } = {};
+      if (displayName.trim() && displayName.trim() !== user.display_name)
+        payload.display_name = displayName.trim();
+      if (currentPassword || newPassword) {
+        payload.current_password = currentPassword;
+        payload.new_password = newPassword;
+      }
+      if (!Object.keys(payload).length) {
+        setNotice('Không có thay đổi nào cần lưu.');
+        return;
+      }
+      const res = await request<{ user: User }>('/me', 'PATCH', payload);
+      onUpdated(res.user);
+      setCurrentPassword('');
+      setNewPassword('');
+      setNotice('Đã cập nhật thông tin tài khoản.');
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   useEffect(() => {
     if (!confirm) return;
     const origin = document.activeElement as HTMLElement | null;
@@ -86,6 +125,47 @@ export default function Settings({
               <dd>{user.email}</dd>
             </div>
           </dl>
+          <details className="account-edit">
+            <summary>Cập nhật tên hiển thị hoặc mật khẩu</summary>
+            <form className="editor-fields" onSubmit={updateProfile}>
+              <label>
+                Tên hiển thị mới
+                <input
+                  value={displayName}
+                  maxLength={80}
+                  required
+                  disabled={busy}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+              </label>
+              <label>
+                Mật khẩu hiện tại (nếu đổi mật khẩu)
+                <input
+                  type="password"
+                  value={currentPassword}
+                  maxLength={128}
+                  disabled={busy}
+                  autoComplete="current-password"
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </label>
+              <label>
+                Mật khẩu mới (tối thiểu 12 ký tự)
+                <input
+                  type="password"
+                  value={newPassword}
+                  minLength={12}
+                  maxLength={128}
+                  disabled={busy}
+                  autoComplete="new-password"
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </label>
+              <button className="primary" disabled={busy}>
+                Lưu thông tin tài khoản
+              </button>
+            </form>
+          </details>
           <button
             className="secondary"
             disabled={busy}

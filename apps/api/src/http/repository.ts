@@ -59,12 +59,11 @@ export function apiRepository(pool: pg.Pool, secret: string) {
     id: string,
     version: string,
   ) {
-    const row = (
-      await client.query(
-        `SELECT version::text FROM ${table} WHERE user_id=$1 AND id=$2 FOR UPDATE`,
-        [user, id],
-      )
-    ).rows[0];
+    const query =
+      table === 'transactions'
+        ? 'SELECT version::text FROM transactions WHERE user_id=$1 AND id=$2 FOR UPDATE'
+        : 'SELECT version::text FROM goals WHERE user_id=$1 AND id=$2 FOR UPDATE';
+    const row = (await client.query(query, [user, id])).rows[0];
     if (!row) fail(404, 'Không tìm thấy dữ liệu.');
     if (row.version !== version)
       fail(
@@ -116,6 +115,31 @@ export function apiRepository(pool: pg.Pool, secret: string) {
             [user],
           )
         ).rows[0] ?? null
+      );
+    },
+    async userWithHash(user: string) {
+      return (
+        (
+          await pool.query<{
+            id: string;
+            email: string;
+            display_name: string;
+            password_hash: string;
+          }>(
+            'SELECT id,email,display_name,password_hash FROM users WHERE id=$1',
+            [user],
+          )
+        ).rows[0] ?? null
+      );
+    },
+    async updateUser(user: string, name?: string, hash?: string) {
+      return (
+        (
+          await pool.query<{ id: string; email: string; display_name: string }>(
+            'UPDATE users SET display_name=COALESCE($2,display_name),password_hash=COALESCE($3,password_hash) WHERE id=$1 RETURNING id,email,display_name',
+            [user, name ?? null, hash ?? null],
+          )
+        ).rows[0] ?? fail(404, 'Không tìm thấy tài khoản.')
       );
     },
     async register(email: string, hash: string, name: string) {

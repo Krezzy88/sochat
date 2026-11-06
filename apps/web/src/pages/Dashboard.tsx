@@ -123,7 +123,14 @@ export default function Dashboard() {
               <section className="stat-card stat-accent">
                 <span>Thu trừ chi</span>
                 <strong>{money(d.totals.net_vnd)}</strong>
-                <small>Chênh lệch trong kỳ đã chọn</small>
+                <small>
+                  {BigInt(d.totals.income_vnd || '0') > 0n &&
+                  BigInt(d.totals.net_vnd || '0') >= 0n
+                    ? `Tiết kiệm được ${((BigInt(d.totals.net_vnd || '0') * 100n) / BigInt(d.totals.income_vnd || '0')).toString()}% thu nhập`
+                    : BigInt(d.totals.net_vnd || '0') < 0n
+                      ? 'Chi vượt thu · Cần cân đối lại'
+                      : 'Chênh lệch trong kỳ đã chọn'}
+                </small>
               </section>
             </div>
             {d.totals.income_vnd === '0' && d.totals.expense_vnd === '0' ? (
@@ -252,13 +259,47 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {d.by_category.map((c, i) => (
-                          <tr key={i}>
-                            <td>{c.name_vi}</td>
-                            <td>{c.type === 'income' ? 'Thu' : 'Chi'}</td>
-                            <td className="numeric">{money(c.total_vnd)}</td>
-                          </tr>
-                        ))}
+                        {d.by_category.map((c, i) => {
+                          const typeTotal = BigInt(
+                            (c.type === 'income'
+                              ? d.totals.income_vnd
+                              : d.totals.expense_vnd) || '0',
+                          );
+                          const share =
+                            typeTotal > 0n
+                              ? Number(
+                                  (BigInt(c.total_vnd || '0') * 100n) /
+                                    typeTotal,
+                                )
+                              : 0;
+                          return (
+                            <tr key={i}>
+                              <td>
+                                <strong>{c.name_vi}</strong>
+                                <div
+                                  className="category-share"
+                                  aria-hidden="true"
+                                >
+                                  <span
+                                    className={
+                                      'category-share-fill ' +
+                                      (c.type === 'income'
+                                        ? 'income'
+                                        : 'expense')
+                                    }
+                                    style={{
+                                      width: `${Math.min(100, share)}%`,
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                              <td>
+                                {c.type === 'income' ? 'Thu' : 'Chi'} · {share}%
+                              </td>
+                              <td className="numeric">{money(c.total_vnd)}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
