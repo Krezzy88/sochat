@@ -54,7 +54,12 @@ if (
   pathToFileURL(process.argv[1]).href === import.meta.url
 ) {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: 25000,
+    statement_timeout: 30000,
+    query_timeout: 30000,
+  });
   try {
     await migrate(pool);
     process.stdout.write(

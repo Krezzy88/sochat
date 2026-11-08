@@ -1,4 +1,5 @@
 import { startTelemetry, stopTelemetry } from './telemetry.ts';
+import { migrate } from './db/migrate.ts';
 import { tenantPool } from './db/tenant.ts';
 import process from 'node:process';
 import path from 'node:path';
@@ -14,9 +15,9 @@ if (!secret || !process.env.DATABASE_URL)
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   max: 10,
-  connectionTimeoutMillis: 5000,
-  statement_timeout: 5000,
-  query_timeout: 6000,
+  connectionTimeoutMillis: 25000,
+  statement_timeout: 15000,
+  query_timeout: 25000,
 });
 pool.on('error', () =>
   process.stderr.write('Database connection unavailable.\n'),
@@ -28,7 +29,7 @@ try {
       : undefined;
   if (webRoot) await access(path.join(webRoot, 'index.html'));
   startTelemetry();
-  await pool.query('SELECT 1');
+  await migrate(pool);
   const extractor = await createExtractor(tenantPool(pool));
   const runtime = await createApp({
     pool,

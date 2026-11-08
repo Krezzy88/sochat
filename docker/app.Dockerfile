@@ -30,5 +30,5 @@ COPY --chown=node:node packages/parser packages/parser
 COPY --chown=node:node db/migrations db/migrations
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["sh", "-c", "node --experimental-strip-types apps/api/src/db/migrate.ts && exec node --experimental-strip-types apps/api/src/server.ts"]
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "--experimental-strip-types", "apps/api/src/server.ts"]
