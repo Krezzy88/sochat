@@ -7,7 +7,7 @@ services:
     plan: free
     dockerfilePath: ./docker/app.Dockerfile
     dockerContext: .
-    autoDeployTrigger: off
+    autoDeployTrigger: on
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
